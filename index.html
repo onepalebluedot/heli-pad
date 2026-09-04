@@ -1,0 +1,2794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1326" />
+  <title>Orbit — Family Logistics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f6fc;
+      --surface: #ffffff;
+      --surface-subtle: #f8fafc;
+      --ink: #0f172a;
+      --ink-secondary: #475569;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --line-subtle: #edf2f7;
+      
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --primary-light: #eef2ff;
+      --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      
+      --cyan: #0284c7;
+      --cyan-light: #e0f2fe;
+      --green: #16a34a;
+      --green-light: #f0fdf4;
+      --amber: #d97706;
+      --amber-light: #fffbeb;
+      --red: #dc2626;
+      --red-light: #fef2f2;
+      
+      --shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.04);
+      --shadow-md: 0 8px 20px -4px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.04);
+      --shadow-lg: 0 20px 32px -8px rgba(15, 23, 42, 0.12), 0 8px 16px -4px rgba(15, 23, 42, 0.06);
+      --shadow-nav: 0 -4px 20px rgba(15, 23, 42, 0.07);
+      
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #e8ecf4;
+      color: var(--ink);
+      font-family: 'Plus Jakarta Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+    button {
+      cursor: pointer;
+    }
+
+    /* Spacious responsive page layout */
+    .page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      background: 
+        radial-gradient(1000px circle at 15% 10%, rgba(79, 70, 229, 0.09), transparent 45%),
+        radial-gradient(1000px circle at 85% 85%, rgba(2, 132, 199, 0.08), transparent 45%),
+        #e2e8f0;
+    }
+
+    /* Main App Shell - clean, modern, spacious (no fake claustrophobic bezels/notch) */
+    .phone {
+      width: 100%;
+      max-width: 480px;
+      min-height: 780px;
+      height: min(940px, calc(100vh - 36px));
+      background: var(--bg);
+      border-radius: 36px;
+      overflow: hidden;
+      box-shadow: 
+        0 24px 64px -12px rgba(15, 23, 42, 0.22),
+        0 0 0 1px rgba(255, 255, 255, 0.7);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Top Bar Header */
+    .topbar {
+      padding: 28px 22px 20px;
+      color: white;
+      position: relative;
+      background: linear-gradient(155deg, #0b1124 0%, #151d38 65%, #242c58 100%);
+      flex-shrink: 0;
+      border-bottom-left-radius: 28px;
+      border-bottom-right-radius: 28px;
+      box-shadow: 0 10px 24px rgba(11, 17, 36, 0.18);
+    }
+    .topbar::after {
+      content: "";
+      position: absolute;
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      right: -80px;
+      top: -80px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.35), rgba(99, 102, 241, 0));
+      pointer-events: none;
+    }
+
+    .topbar-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .eyebrow {
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      color: rgba(255, 255, 255, 0.75);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .eyebrow::before {
+      content: "✦";
+      color: #818cf8;
+      font-size: 12px;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Compact interactive Sync Badge */
+    .sync-pill {
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      padding: 5px 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      transition: all 0.2s;
+    }
+    .sync-pill:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+    .sync-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+    }
+
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.09);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-size: 15px;
+      backdrop-filter: blur(8px);
+      transition: all 0.15s;
+    }
+    .icon-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+    }
+    .icon-btn:active {
+      transform: scale(0.94);
+    }
+
+    .headline-row {
+      margin-top: 14px;
+      position: relative;
+      z-index: 2;
+    }
+    h1 {
+      font-size: 25px;
+      line-height: 1.2;
+      margin: 0;
+      letter-spacing: -0.02em;
+      font-weight: 800;
+    }
+    .subhead {
+      margin: 6px 0 0;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.82);
+      font-weight: 500;
+    }
+
+    /* Collapsible / expandable sync banner */
+    .sync-strip {
+      margin-top: 14px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      position: relative;
+      z-index: 2;
+    }
+    .sync-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .sync-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: white;
+    }
+    .sync-meta {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .link-btn {
+      border: 0;
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      font-size: 12.5px;
+      font-weight: 800;
+      padding: 6px 12px;
+      border-radius: 999px;
+      transition: background 0.15s;
+    }
+    .link-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    /* Scrollable content container */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 20px 105px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(15, 23, 42, 0.15) transparent;
+    }
+    .content::-webkit-scrollbar {
+      width: 4px;
+    }
+    .content::-webkit-scrollbar-thumb {
+      background: rgba(15, 23, 42, 0.15);
+      border-radius: 999px;
+    }
+
+    .screen {
+      display: none;
+      animation: fadeIn 0.2s ease-out;
+    }
+    .screen.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Week Strip with comfortable large touch targets */
+    .week-strip {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .day-pill {
+      border: 1.5px solid var(--line);
+      background: var(--surface);
+      border-radius: var(--radius-md);
+      padding: 10px 4px 8px;
+      color: var(--muted);
+      text-align: center;
+      transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 60px;
+      justify-content: center;
+    }
+    .day-pill:hover {
+      border-color: #cbd5e1;
+      transform: translateY(-1px);
+    }
+    .day-pill .dow {
+      font-size: 11.5px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .day-pill .num {
+      margin-top: 4px;
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--ink);
+      line-height: 1;
+    }
+    .day-pill.active {
+      background: var(--primary-light);
+      color: var(--primary);
+      border-color: var(--primary);
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.18);
+    }
+    .day-pill.active .num {
+      color: var(--primary);
+    }
+    .day-pill.has-event .num::after {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--primary);
+      display: block;
+      margin: 4px auto 0;
+    }
+    .day-pill.active.has-event .num::after {
+      background: var(--primary);
+    }
+
+    /* Filter Bar - spacious, clear pills */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .filter-bar::-webkit-scrollbar {
+      display: none;
+    }
+    .filter-chip {
+      border: 1.5px solid var(--line);
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 8px 15px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink-secondary);
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .filter-chip:hover {
+      border-color: #cbd5e1;
+      background: #f8fafc;
+    }
+    .filter-chip.active {
+      background: var(--ink);
+      color: white;
+      border-color: var(--ink);
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.15);
+    }
+
+    /* Common Card Styling */
+    .card {
+      background: var(--surface);
+      border: 1.5px solid var(--line-subtle);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Unified Hero Mission Control Card */
+    .hero-status-card {
+      padding: 18px 20px;
+      border-radius: var(--radius-xl);
+      background: linear-gradient(145deg, #ffffff 0%, #f9fafb 100%);
+      border: 1.5px solid #e2e8f0;
+      box-shadow: var(--shadow-md);
+      margin-bottom: 20px;
+    }
+
+    .hero-status-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 5px 10px;
+      border-radius: 8px;
+      background: #eef2ff;
+      color: var(--primary);
+    }
+    .hero-badge.conflict {
+      background: var(--red-light);
+      color: var(--red);
+    }
+    .hero-badge.good {
+      background: var(--green-light);
+      color: var(--green);
+    }
+
+    .readiness-pill {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #f1f5f9;
+      padding: 5px 12px;
+      border-radius: 999px;
+    }
+    .readiness-pill strong {
+      color: var(--primary);
+      font-size: 14px;
+    }
+
+    .hero-mission-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--ink);
+      margin: 0;
+      line-height: 1.35;
+    }
+    .hero-mission-desc {
+      margin: 6px 0 0;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .hero-progress-section {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line-subtle);
+    }
+    .hero-progress-labels {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink-secondary);
+      margin-bottom: 8px;
+    }
+    .hero-progress-labels span:last-child {
+      color: var(--primary);
+      font-weight: 800;
+    }
+    .progress-track-light {
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-fill-light {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #0284c7 0%, #4f46e5 100%);
+      border-radius: 999px;
+      transition: width 0.35s ease;
+    }
+
+    /* Section Titles */
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 24px 2px 14px;
+    }
+    .section-title h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: -0.015em;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .section-action-btn {
+      border: 1.5px solid var(--primary-light);
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 800;
+      font-size: 13px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      transition: all 0.15s;
+    }
+    .section-action-btn:hover {
+      background: #e0e7ff;
+      border-color: #c7d2fe;
+    }
+
+    /* Timeline & Event Cards - Clean, spacious, highly legible */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .event-wrapper {
+      position: relative;
+    }
+    .event-card {
+      padding: 18px;
+      position: relative;
+      background: white;
+      border-radius: var(--radius-lg);
+      border: 1.5px solid var(--line);
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    }
+    .event-card:hover {
+      border-color: #cbd5e1;
+      box-shadow: var(--shadow-md);
+    }
+    .event-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 14px;
+      bottom: 14px;
+      width: 5px;
+      border-radius: 0 4px 4px 0;
+      background: var(--event-color, var(--primary));
+    }
+    .event-card.completed {
+      background: #f8fafc;
+      opacity: 0.72;
+    }
+    .event-card.completed .event-title {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+    .event-card.conflict {
+      border-color: #fca5a5;
+      background: #fffafa;
+    }
+
+    .event-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .time-badge {
+      font-size: 12.5px;
+      font-weight: 800;
+      color: var(--ink-secondary);
+      background: #f1f5f9;
+      padding: 5px 10px;
+      border-radius: 8px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+    .event-title {
+      font-size: 16.5px;
+      font-weight: 800;
+      margin: 0;
+      color: var(--ink);
+      line-height: 1.35;
+    }
+    .event-subline {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: var(--ink-secondary);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .chip.warning {
+      background: #fef2f2;
+      color: var(--red);
+      border: 1px solid #fecaca;
+    }
+
+    .card-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .action-btn {
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      color: var(--muted);
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 14px;
+      transition: all 0.15s;
+    }
+    .action-btn:hover {
+      background: #f1f5f9;
+      color: var(--ink);
+    }
+    .action-btn.check-btn {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+      color: var(--green);
+      font-size: 16px;
+      font-weight: 800;
+    }
+    .action-btn.check-btn.checked {
+      background: var(--green);
+      border-color: var(--green);
+      color: white;
+    }
+    .action-btn:active {
+      transform: scale(0.92);
+    }
+
+    /* Readable, elegant journey block */
+    .journey-block {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #f8faff 0%, #f0f8ff 100%);
+      border: 1px solid #e0e7ff;
+    }
+    .journey-route {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 12px;
+    }
+    .route-stop {
+      min-width: 0;
+    }
+    .route-label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      font-weight: 800;
+      margin-bottom: 3px;
+    }
+    .route-stop strong {
+      display: block;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.35;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .route-stop.destination {
+      text-align: right;
+    }
+    .route-arrow {
+      text-align: center;
+      min-width: 84px;
+      color: var(--primary);
+    }
+    .route-arrow strong {
+      display: block;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .route-line {
+      height: 3px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #0284c7, #4f46e5);
+      position: relative;
+    }
+    .route-line::after {
+      content: "";
+      position: absolute;
+      right: -2px;
+      top: 50%;
+      width: 7px;
+      height: 7px;
+      border-top: 2px solid var(--primary);
+      border-right: 2px solid var(--primary);
+      transform: translateY(-50%) rotate(45deg);
+    }
+
+    .journey-footer {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px dashed #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .lead-row {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 12px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .depart-badge {
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: white;
+      border: 1.5px solid #c7d2fe;
+      color: var(--primary);
+      font-size: 12.5px;
+      font-weight: 800;
+    }
+    .depart-badge.conflict {
+      color: var(--red);
+      border-color: #fca5a5;
+      background: #fef2f2;
+    }
+    .slack-row {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    /* AI Suggestions */
+    .ai-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .ai-card {
+      padding: 18px;
+      border-radius: var(--radius-lg);
+      border: 1.5px solid #e0e7ff;
+      background: linear-gradient(145deg, #ffffff 0%, #f9faff 100%);
+    }
+    .ai-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .ai-copy b {
+      display: block;
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--ink);
+      line-height: 1.35;
+    }
+    .ai-copy span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      margin-top: 6px;
+    }
+    .ai-tag {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: 11.5px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+    .ai-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .ai-actions button {
+      border: 0;
+      border-radius: 12px;
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 800;
+      transition: all 0.15s;
+    }
+    .ai-apply {
+      background: var(--primary);
+      color: white;
+    }
+    .ai-apply:hover {
+      background: var(--primary-hover);
+    }
+    .ai-dismiss {
+      background: #f1f5f9;
+      color: var(--ink-secondary);
+    }
+    .ai-dismiss:hover {
+      background: #e2e8f0;
+    }
+
+    /* Quick Action Grid */
+    .quick-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .quick {
+      border: 1.5px solid var(--line);
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      text-align: left;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+    }
+    .quick:hover {
+      border-color: #cbd5e1;
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    .quick:active {
+      transform: scale(0.98);
+    }
+    .quick-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+    .quick b {
+      display: block;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .quick span {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+      line-height: 1.35;
+    }
+
+    /* Reset Hero & Checklist (Plan Screen) */
+    .reset-hero {
+      padding: 20px;
+      background: linear-gradient(145deg, #10162f 0%, #1e254e 100%);
+      color: white;
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--radius-xl);
+    }
+    .reset-hero h2 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 800;
+    }
+    .reset-hero p {
+      margin: 8px 0 16px;
+      font-size: 13.5px;
+      color: rgba(255, 255, 255, 0.78);
+      line-height: 1.5;
+    }
+    .progress-track {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.18);
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 60%;
+      background: linear-gradient(90deg, #818cf8, #38bdf8);
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.75);
+    }
+
+    .checklist {
+      margin-top: 16px;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1.5px solid var(--line);
+    }
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 18px;
+      border-bottom: 1.5px solid var(--line);
+      background: white;
+      transition: background 0.15s;
+    }
+    .check-row:last-child {
+      border-bottom: 0;
+    }
+    .check-row:hover {
+      background: #fafbff;
+    }
+    .check {
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      border: 2px solid #cbd5e1;
+      background: white;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-weight: 800;
+      font-size: 14px;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    .check.done {
+      background: var(--green);
+      border-color: var(--green);
+    }
+    .check-copy {
+      flex: 1;
+      min-width: 0;
+    }
+    .check-copy b {
+      display: block;
+      font-size: 14.5px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .check-copy span {
+      display: block;
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-top: 3px;
+      line-height: 1.4;
+    }
+    .check-action {
+      color: var(--primary);
+      background: var(--primary-light);
+      border: 0;
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 12.5px;
+      font-weight: 800;
+      transition: background 0.15s;
+    }
+    .check-action:hover {
+      background: #e0e7ff;
+    }
+
+    /* Slider & Settings Card */
+    .slider-card {
+      margin-top: 16px;
+      padding: 18px 20px;
+      border-radius: var(--radius-lg);
+    }
+    .slider-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .slider-head b {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .slider-head output {
+      color: var(--primary);
+      font-size: 15px;
+      font-weight: 800;
+      background: var(--primary-light);
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+    .slider-copy {
+      margin: 6px 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--primary);
+      height: 6px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      outline: none;
+    }
+    .switch-row {
+      margin-top: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line-subtle);
+    }
+    .switch-row b {
+      font-size: 14px;
+      font-weight: 800;
+      display: block;
+      color: var(--ink);
+    }
+    .switch-row span {
+      font-size: 12.5px;
+      color: var(--muted);
+      display: block;
+      margin-top: 2px;
+    }
+    .switch {
+      width: 52px;
+      height: 30px;
+      border-radius: 999px;
+      background: #cbd5e1;
+      padding: 3px;
+      border: 0;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .switch::after {
+      content: "";
+      display: block;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.18);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .switch.on {
+      background: var(--primary);
+    }
+    .switch.on::after {
+      transform: translateX(22px);
+    }
+
+    .button-primary {
+      width: 100%;
+      border: 0;
+      border-radius: 14px;
+      padding: 14px 20px;
+      background: var(--primary);
+      color: white;
+      font-weight: 800;
+      font-size: 15px;
+      box-shadow: 0 8px 20px rgba(79, 70, 229, 0.24);
+      transition: all 0.15s;
+    }
+    .button-primary:hover {
+      background: var(--primary-hover);
+    }
+    .button-secondary {
+      width: 100%;
+      border: 1.5px solid var(--line);
+      border-radius: 14px;
+      padding: 13px 20px;
+      background: white;
+      color: var(--ink);
+      font-weight: 800;
+      font-size: 14.5px;
+      transition: all 0.15s;
+    }
+    .button-secondary:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+
+    /* Map Screen */
+    .map-card {
+      height: 220px;
+      position: relative;
+      overflow: hidden;
+      background: #e2e8f0;
+      border-radius: var(--radius-xl);
+      border: 1.5px solid var(--line);
+    }
+    .map-grid {
+      position: absolute;
+      inset: 0;
+      opacity: 0.6;
+      background-image: 
+        linear-gradient(#cbd5e1 1.5px, transparent 1.5px),
+        linear-gradient(90deg, #cbd5e1 1.5px, transparent 1.5px);
+      background-size: 36px 36px;
+      transform: rotate(-5deg) scale(1.15);
+    }
+    .road {
+      position: absolute;
+      height: 18px;
+      background: white;
+      box-shadow: 0 0 0 2px #cbd5e1 inset;
+      border-radius: 999px;
+    }
+    .road.one { width: 360px; left: -20px; top: 110px; transform: rotate(18deg); }
+    .road.two { width: 330px; left: 80px; top: 155px; transform: rotate(-24deg); }
+    .road.three { width: 310px; left: -40px; top: 45px; transform: rotate(-18deg); }
+    .route {
+      position: absolute;
+      width: 220px;
+      height: 100px;
+      left: 70px;
+      top: 65px;
+      border: 4px dashed var(--primary);
+      border-left-color: transparent;
+      border-bottom-color: transparent;
+      border-radius: 50%;
+      transform: rotate(8deg);
+    }
+    .pin {
+      position: absolute;
+      width: 36px;
+      height: 36px;
+      border-radius: 50% 50% 50% 12%;
+      transform: rotate(-45deg);
+      background: var(--primary);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.22);
+      display: grid;
+      place-items: center;
+      color: white;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .pin:hover {
+      transform: rotate(-45deg) scale(1.1);
+    }
+    .pin span {
+      transform: rotate(45deg);
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .pin.home { left: 60px; top: 130px; background: #0f172a; }
+    .pin.school { right: 65px; top: 40px; background: #0284c7; }
+    .pin.field { right: 95px; bottom: 25px; background: var(--green); }
+    .map-overlay {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      top: 14px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .map-pill {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(226, 232, 240, 0.95);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 800;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .location-list {
+      margin-top: 14px;
+      overflow: hidden;
+      border-radius: var(--radius-lg);
+      border: 1.5px solid var(--line);
+    }
+    .location {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      border-bottom: 1.5px solid var(--line);
+      background: white;
+    }
+    .location:last-child {
+      border-bottom: 0;
+    }
+    .location-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: var(--primary-light);
+      font-size: 17px;
+      flex-shrink: 0;
+    }
+    .location-copy {
+      flex: 1;
+      min-width: 0;
+    }
+    .location-copy b {
+      display: block;
+      font-size: 14.5px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .location-copy span {
+      color: var(--muted);
+      font-size: 12.5px;
+      margin-top: 2px;
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .eta {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+
+    /* Family Screen */
+    .family-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .person {
+      padding: 18px 16px;
+      text-align: center;
+      border-radius: var(--radius-lg);
+    }
+    .person .avatar {
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 10px;
+      font-size: 18px;
+    }
+    .person b {
+      display: block;
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .person span {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+      line-height: 1.35;
+    }
+    .load {
+      height: 6px;
+      border-radius: 999px;
+      margin-top: 12px;
+      background: #e2e8f0;
+      overflow: hidden;
+    }
+    .load i {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #0284c7, #4f46e5);
+      transition: width 0.35s ease;
+    }
+    .location-control-grid {
+      display: grid;
+      gap: 12px;
+    }
+    .location-control {
+      padding: 16px;
+      border-radius: var(--radius-lg);
+    }
+    .location-control-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .location-control-head b {
+      font-size: 14.5px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .location-control-head span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .location-control select {
+      width: 100%;
+      border: 1.5px solid var(--line);
+      background: white;
+      border-radius: 12px;
+      padding: 10px 12px;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 600;
+      outline: none;
+    }
+
+    /* Bottom Navigation - clean, elevated, readable */
+    .bottom-nav {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      height: 72px;
+      border-radius: 26px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1.5px solid rgba(226, 232, 240, 0.9);
+      box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.16);
+      backdrop-filter: blur(20px);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 6px;
+      z-index: 30;
+    }
+    .nav-btn {
+      border: 0;
+      background: transparent;
+      border-radius: 18px;
+      color: #64748b;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 800;
+      transition: all 0.15s;
+    }
+    .nav-btn svg {
+      width: 22px;
+      height: 22px;
+      transition: transform 0.15s;
+    }
+    .nav-btn.active {
+      color: var(--primary);
+      background: var(--primary-light);
+    }
+    .nav-btn.active svg {
+      transform: scale(1.08);
+    }
+
+    /* Floating Action Button (FAB) */
+    .fab {
+      position: absolute;
+      right: 20px;
+      bottom: 96px;
+      width: 56px;
+      height: 56px;
+      border-radius: 20px;
+      border: 0;
+      color: white;
+      background: linear-gradient(135deg, #4f46e5 0%, #0284c7 100%);
+      box-shadow: 0 10px 24px rgba(79, 70, 229, 0.38);
+      font-size: 28px;
+      display: grid;
+      place-items: center;
+      z-index: 25;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .fab:hover {
+      transform: scale(1.05);
+      box-shadow: 0 12px 28px rgba(79, 70, 229, 0.45);
+    }
+    .fab:active {
+      transform: scale(0.94);
+    }
+
+    /* Modals - Spacious and touch-friendly */
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 60;
+      background: rgba(15, 23, 42, 0.5);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: flex-end;
+    }
+    .modal-backdrop.open {
+      display: flex;
+    }
+    .modal {
+      width: 100%;
+      background: #ffffff;
+      border-radius: 32px 32px 0 0;
+      padding: 24px 22px calc(24px + env(safe-area-inset-bottom));
+      box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.25);
+      max-height: 88%;
+      overflow-y: auto;
+      animation: slideUp 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes slideUp {
+      from { transform: translateY(32px); opacity: 0.3; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .modal-handle {
+      width: 44px;
+      height: 5px;
+      background: #cbd5e1;
+      border-radius: 999px;
+      margin: 0 auto 16px;
+    }
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .modal-head h3 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .close-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      border: 0;
+      background: #f1f5f9;
+      color: #64748b;
+      font-size: 20px;
+      display: grid;
+      place-items: center;
+      transition: background 0.15s;
+    }
+    .close-btn:hover {
+      background: #e2e8f0;
+      color: var(--ink);
+    }
+    .field {
+      margin-top: 14px;
+    }
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .field input, .field select {
+      width: 100%;
+      border: 1.5px solid var(--line);
+      background: white;
+      border-radius: 14px;
+      padding: 12px 14px;
+      color: var(--ink);
+      outline: none;
+      font-size: 15px;
+      font-weight: 600;
+      transition: border-color 0.15s;
+    }
+    .field input:focus, .field select:focus {
+      border-color: var(--primary);
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .modal-actions {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    /* Toast notification */
+    .toast {
+      position: absolute;
+      z-index: 90;
+      left: 50%;
+      top: 24px;
+      transform: translate(-50%, -20px);
+      background: #0f172a;
+      color: white;
+      border-radius: 999px;
+      padding: 10px 20px;
+      font-size: 13.5px;
+      font-weight: 800;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      white-space: nowrap;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    /* Native mobile adjustments */
+    @media (max-width: 520px) {
+      .page {
+        padding: 0;
+        background: var(--bg);
+      }
+      .phone {
+        max-width: 100%;
+        height: 100vh;
+        min-height: 100vh;
+        border-radius: 0;
+        box-shadow: none;
+        border: 0;
+      }
+      .topbar {
+        border-radius: 0 0 24px 24px;
+        padding-top: calc(16px + env(safe-area-inset-top));
+      }
+      .bottom-nav {
+        bottom: calc(8px + env(safe-area-inset-bottom));
+      }
+      .fab {
+        bottom: calc(92px + env(safe-area-inset-bottom));
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <main class="phone" aria-label="Orbit family logistics app">
+    <div class="app">
+      <!-- Header -->
+      <header class="topbar">
+        <div class="topbar-meta">
+          <div class="eyebrow" id="screenEyebrow">Monday, August 3</div>
+          <div class="topbar-actions">
+            <button class="sync-pill" id="syncBtn" aria-label="Calendar sync status">
+              <span class="sync-dot" id="syncDot"></span>
+              <span id="syncTitle">Calendar Sync</span>
+            </button>
+            <button class="icon-btn" id="bellBtn" aria-label="Notifications">🔔</button>
+          </div>
+        </div>
+        
+        <div class="headline-row">
+          <h1 id="screenTitle">Good morning, Brooke</h1>
+          <p class="subhead" id="screenSubtitle">4 handoffs scheduled today.</p>
+        </div>
+
+        <!-- Sync details strip (can toggle or show sync feedback) -->
+        <div class="sync-strip" id="syncMetaStrip" style="display:none;">
+          <div class="sync-left">
+            <span class="sync-dot"></span>
+            <div>
+              <div class="sync-title">Google Calendar Synced</div>
+              <div class="sync-meta" id="syncMeta">Last synced 2m ago · 7 events imported</div>
+            </div>
+          </div>
+          <button class="link-btn" id="syncRefreshBtn">Sync Now</button>
+        </div>
+      </header>
+
+      <!-- Scrollable Main Content -->
+      <section class="content">
+        <!-- Screen: Today -->
+        <div class="screen active" data-screen="today">
+          <!-- Weekday Strip -->
+          <div class="week-strip" id="weekStrip"></div>
+
+          <!-- Family Filter Bar -->
+          <div class="filter-bar" id="filterBar">
+            <button class="filter-chip active" data-filter="all">All Family</button>
+            <button class="filter-chip" data-filter="Brooke">Brooke</button>
+            <button class="filter-chip" data-filter="Alex">Alex</button>
+            <button class="filter-chip" data-filter="Soni">Soni</button>
+            <button class="filter-chip" data-filter="Maya">Maya</button>
+            <button class="filter-chip" data-filter="Noah">Noah</button>
+          </div>
+
+          <!-- Unified Mission Control / Hero Handoff Card -->
+          <div class="hero-status-card" id="dayAlert">
+            <div class="hero-status-head">
+              <div class="hero-badge" id="dayAlertBadge">
+                <span id="dayAlertIcon">↗</span>
+                <span id="dayAlertTitle">Next Departure</span>
+              </div>
+              <div class="readiness-pill" id="readinessMeter">
+                <span>Readiness</span>
+                <strong id="readinessVal">88%</strong>
+              </div>
+            </div>
+            <h3 class="hero-mission-title" id="dayAlertBody">Orbit is calculating the next handoff.</h3>
+            <p class="hero-mission-desc" id="dayAlertSubtext">Real-time route feasibility and driver availability check.</p>
+
+            <div class="hero-progress-section">
+              <div class="hero-progress-labels">
+                <span>Completed Handoffs</span>
+                <span id="progressText">0 of 4</span>
+              </div>
+              <div class="progress-track-light">
+                <div class="progress-fill-light" id="progressBar"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Relay Timeline Section -->
+          <div class="section-title">
+            <h2>Today’s Relay</h2>
+            <button class="section-action-btn" id="autoBalanceBtn">⚡ Auto-Balance Leads</button>
+          </div>
+          <div class="timeline" id="timeline"></div>
+
+          <!-- AI Planner Suggestions -->
+          <div class="section-title">
+            <h2>AI Route Intelligence</h2>
+            <button class="section-action-btn" id="refreshSuggestionsBtn">Refresh</button>
+          </div>
+          <div class="ai-list" id="aiList"></div>
+
+          <!-- Quick Tools -->
+          <div class="section-title">
+            <h2>Quick Actions</h2>
+            <button class="section-action-btn" data-go="plan">Open Reset Sprint</button>
+          </div>
+          <div class="quick-grid">
+            <button class="quick" id="commuteBtn">
+              <div class="quick-icon">🚗</div>
+              <b>Refresh Travel</b>
+              <span>Update live traffic estimates</span>
+            </button>
+            <button class="quick" id="importBtn">
+              <div class="quick-icon">📅</div>
+              <b>Import Events</b>
+              <span>Sync school & sports calendars</span>
+            </button>
+            <button class="quick" id="messageBtn">
+              <div class="quick-icon">💬</div>
+              <b>Share Brief</b>
+              <span>Send today's relay to Alex</span>
+            </button>
+            <button class="quick" data-open="location">
+              <div class="quick-icon">📍</div>
+              <b>Add Location</b>
+              <span>Save venue & loading buffers</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Screen: Plan (Sunday Reset Sprint) -->
+        <div class="screen" data-screen="plan">
+          <div class="card reset-hero">
+            <h2>Sunday Reset Sprint</h2>
+            <p>Convert calendars, school schedules and driver availability into one synchronized, stress-free week.</p>
+            <div class="progress-track"><div class="progress-fill" id="resetProgress"></div></div>
+            <div class="progress-meta"><span id="resetCount">3 of 5 complete</span><span>10 min remaining</span></div>
+          </div>
+
+          <div class="card checklist" id="checklist">
+            <div class="check-row">
+              <button class="check done">✓</button>
+              <div class="check-copy">
+                <b>Import external calendars</b>
+                <span>Google, school portal and sports schedules</span>
+              </div>
+              <button class="check-action" id="refreshCalendars">Refresh</button>
+            </div>
+            <div class="check-row">
+              <button class="check done">✓</button>
+              <div class="check-copy">
+                <b>Confirm locations & buffers</b>
+                <span>Verify address and parking ease for each venue</span>
+              </div>
+              <button class="check-action" data-go="map">Review</button>
+            </div>
+            <div class="check-row">
+              <button class="check done">✓</button>
+              <div class="check-copy">
+                <b>Optimize lead assignments</b>
+                <span>Assign parents based on commute origin & driving burden</span>
+              </div>
+              <button class="check-action" id="rebalancePlan">Optimize</button>
+            </div>
+            <div class="check-row">
+              <button class="check"></button>
+              <div class="check-copy">
+                <b>Plan protected family meals</b>
+                <span>Ensure evening handoffs don't collide with dinner</span>
+              </div>
+              <button class="check-action" id="mealPlanBtn">Plan</button>
+            </div>
+            <div class="check-row">
+              <button class="check"></button>
+              <div class="check-copy">
+                <b>Assign emergency backup driver</b>
+                <span>Designate secondary contact for tight handoffs</span>
+              </div>
+              <button class="check-action" id="backupBtn">Assign</button>
+            </div>
+          </div>
+
+          <div class="section-title">
+            <h2>AI Plan Audit</h2>
+            <button class="section-action-btn" id="planAiRefresh">Analyze Week</button>
+          </div>
+          <div class="ai-list" id="planAiList"></div>
+
+          <div class="card slider-card">
+            <div class="slider-head">
+              <b>Target Travel Buffer</b>
+              <output id="bufferOut">12 min</output>
+            </div>
+            <p class="slider-copy">Depart-by times automatically incorporate this safety margin to absorb traffic variability.</p>
+            <input id="bufferSlider" type="range" min="0" max="30" value="12" step="1" />
+            
+            <div class="switch-row">
+              <div>
+                <b>Adaptive Traffic Mode</b>
+                <span>Recalculate route assumptions based on peak hours</span>
+              </div>
+              <button class="switch on" id="trafficSwitch" aria-label="Adaptive traffic mode"></button>
+            </div>
+            
+            <div class="switch-row">
+              <div>
+                <b>Protect Family Dinner</b>
+                <span>Flag any pickup overlapping 6:30 – 7:15 PM</span>
+              </div>
+              <button class="switch on" id="dinnerSwitch" aria-label="Protect family dinner"></button>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:16px;">
+            <button class="button-secondary" id="previewBtn">Preview Week</button>
+            <button class="button-primary" id="publishBtn">Publish Plan</button>
+          </div>
+        </div>
+
+        <!-- Screen: Map -->
+        <div class="screen" data-screen="map">
+          <div class="card map-card">
+            <div class="map-grid"></div>
+            <div class="road one"></div>
+            <div class="road two"></div>
+            <div class="road three"></div>
+            <div class="route"></div>
+            <div class="pin home" data-place="Home"><span>⌂</span></div>
+            <div class="pin school" data-place="Oak Ridge Elementary"><span>🏫</span></div>
+            <div class="pin field" data-place="Lakeside Sports Complex"><span>⚽</span></div>
+            <div class="map-overlay">
+              <div class="map-pill">Live Traffic · Normal</div>
+              <div class="map-pill" id="mapEta">24 min total</div>
+            </div>
+          </div>
+
+          <div class="section-title">
+            <h2>Saved Places</h2>
+            <button class="section-action-btn" data-open="location">+ Add Place</button>
+          </div>
+          <div class="card location-list" id="locationList"></div>
+
+          <div class="section-title">
+            <h2>Route Intelligence</h2>
+            <button class="section-action-btn" id="optimizeBtn">Optimize</button>
+          </div>
+          <div class="card slider-card">
+            <div class="slider-head">
+              <b>Departure Confidence</b>
+              <output id="confidenceOut">94%</output>
+            </div>
+            <p class="slider-copy">Reliability rating calculated from parking ease, load duration, and buffer minutes.</p>
+            <input id="confidenceSlider" type="range" min="60" max="99" value="94" />
+            <button class="button-primary" style="margin-top:14px" id="openMapsBtn">Open in Navigation</button>
+          </div>
+        </div>
+
+        <!-- Screen: Family -->
+        <div class="screen" data-screen="family">
+          <div class="section-title">
+            <h2>Parent Starting Locations</h2>
+            <button class="section-action-btn" id="refreshLocationPlanBtn">Apply to Plan</button>
+          </div>
+          <div class="location-control-grid">
+            <div class="card location-control">
+              <div class="location-control-head">
+                <b>Brooke</b>
+                <span>Default Work/Start Venue</span>
+              </div>
+              <select id="brookeLocationSelect"></select>
+            </div>
+            <div class="card location-control">
+              <div class="location-control-head">
+                <b>Alex</b>
+                <span>Default Work/Start Venue</span>
+              </div>
+              <select id="alexLocationSelect"></select>
+            </div>
+          </div>
+
+          <div class="section-title">
+            <h2>Weekly Driving Load Balance</h2>
+            <button class="section-action-btn" id="familyBalanceBtn">Rebalance</button>
+          </div>
+          <div class="family-grid" id="familyGrid"></div>
+
+          <div class="section-title">
+            <h2>Smart Assignment Rules</h2>
+            <button class="section-action-btn" id="editRulesBtn">Manage Rules</button>
+          </div>
+          <div class="card checklist">
+            <div class="check-row">
+              <div class="quick-icon">A</div>
+              <div class="check-copy">
+                <b>Alex prefers morning drop-offs</b>
+                <span>Applied when departure times don't conflict with work calls</span>
+              </div>
+              <button class="check-action">Active</button>
+            </div>
+            <div class="check-row">
+              <div class="quick-icon">B</div>
+              <div class="check-copy">
+                <b>Brooke handles pediatric healthcare</b>
+                <span>Prioritizes clinic visits unless route creates an impossible handoff</span>
+              </div>
+              <button class="check-action">Active</button>
+            </div>
+            <div class="check-row">
+              <div class="quick-icon">⚖</div>
+              <div class="check-copy">
+                <b>Equitable driving minutes balance</b>
+                <span>Normalizes behind-the-wheel burden across both partners</span>
+              </div>
+              <button class="check-action">Active</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Primary Floating Action Button -->
+      <button class="fab" data-open="activity" aria-label="Add activity">+</button>
+
+      <!-- Elevated Bottom Navigation -->
+      <nav class="bottom-nav" aria-label="Primary navigation">
+        <button class="nav-btn active" data-nav="today">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/></svg>
+          <span>Today</span>
+        </button>
+        <button class="nav-btn" data-nav="plan">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M8 11h8M8 15h5"/></svg>
+          <span>Plan</span>
+        </button>
+        <button class="nav-btn" data-nav="map">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>
+          <span>Map</span>
+        </button>
+        <button class="nav-btn" data-nav="family">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2"/><path d="M3 20c.5-4 2.5-6 6-6s5.5 2 6 6M14 15c3.5 0 5.5 1.7 6 5"/></svg>
+          <span>Family</span>
+        </button>
+      </nav>
+
+      <!-- Modal: Add / Edit Activity -->
+      <div class="modal-backdrop" id="activityModal">
+        <div class="modal">
+          <div class="modal-handle"></div>
+          <div class="modal-head">
+            <h3 id="modalActivityTitle">Add Activity</h3>
+            <button class="close-btn" data-close>×</button>
+          </div>
+          <input type="hidden" id="editEventId" value="" />
+          <div class="field">
+            <label>Activity Title</label>
+            <input id="activityTitle" placeholder="e.g. Piano Lesson" value="Piano Lesson" />
+          </div>
+          <div class="two-col">
+            <div class="field">
+              <label>Start Time</label>
+              <input id="activityTime" type="time" value="17:30" />
+            </div>
+            <div class="field">
+              <label>End Time</label>
+              <input id="activityEndTime" type="time" value="18:30" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Destination Venue</label>
+            <select id="activityLocation"></select>
+          </div>
+          <div class="two-col">
+            <div class="field">
+              <label>Lead Driver</label>
+              <select id="activityOwner">
+                <option>Brooke</option>
+                <option>Alex</option>
+                <option>Unassigned</option>
+                <option>Family</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Family Member</label>
+              <select id="activityKid">
+                <option>Soni</option>
+                <option>Maya</option>
+                <option>Noah</option>
+                <option>All</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Transit Mode</label>
+            <select id="activityMode">
+              <option>Drive</option>
+              <option>Walk</option>
+              <option>Carpool</option>
+              <option>School Bus</option>
+              <option>Home</option>
+            </select>
+          </div>
+          <div class="modal-actions">
+            <button class="button-secondary" data-close>Cancel</button>
+            <button class="button-primary" id="saveActivityBtn">Save Activity</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Save Location -->
+      <div class="modal-backdrop" id="locationModal">
+        <div class="modal">
+          <div class="modal-handle"></div>
+          <div class="modal-head">
+            <h3>Add Saved Place</h3>
+            <button class="close-btn" data-close>×</button>
+          </div>
+          <div class="field">
+            <label>Venue / Place Name</label>
+            <input id="locationName" placeholder="e.g. Piano Studio" value="Piano Studio" />
+          </div>
+          <div class="field">
+            <label>Street Address</label>
+            <input id="locationAddress" placeholder="e.g. 1440 Maple Avenue" value="1440 Maple Avenue" />
+          </div>
+          <div class="two-col">
+            <div class="field">
+              <label>Loading Buffer</label>
+              <select id="loadTime">
+                <option>5 min</option>
+                <option>10 min</option>
+                <option>15 min</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Parking Ease</label>
+              <select id="parking">
+                <option>Easy</option>
+                <option>Moderate</option>
+                <option>Difficult</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="button-secondary" data-close>Cancel</button>
+            <button class="button-primary" id="saveLocationBtn">Save Place</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toast Feedback -->
+      <div class="toast" id="toast">Updated</div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const STORAGE_KEY = 'orbit-family-logistics-v4';
+  const LOCATION_KEY = 'orbit-family-locations-v4';
+  const SETTINGS_KEY = 'orbit-family-settings-v4';
+
+  const defaultEvents = {
+    0:[
+      {id:101,time:'07:35',endTime:'08:15',title:'School Drop-off',owner:'Alex',kid:'Soni',location:'Oak Ridge Elementary',mode:'Drive',done:true,color:'#0284c7'},
+      {id:102,time:'15:20',endTime:'16:30',title:'Football Practice Pickup',owner:'Brooke',kid:'Maya',location:'North Athletic Field',mode:'Drive',done:false,color:'#4f46e5'},
+      {id:103,time:'17:15',endTime:'18:30',title:'Soccer Practice',owner:'Alex',kid:'Noah',location:'Lakeside Sports Complex',mode:'Drive',done:false,color:'#16a34a'},
+      {id:104,time:'18:40',endTime:'19:30',title:'Taco Bowls & Family Dinner',owner:'Family',kid:'All',location:'Home',mode:'Home',done:false,color:'#d97706'}
+    ],
+    1:[
+      {id:201,time:'07:35',endTime:'08:15',title:'School Drop-off',owner:'Alex',kid:'Soni',location:'Oak Ridge Elementary',mode:'Drive',done:false,color:'#0284c7'},
+      {id:202,time:'16:00',endTime:'17:00',title:'Pediatric Dental Appointment',owner:'Brooke',kid:'Soni',location:'Pediatric Clinic',mode:'Drive',done:false,color:'#dc2626'},
+      {id:203,time:'17:30',endTime:'18:30',title:'Piano Lesson',owner:'Alex',kid:'Maya',location:'Community Center',mode:'Drive',done:false,color:'#4f46e5'}
+    ],
+    2:[
+      {id:301,time:'07:35',endTime:'08:15',title:'School Drop-off',owner:'Alex',kid:'Soni',location:'Oak Ridge Elementary',mode:'Drive',done:false,color:'#0284c7'},
+      {id:302,time:'15:20',endTime:'16:30',title:'Football Practice',owner:'Alex',kid:'Maya',location:'North Athletic Field',mode:'Drive',done:false,color:'#4f46e5'},
+      {id:303,time:'18:00',endTime:'19:00',title:'Family Swimming',owner:'Brooke',kid:'All',location:'Lakeside Sports Complex',mode:'Drive',done:false,color:'#0284c7'}
+    ],
+    3:[
+      {id:401,time:'07:35',endTime:'08:15',title:'School Drop-off',owner:'Alex',kid:'Soni',location:'Oak Ridge Elementary',mode:'Drive',done:false,color:'#0284c7'},
+      {id:402,time:'17:15',endTime:'18:30',title:'Soccer Tournament Prep',owner:'Brooke',kid:'Noah',location:'Lakeside Sports Complex',mode:'Drive',done:false,color:'#16a34a'}
+    ],
+    4:[
+      {id:501,time:'07:35',endTime:'08:15',title:'School Drop-off',owner:'Alex',kid:'Soni',location:'Oak Ridge Elementary',mode:'Drive',done:false,color:'#0284c7'},
+      {id:502,time:'15:00',endTime:'15:30',title:'Early Pickup · Half Day',owner:'Brooke',kid:'All',location:'Oak Ridge Elementary',mode:'Drive',done:false,color:'#dc2626'}
+    ],
+    5:[{id:601,time:'09:00',endTime:'11:00',title:'Soccer Tournament Game',owner:'Alex',kid:'Noah',location:'Lakeside Sports Complex',mode:'Drive',done:false,color:'#16a34a'}],
+    6:[{id:701,time:'10:00',endTime:'11:30',title:'Farmers Market Ride',owner:'Brooke',kid:'All',location:'Downtown Square',mode:'Drive',done:false,color:'#d97706'}]
+  };
+
+  const defaultLocations = [
+    {icon:'⌂',name:'Home',address:'18 Redwood Lane'},
+    {icon:'🏢',name:'Product Office',address:'300 Innovation Drive'},
+    {icon:'🏭',name:'Warren Plant',address:'Manufacturing Campus'},
+    {icon:'🏫',name:'Oak Ridge Elementary',address:'2140 Schoolhouse Road'},
+    {icon:'⚽',name:'Lakeside Sports Complex',address:'803 Lakeview Drive'},
+    {icon:'🏈',name:'North Athletic Field',address:'880 Northfield Road'},
+    {icon:'🏥',name:'Pediatric Clinic',address:'590 Health Parkway'},
+    {icon:'🎹',name:'Community Center',address:'1440 Maple Avenue'},
+    {icon:'🛍',name:'Downtown Square',address:'1 Market Plaza'},
+    {icon:'🛒',name:'Kroger Pickup',address:'420 Grocery Way'}
+  ];
+
+  const defaultSettings = {
+    buffer:12,
+    synced:true,
+    trafficMode:true,
+    dinnerProtection:true,
+    parentLocations:{Brooke:'Product Office',Alex:'Warren Plant'}
+  };
+
+  const state = {
+    activeDay:0,
+    activeFilter:'all',
+    eventsByDay:JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || structuredClone(defaultEvents),
+    locations:JSON.parse(localStorage.getItem(LOCATION_KEY) || 'null') || structuredClone(defaultLocations),
+    ...defaultSettings,
+    ...(JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null') || {}),
+    dismissedSuggestionIds:new Set()
+  };
+
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+  const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const dayAbbrs = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const dayDates = [3,4,5,6,7,8,9];
+  const icons = {Drive:'🚗',Walk:'🚶',Carpool:'👥','School Bus':'🚌',Home:'⌂'};
+  const ownerColors = {Brooke:'#4f46e5',Alex:'#0284c7',Family:'#d97706',Unassigned:'#dc2626'};
+
+  const routeMatrix = {
+    'Home':{'Home':0,'Product Office':28,'Warren Plant':26,'Oak Ridge Elementary':14,'Lakeside Sports Complex':18,'North Athletic Field':22,'Pediatric Clinic':23,'Community Center':16,'Downtown Square':12,'Kroger Pickup':11},
+    'Product Office':{'Home':28,'Product Office':0,'Warren Plant':21,'Oak Ridge Elementary':19,'Lakeside Sports Complex':24,'North Athletic Field':17,'Pediatric Clinic':12,'Community Center':14,'Downtown Square':18,'Kroger Pickup':15},
+    'Warren Plant':{'Home':26,'Product Office':21,'Warren Plant':0,'Oak Ridge Elementary':16,'Lakeside Sports Complex':15,'North Athletic Field':13,'Pediatric Clinic':20,'Community Center':18,'Downtown Square':19,'Kroger Pickup':17},
+    'Oak Ridge Elementary':{'Home':14,'Product Office':19,'Warren Plant':16,'Oak Ridge Elementary':0,'Lakeside Sports Complex':10,'North Athletic Field':12,'Pediatric Clinic':11,'Community Center':9,'Downtown Square':12,'Kroger Pickup':4},
+    'Lakeside Sports Complex':{'Home':18,'Product Office':24,'Warren Plant':15,'Oak Ridge Elementary':10,'Lakeside Sports Complex':0,'North Athletic Field':8,'Pediatric Clinic':14,'Community Center':11,'Downtown Square':16,'Kroger Pickup':12},
+    'North Athletic Field':{'Home':22,'Product Office':17,'Warren Plant':13,'Oak Ridge Elementary':12,'Lakeside Sports Complex':8,'North Athletic Field':0,'Pediatric Clinic':18,'Community Center':12,'Downtown Square':17,'Kroger Pickup':14},
+    'Pediatric Clinic':{'Home':23,'Product Office':12,'Warren Plant':20,'Oak Ridge Elementary':11,'Lakeside Sports Complex':14,'North Athletic Field':18,'Pediatric Clinic':0,'Community Center':8,'Downtown Square':13,'Kroger Pickup':10},
+    'Community Center':{'Home':16,'Product Office':14,'Warren Plant':18,'Oak Ridge Elementary':9,'Lakeside Sports Complex':11,'North Athletic Field':12,'Pediatric Clinic':8,'Community Center':0,'Downtown Square':9,'Kroger Pickup':7},
+    'Downtown Square':{'Home':12,'Product Office':18,'Warren Plant':19,'Oak Ridge Elementary':12,'Lakeside Sports Complex':16,'North Athletic Field':17,'Pediatric Clinic':13,'Community Center':9,'Downtown Square':0,'Kroger Pickup':8},
+    'Kroger Pickup':{'Home':11,'Product Office':15,'Warren Plant':17,'Oak Ridge Elementary':4,'Lakeside Sports Complex':12,'North Athletic Field':14,'Pediatric Clinic':10,'Community Center':7,'Downtown Square':8,'Kroger Pickup':0}
+  };
+
+  function saveState(){
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(state.eventsByDay));
+    localStorage.setItem(LOCATION_KEY,JSON.stringify(state.locations));
+    localStorage.setItem(SETTINGS_KEY,JSON.stringify({buffer:state.buffer,synced:state.synced,trafficMode:state.trafficMode,dinnerProtection:state.dinnerProtection,parentLocations:state.parentLocations}));
+  }
+
+  function toast(msg){
+    const el=$('#toast');
+    el.textContent=msg;
+    el.classList.add('show');
+    clearTimeout(window.__toast);
+    window.__toast=setTimeout(()=>el.classList.remove('show'),2000);
+  }
+
+  function timeToMinutes(value){
+    const [h,m]=value.split(':').map(Number);
+    return h*60+m;
+  }
+
+  function minutesToTime(total){
+    const normalized=((total%1440)+1440)%1440;
+    const h=Math.floor(normalized/60);
+    const m=normalized%60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  }
+
+  function formatTime(value){
+    const [h,m]=value.split(':').map(Number);
+    const period=h>=12?'PM':'AM';
+    const display=h%12||12;
+    return `${display}:${String(m).padStart(2,'0')} ${period}`;
+  }
+
+  function travelMinutes(origin,destination){
+    return routeMatrix[origin]?.[destination] ?? routeMatrix.Home[destination] ?? 18;
+  }
+
+  function sortedEvents(day=state.activeDay){
+    return [...(state.eventsByDay[day]||[])].sort((a,b)=>timeToMinutes(a.time)-timeToMinutes(b.time));
+  }
+
+  function ownerColor(owner){
+    return ownerColors[owner]||'#4f46e5';
+  }
+
+  function initialDriverState(){
+    return {
+      Brooke:{position:state.parentLocations.Brooke||'Home',availableAt:0,lastEvent:null,driveMinutes:0},
+      Alex:{position:state.parentLocations.Alex||'Home',availableAt:0,lastEvent:null,driveMinutes:0}
+    };
+  }
+
+  function candidateDetails(event,name,drivers){
+    const driver=drivers[name];
+    const start=timeToMinutes(event.time);
+    const recentHandoff=Boolean(driver.lastEvent && (start-driver.availableAt)<=180);
+    const origin=start<9*60?'Home':recentHandoff?driver.position:(state.parentLocations[name]||'Home');
+    const eta=travelMinutes(origin,event.location);
+    const departBy=start-eta-state.buffer;
+    const slack=recentHandoff?departBy-driver.availableAt:null;
+    const overlap=slack!==null&&slack<0;
+    const preferencePenalty=(event.time<'09:00'&&name==='Brooke')?3:0;
+    const loadPenalty=driver.driveMinutes*.08;
+    const score=eta+preferencePenalty+loadPenalty+(overlap?1000+Math.abs(slack):0);
+    return {name,origin,eta,departBy,slack,overlap,score,lastEvent:recentHandoff?driver.lastEvent:null};
+  }
+
+  function calculateDayPlan(day=state.activeDay){
+    const drivers=initialDriverState();
+    const plan=[];
+    for(const event of sortedEvents(day)){
+      if(event.owner==='Family'||event.mode==='Home'||event.location==='Home'){
+        plan.push({...event,lead:'Family',origin:'Home',eta:0,departBy:null,slack:null,conflict:null,previousEvent:null});
+        continue;
+      }
+      let owner=event.owner;
+      if(owner==='Unassigned'||!drivers[owner]){
+        owner=['Brooke','Alex'].map(name=>candidateDetails(event,name,drivers)).sort((a,b)=>a.score-b.score)[0].name;
+      }
+      const detail=candidateDetails(event,owner,drivers);
+      let conflict=null;
+      if(detail.overlap){
+        conflict=`${Math.abs(detail.slack)} min overlap with ${detail.lastEvent?.title||'previous handoff'}`;
+      }
+      const planned={...event,lead:owner,origin:detail.origin,eta:detail.eta,departBy:detail.departBy,slack:detail.slack,conflict,previousEvent:detail.lastEvent};
+      plan.push(planned);
+      drivers[owner].position=event.location;
+      drivers[owner].availableAt=timeToMinutes(event.endTime);
+      drivers[owner].lastEvent=event;
+      drivers[owner].driveMinutes+=detail.eta;
+    }
+    return {plan,drivers};
+  }
+
+  function optimizeDay(day=state.activeDay){
+    const drivers=initialDriverState();
+    const events=sortedEvents(day);
+    for(const event of events){
+      if(event.owner==='Family'||event.mode==='Home'||event.location==='Home')continue;
+      const choices=['Brooke','Alex'].map(name=>candidateDetails(event,name,drivers)).sort((a,b)=>a.score-b.score);
+      const best=choices[0];
+      event.owner=best.name;
+      event.color=ownerColor(best.name);
+      drivers[best.name].position=event.location;
+      drivers[best.name].availableAt=timeToMinutes(event.endTime);
+      drivers[best.name].lastEvent=event;
+      drivers[best.name].driveMinutes+=best.eta;
+    }
+    state.eventsByDay[day]=events;
+    saveState();
+  }
+
+  function calculateReadiness(plan){
+    const conflicts=plan.filter(e=>e.conflict).length;
+    const unassigned=plan.filter(e=>e.owner==='Unassigned').length;
+    const tight=plan.filter(e=>e.slack!==null&&e.slack>=0&&e.slack<8).length;
+    const missingLocations=plan.filter(e=>!state.locations.some(l=>l.name===e.location)).length;
+    return Math.max(35,Math.min(100,100-conflicts*22-unassigned*15-tight*8-missingLocations*10));
+  }
+
+  function dinnerOverlap(plan){
+    if(!state.dinnerProtection)return null;
+    const dinnerStart=18*60+30,dinnerEnd=19*60+15;
+    return plan.find(e=>e.title.toLowerCase().includes('dinner')?false:(timeToMinutes(e.endTime)>dinnerStart&&timeToMinutes(e.time)<dinnerEnd));
+  }
+
+  function buildSuggestions(day=state.activeDay){
+    const {plan}=calculateDayPlan(day);
+    const suggestions=[];
+    const conflict=plan.find(e=>e.conflict);
+    if(conflict){
+      const drivers=initialDriverState();
+      for(const prior of sortedEvents(day)){
+        if(prior.id===conflict.id)break;
+        if(prior.owner==='Brooke'||prior.owner==='Alex'){
+          drivers[prior.owner].position=prior.location;
+          drivers[prior.owner].availableAt=timeToMinutes(prior.endTime);
+          drivers[prior.owner].lastEvent=prior;
+        }
+      }
+      const alternative=conflict.lead==='Brooke'?'Alex':'Brooke';
+      const alt=candidateDetails(conflict,alternative,drivers);
+      suggestions.push({
+        id:`switch-${conflict.id}`,
+        title:`Switch ${conflict.title} to ${alternative}`,
+        body:`${conflict.lead} has a ${conflict.conflict}. ${alternative} can depart from ${alt.origin} with a ${alt.eta}-min drive at ${formatTime(minutesToTime(alt.departBy))}.`,
+        action:'Switch Driver',
+        type:'switch',
+        eventId:conflict.id,
+        newOwner:alternative
+      });
+    }
+
+    const planWithTravel=plan.filter(e=>e.departBy!==null);
+    if(planWithTravel[0]){
+      const e=planWithTravel[0];
+      const drivers=initialDriverState();
+      const brooke=candidateDetails(e,'Brooke',drivers),alex=candidateDetails(e,'Alex',drivers);
+      const best=[brooke,alex].sort((a,b)=>a.score-b.score)[0];
+      if(e.lead!==best.name){
+        suggestions.push({
+          id:`closer-${e.id}`,
+          title:`${best.name} is closer to ${e.location}`,
+          body:`${best.name}: ${best.eta} min from ${best.origin}. ${e.lead}: ${e.eta} min from ${e.origin}.`,
+          action:'Use Closer Parent',
+          type:'switch',
+          eventId:e.id,
+          newOwner:best.name
+        });
+      }
+    }
+
+    const schoolEvent=plan.find(e=>e.location==='Oak Ridge Elementary');
+    if(schoolEvent){
+      suggestions.push({
+        id:`errand-${schoolEvent.id}`,
+        title:'Bundle grocery pickup with school trip',
+        body:'Kroger Pickup is only 4 minutes from Oak Ridge Elementary and saves a separate evening trip.',
+        action:'Add Grocery Stop',
+        type:'errand',
+        afterEventId:schoolEvent.id
+      });
+    }
+
+    const dinnerConflict=dinnerOverlap(plan);
+    const dinner=plan.find(e=>e.title.toLowerCase().includes('dinner'));
+    const latestBeforeDinner=dinner?[...plan].filter(e=>e.id!==dinner.id&&timeToMinutes(e.endTime)<=timeToMinutes(dinner.time)).sort((a,b)=>timeToMinutes(b.endTime)-timeToMinutes(a.endTime))[0]:null;
+    const dinnerGap=dinner&&latestBeforeDinner?timeToMinutes(dinner.time)-timeToMinutes(latestBeforeDinner.endTime):null;
+    if(dinner&&(dinnerConflict||(dinnerGap!==null&&dinnerGap<20))){
+      const reason=dinnerConflict?`${dinnerConflict.title} overlaps the 6:30 PM dinner window.`:`Only ${dinnerGap} minutes separate ${latestBeforeDinner.title} from dinner.`;
+      suggestions.push({
+        id:`dinner-${dinner.id}`,
+        title:'Shift dinner by 30 minutes',
+        body:`${reason} Moving dinner to 7:10 PM gives everyone a stress-free evening handoff.`,
+        action:'Shift Dinner',
+        type:'shiftDinner',
+        eventId:dinner.id
+      });
+    }
+
+    const longTrip=plan.find(e=>e.eta>=17&&e.departBy!==null);
+    if(longTrip){
+      suggestions.push({
+        id:`buffer-${longTrip.id}`,
+        title:`Increase buffer for ${longTrip.title}`,
+        body:`The ${longTrip.eta}-minute commute is susceptible to traffic variability. Add 5 minutes to today's buffer.`,
+        action:'Add 5 Min Buffer',
+        type:'buffer'
+      });
+    }
+
+    return suggestions.filter(s=>!state.dismissedSuggestionIds.has(s.id)).slice(0,3);
+  }
+
+  function applySuggestion(suggestion){
+    if(!suggestion)return;
+    const events=state.eventsByDay[state.activeDay]||[];
+    if(suggestion.type==='switch'){
+      const event=events.find(e=>e.id===suggestion.eventId);
+      if(event){event.owner=suggestion.newOwner;event.color=ownerColor(suggestion.newOwner)}
+    }
+    if(suggestion.type==='buffer')state.buffer=Math.min(30,state.buffer+5);
+    if(suggestion.type==='shiftDinner'){
+      const event=events.find(e=>e.id===suggestion.eventId);
+      if(event){const duration=timeToMinutes(event.endTime)-timeToMinutes(event.time);event.time='19:10';event.endTime=minutesToTime(19*60+10+duration)}
+    }
+    if(suggestion.type==='errand'){
+      const source=events.find(e=>e.id===suggestion.afterEventId);
+      if(source){
+        const start=timeToMinutes(source.endTime)+5;
+        events.push({id:Date.now(),time:minutesToTime(start),endTime:minutesToTime(start+20),title:'Kroger Grocery Pickup',owner:source.owner,kid:'All',location:'Kroger Pickup',mode:'Drive',done:false,color:ownerColor(source.owner)});
+      }
+    }
+    saveState();
+    $('#bufferSlider').value=state.buffer;
+    $('#bufferOut').textContent=`${state.buffer} min`;
+    renderAll();
+    toast(`Applied: ${suggestion.action}`);
+  }
+
+  function renderSuggestions(containerId,day=state.activeDay){
+    const container=$(containerId);
+    if(!container)return;
+    const suggestions=buildSuggestions(day);
+    if(!suggestions.length){
+      container.innerHTML='<div class="card ai-card"><div class="ai-copy"><b>Schedule looking balanced</b><span>All handoffs and travel buffers are currently feasible with your selected locations.</span></div></div>';
+      return;
+    }
+    container.innerHTML=suggestions.map((s,i)=>`
+      <div class="card ai-card">
+        <div class="ai-head">
+          <div class="ai-copy">
+            <b>${s.title}</b>
+            <span>${s.body}</span>
+          </div>
+          <div class="ai-tag">AI Tip</div>
+        </div>
+        <div class="ai-actions">
+          <button class="ai-apply" data-ai-apply="${i}" data-container="${containerId}">${s.action}</button>
+          <button class="ai-dismiss" data-ai-dismiss="${i}" data-container="${containerId}">Dismiss</button>
+        </div>
+      </div>
+    `).join('');
+    container.querySelectorAll('[data-ai-apply]').forEach(btn=>btn.onclick=()=>applySuggestion(suggestions[Number(btn.dataset.aiApply)]));
+    container.querySelectorAll('[data-ai-dismiss]').forEach(btn=>btn.onclick=()=>{
+      state.dismissedSuggestionIds.add(suggestions[Number(btn.dataset.aiDismiss)].id);
+      renderSuggestions(containerId,day);
+      toast('Recommendation dismissed');
+    });
+  }
+
+  function renderWeek(){
+    $('#weekStrip').innerHTML=dayNames.map((name,i)=>`
+      <button class="day-pill ${i===state.activeDay?'active':''} ${(state.eventsByDay[i]||[]).length?'has-event':''}" data-day="${i}">
+        <div class="dow">${dayAbbrs[i]}</div>
+        <div class="num">${dayDates[i]}</div>
+      </button>
+    `).join('');
+    $$('.day-pill').forEach(btn=>btn.onclick=()=>{
+      state.activeDay=Number(btn.dataset.day);
+      renderAll();
+      toast(`Showing ${dayNames[state.activeDay]}`);
+    });
+  }
+
+  function renderHeader(){
+    const count=(state.eventsByDay[state.activeDay]||[]).length;
+    $('#screenEyebrow').textContent=`${dayNames[state.activeDay]}, August ${dayDates[state.activeDay]}`;
+    if($('.screen.active')?.dataset.screen==='today'){
+      $('#screenTitle').textContent='Good morning, Brooke';
+      $('#screenSubtitle').textContent=`${count} ${count===1?'handoff':'handoffs'} scheduled today.`;
+    }
+  }
+
+  function renderTimeline(){
+    const raw=sortedEvents();
+    const {plan}=calculateDayPlan();
+    const filtered=plan.filter(e=>{
+      if(state.activeFilter==='all')return true;
+      if(['Brooke','Alex'].includes(state.activeFilter))return e.lead===state.activeFilter;
+      return e.kid===state.activeFilter||e.kid==='All';
+    });
+
+    const completed=raw.filter(e=>e.done).length;
+    const pct=raw.length?Math.round(completed/raw.length*100):0;
+    $('#progressBar').style.width=`${pct}%`;
+    $('#progressText').textContent=`${completed} of ${raw.length} complete`;
+
+    const readiness=calculateReadiness(plan);
+    $('#readinessVal').textContent=`${readiness}%`;
+
+    const firstPending=plan.find(e=>!e.done&&e.departBy!==null);
+    const firstConflict=plan.find(e=>e.conflict);
+    const alertCard=$('#dayAlert');
+    const badge=$('#dayAlertBadge');
+    
+    if(firstConflict){
+      badge.className='hero-badge conflict';
+      $('#dayAlertIcon').textContent='⚠';
+      $('#dayAlertTitle').textContent='Conflict Detected';
+      $('#dayAlertBody').textContent=`${firstConflict.title}: ${firstConflict.conflict}`;
+      $('#dayAlertSubtext').textContent='Apply the AI suggested fix below to resolve this overlap.';
+    } else if(firstPending){
+      badge.className='hero-badge';
+      $('#dayAlertIcon').textContent='↗';
+      $('#dayAlertTitle').textContent='Next Departure';
+      $('#dayAlertBody').textContent=`${firstPending.lead} departs at ${formatTime(minutesToTime(firstPending.departBy))}`;
+      $('#dayAlertSubtext').textContent=`To reach ${firstPending.location} by ${formatTime(firstPending.time)} (${firstPending.eta} min drive from ${firstPending.origin}).`;
+    } else {
+      badge.className='hero-badge good';
+      $('#dayAlertIcon').textContent='✓';
+      $('#dayAlertTitle').textContent='All Clear';
+      $('#dayAlertBody').textContent='All activities complete or no travel required.';
+      $('#dayAlertSubtext').textContent='Your family handoffs for today are on track.';
+    }
+
+    if(!filtered.length){
+      $('#timeline').innerHTML=`<div style="text-align:center;padding:40px 14px;color:var(--muted);font-size:14.5px;background:white;border-radius:18px;border:1.5px dashed var(--line)">No activities scheduled for this filter on ${dayNames[state.activeDay]}.</div>`;
+      renderSuggestions('#aiList');
+      return;
+    }
+
+    $('#timeline').innerHTML=filtered.map(e=>{
+      const slackCopy=e.slack===null?'First handoff of the day for this driver':e.slack<0?`${Math.abs(e.slack)} min overlap with ${e.previousEvent?.title||'prior event'}`:`${e.slack} min slack after ${e.previousEvent?.title||'prior event'}`;
+      const depart=e.departBy===null?'No transit needed':`Depart by ${formatTime(minutesToTime(e.departBy))}`;
+      return `
+        <div class="event-wrapper">
+          <div class="event-card ${e.done?'completed':''} ${e.conflict?'conflict':''}" style="--event-color:${ownerColor(e.lead)}">
+            <div class="event-header">
+              <div>
+                <span class="time-badge">${formatTime(e.time)} – ${formatTime(e.endTime)}</span>
+                <h4 class="event-title">${e.title}</h4>
+                <div class="event-subline">
+                  <span class="chip">👤 ${e.kid}</span>
+                  <span class="chip">${icons[e.mode]||'🚗'} ${e.mode}</span>
+                  ${e.conflict?`<span class="chip warning">⚠ ${e.conflict}</span>`:''}
+                </div>
+              </div>
+              <div class="card-actions">
+                <button class="action-btn check-btn ${e.done?'checked':''}" onclick="toggleDone(${e.id})" title="Mark complete" aria-label="Mark completed">✓</button>
+                <button class="action-btn" onclick="editEvent(${e.id})" title="Edit activity" aria-label="Edit activity">✎</button>
+                <button class="action-btn" onclick="deleteEvent(${e.id})" title="Delete activity" aria-label="Delete activity">✕</button>
+              </div>
+            </div>
+
+            <div class="journey-block">
+              <div class="journey-route">
+                <div class="route-stop">
+                  <span class="route-label">Origin</span>
+                  <strong>${e.origin}</strong>
+                </div>
+                <div class="route-arrow">
+                  <strong>${e.eta} min</strong>
+                  <div class="route-line"></div>
+                </div>
+                <div class="route-stop destination">
+                  <span class="route-label">Destination</span>
+                  <strong>${e.location}</strong>
+                </div>
+              </div>
+
+              <div class="journey-footer">
+                <div class="lead-row">
+                  <div class="avatar" style="background:${ownerColor(e.lead)}">${e.lead[0]}</div>
+                  <span><strong>${e.lead}</strong> is lead driver</span>
+                </div>
+                <span class="depart-badge ${e.conflict?'conflict':''}">${depart}</span>
+              </div>
+              <div class="slack-row">${slackCopy}${e.departBy!==null?` · target buffer ${state.buffer} min`:''}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    renderSuggestions('#aiList');
+  }
+
+  function renderLocations(){
+    $('#locationList').innerHTML=state.locations.map(l=>`
+      <div class="location">
+        <div class="location-icon">${l.icon}</div>
+        <div class="location-copy">
+          <b>${l.name}</b>
+          <span>${l.address}</span>
+        </div>
+        <div class="eta">${travelMinutes('Home',l.name)} min</div>
+      </div>
+    `).join('');
+    $('#activityLocation').innerHTML=state.locations.map(l=>`<option>${l.name}</option>`).join('');
+  }
+
+  function renderParentLocationControls(){
+    ['Brooke','Alex'].forEach(name=>{
+      const select=$(`#${name.toLowerCase()}LocationSelect`);
+      if(!select)return;
+      select.innerHTML=state.locations.map(l=>`<option ${state.parentLocations[name]===l.name?'selected':''}>${l.name}</option>`).join('');
+      select.onchange=e=>{
+        state.parentLocations[name]=e.target.value;
+        saveState();
+        renderAll();
+        toast(`${name} starts from ${e.target.value}`);
+      };
+    });
+  }
+
+  function renderFamily(){
+    const weeklyDrive={Brooke:0,Alex:0};
+    for(let day=0;day<7;day++){
+      const {plan}=calculateDayPlan(day);
+      plan.forEach(e=>{if(weeklyDrive[e.lead]!==undefined)weeklyDrive[e.lead]+=e.eta});
+    }
+    const max=Math.max(1,weeklyDrive.Brooke,weeklyDrive.Alex);
+    const family=[
+      {name:'Brooke',role:`${state.parentLocations.Brooke} • ${weeklyDrive.Brooke} drive min`,initials:'B',bg:'#4f46e5',load:Math.round(weeklyDrive.Brooke/max*100)},
+      {name:'Alex',role:`${state.parentLocations.Alex} • ${weeklyDrive.Alex} drive min`,initials:'A',bg:'#0284c7',load:Math.round(weeklyDrive.Alex/max*100)},
+      {name:'Maya',role:'Football & Piano',initials:'M',bg:'#ec4899',load:60},
+      {name:'Noah',role:'Soccer & Swimming',initials:'N',bg:'#d97706',load:55}
+    ];
+    $('#familyGrid').innerHTML=family.map(p=>`
+      <div class="card person">
+        <div class="avatar" style="background:${p.bg}">${p.initials}</div>
+        <b>${p.name}</b>
+        <span>${p.role}</span>
+        <div class="load"><i style="width:${p.load}%"></i></div>
+      </div>
+    `).join('');
+  }
+
+  function renderAll(){
+    renderWeek();
+    renderHeader();
+    renderTimeline();
+    renderLocations();
+    renderParentLocationControls();
+    renderFamily();
+    renderSuggestions('#planAiList');
+  }
+
+  function setupFilters(){
+    $$('.filter-chip').forEach(chip=>chip.onclick=()=>{
+      $$('.filter-chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      state.activeFilter=chip.dataset.filter;
+      renderTimeline();
+    });
+  }
+
+  function go(screen){
+    $$('.screen').forEach(s=>s.classList.toggle('active',s.dataset.screen===screen));
+    $$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.nav===screen));
+    const copy={
+      today:[`${dayNames[state.activeDay]}, August ${dayDates[state.activeDay]}`,'Good morning, Brooke',`${(state.eventsByDay[state.activeDay]||[]).length} handoffs scheduled today.`],
+      plan:['Weekly Reset Sprint','Build the week once','Assign leads, calibrate safety buffers, and publish one shared family schedule.'],
+      map:['Live Logistics & Places','Departure & route radar','Predictive drive durations and venue loading profiles.'],
+      family:['Family & Workload','Balance the invisible load','Parent default locations, weekly drive hours, and smart handoff rules.']
+    }[screen];
+    $('#screenEyebrow').textContent=copy[0];
+    $('#screenTitle').textContent=copy[1];
+    $('#screenSubtitle').textContent=copy[2];
+    $('.content').scrollTop=0;
+    if(screen==='plan')renderSuggestions('#planAiList');
+  }
+
+  function openModal(id){
+    $('#'+id+'Modal').classList.add('open');
+  }
+  function closeModals(){
+    $$('.modal-backdrop').forEach(m=>m.classList.remove('open'));
+  }
+  function resetActivityForm(){
+    $('#editEventId').value='';
+    $('#modalActivityTitle').textContent='Add Activity';
+    $('#activityTitle').value='Piano Lesson';
+    $('#activityTime').value='17:30';
+    $('#activityEndTime').value='18:30';
+    $('#activityOwner').value='Unassigned';
+    $('#activityKid').value='Soni';
+    $('#activityMode').value='Drive';
+    if($('#activityLocation').options.length)$('#activityLocation').selectedIndex=0;
+  }
+
+  window.toggleDone=id=>{
+    const e=(state.eventsByDay[state.activeDay]||[]).find(x=>x.id===id);
+    if(e){
+      e.done=!e.done;
+      saveState();
+      renderAll();
+      toast(e.done?'Handoff completed!':'Handoff reopened');
+    }
+  };
+  window.deleteEvent=id=>{
+    state.eventsByDay[state.activeDay]=(state.eventsByDay[state.activeDay]||[]).filter(x=>x.id!==id);
+    saveState();
+    renderAll();
+    toast('Activity removed');
+  };
+  window.editEvent=id=>{
+    const e=(state.eventsByDay[state.activeDay]||[]).find(x=>x.id===id);
+    if(!e)return;
+    $('#editEventId').value=e.id;
+    $('#modalActivityTitle').textContent='Edit Activity';
+    $('#activityTitle').value=e.title;
+    $('#activityTime').value=e.time;
+    $('#activityEndTime').value=e.endTime;
+    $('#activityLocation').value=e.location;
+    $('#activityOwner').value=e.owner;
+    $('#activityKid').value=e.kid;
+    $('#activityMode').value=e.mode;
+    openModal('activity');
+  };
+
+  $$('.nav-btn').forEach(b=>b.onclick=()=>go(b.dataset.nav));
+  $$('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+  $$('[data-open]').forEach(b=>b.onclick=()=>{
+    if(b.dataset.open==='activity')resetActivityForm();
+    openModal(b.dataset.open);
+  });
+  $$('[data-close]').forEach(b=>b.onclick=closeModals);
+  $$('.modal-backdrop').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModals()}));
+
+  $('#bufferSlider').value=state.buffer;
+  $('#bufferOut').textContent=`${state.buffer} min`;
+  $('#bufferSlider').oninput=e=>{
+    state.buffer=Number(e.target.value);
+    $('#bufferOut').textContent=`${state.buffer} min`;
+    saveState();
+    renderAll();
+  };
+  $('#confidenceSlider').oninput=e=>$('#confidenceOut').textContent=`${e.target.value}%`;
+  
+  $('#trafficSwitch').classList.toggle('on',state.trafficMode);
+  $('#dinnerSwitch').classList.toggle('on',state.dinnerProtection);
+  
+  $('#trafficSwitch').onclick=()=>{
+    state.trafficMode=!state.trafficMode;
+    $('#trafficSwitch').classList.toggle('on',state.trafficMode);
+    saveState();
+    toast(state.trafficMode?'Adaptive traffic enabled':'Adaptive traffic paused');
+  };
+  $('#dinnerSwitch').onclick=()=>{
+    state.dinnerProtection=!state.dinnerProtection;
+    $('#dinnerSwitch').classList.toggle('on',state.dinnerProtection);
+    saveState();
+    renderAll();
+    toast(state.dinnerProtection?'Dinner protection active':'Dinner protection paused');
+  };
+
+  // Sync button toggling
+  $('#syncBtn').onclick=()=>{
+    state.synced=!state.synced;
+    $('#syncDot').style.background=state.synced?'#22c55e':'#f59e0b';
+    $('#syncTitle').textContent=state.synced?'Calendar Synced':'Sync Paused';
+    const strip=$('#syncMetaStrip');
+    if(strip) strip.style.display=strip.style.display==='none'?'flex':'none';
+    saveState();
+    toast(state.synced?'Google Calendar synchronized':'Calendar sync paused');
+  };
+  const syncRefreshBtn=$('#syncRefreshBtn');
+  if(syncRefreshBtn){
+    syncRefreshBtn.onclick=()=>{
+      toast('Google Calendar updated · 7 events synced');
+      $('#syncMetaStrip').style.display='none';
+    };
+  }
+
+  $('#bellBtn').onclick=()=>{
+    const conflicts=calculateDayPlan().plan.filter(e=>e.conflict).length;
+    toast(conflicts?`⚠ ${conflicts} handoff conflict detected today`:'✓ No urgent schedule conflicts');
+  };
+  $('#commuteBtn').onclick=()=>{
+    renderAll();
+    toast('Live travel estimates refreshed');
+  };
+  $('#importBtn').onclick=()=>toast('3 external calendar events scanned & imported');
+  $('#messageBtn').onclick=()=>toast('Family relay brief copied to clipboard');
+  $('#autoBalanceBtn').onclick=()=>{
+    optimizeDay();
+    renderAll();
+    toast('Leads auto-balanced by driver location & burden');
+  };
+  $('#rebalancePlan').onclick=()=>{
+    $('#autoBalanceBtn').click();
+    toast('Weekly plan optimized');
+  };
+  $('#refreshSuggestionsBtn').onclick=()=>{
+    state.dismissedSuggestionIds.clear();
+    renderSuggestions('#aiList');
+    toast('AI suggestions updated');
+  };
+  $('#planAiRefresh').onclick=()=>{
+    state.dismissedSuggestionIds.clear();
+    renderSuggestions('#planAiList');
+    toast('Weekly schedule audited');
+  };
+  $('#refreshLocationPlanBtn').onclick=()=>{
+    renderAll();
+    toast('Parent locations updated in schedule');
+  };
+
+  $('#saveActivityBtn').onclick=()=>{
+    const editId=Number($('#editEventId').value||0);
+    const eventData={
+      title:$('#activityTitle').value.trim()||'New Activity',
+      time:$('#activityTime').value||'17:30',
+      endTime:$('#activityEndTime').value||'18:30',
+      location:$('#activityLocation').value,
+      owner:$('#activityOwner').value,
+      kid:$('#activityKid').value,
+      mode:$('#activityMode').value,
+      done:false,
+      color:ownerColor($('#activityOwner').value)
+    };
+    if(timeToMinutes(eventData.endTime)<=timeToMinutes(eventData.time)){
+      toast('End time must be after start time');
+      return;
+    }
+    const list=state.eventsByDay[state.activeDay]||(state.eventsByDay[state.activeDay]=[]);
+    if(editId){
+      const existing=list.find(e=>e.id===editId);
+      if(existing)Object.assign(existing,eventData,{done:existing.done});
+    } else {
+      list.push({id:Date.now(),...eventData});
+    }
+    state.eventsByDay[state.activeDay]=list.sort((a,b)=>timeToMinutes(a.time)-timeToMinutes(b.time));
+    saveState();
+    closeModals();
+    renderAll();
+    toast(editId?'Activity updated':'Activity added');
+  };
+
+  $('#saveLocationBtn').onclick=()=>{
+    const name=$('#locationName').value.trim()||'New Venue';
+    if(!state.locations.some(l=>l.name===name)){
+      state.locations.push({icon:'📍',name,address:$('#locationAddress').value.trim()||'Address'});
+    }
+    saveState();
+    renderLocations();
+    renderParentLocationControls();
+    closeModals();
+    toast('Location saved');
+  };
+
+  function updateResetProgress(){
+    const checks=$$('#checklist .check');
+    const done=checks.filter(c=>c.classList.contains('done')).length;
+    $('#resetProgress').style.width=`${done/checks.length*100}%`;
+    $('#resetCount').textContent=`${done} of ${checks.length} complete`;
+  }
+  $$('#checklist .check').forEach(c=>c.onclick=()=>{
+    c.classList.toggle('done');
+    c.textContent=c.classList.contains('done')?'✓':'';
+    updateResetProgress();
+  });
+
+  $('#refreshCalendars').onclick=()=>toast('External calendars are up to date');
+  $('#mealPlanBtn').onclick=()=>toast('Dinner options scheduled around activities');
+  $('#backupBtn').onclick=()=>toast('Secondary emergency contact assigned');
+  $('#previewBtn').onclick=()=>{go('today');toast('Previewing Monday schedule')};
+  $('#publishBtn').onclick=()=>toast('Plan published to family calendar');
+  $('#optimizeBtn').onclick=()=>{$('#mapEta').textContent='20 min total';toast('Route duration trimmed by 4 mins')};
+  $('#openMapsBtn').onclick=()=>toast('Opening Google Maps navigation...');
+  $('#familyBalanceBtn').onclick=()=>{
+    for(let day=0;day<7;day++)optimizeDay(day);
+    renderAll();
+    toast('Weekly driving distribution normalized');
+  };
+  $('#editRulesBtn').onclick=()=>toast('Handoff rules manager opened');
+  $$('.pin').forEach(pin=>pin.onclick=()=>toast(`Destination: ${pin.dataset.place}`));
+
+  renderAll();
+  setupFilters();
+  updateResetProgress();
+</script>
+</body>
+</html>
