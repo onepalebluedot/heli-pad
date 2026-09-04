@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0d1326" />
-  <title>Orbit — Family Logistics</title>
+  <title>Heli-Pad — Family Logistics</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -32,11 +32,14 @@
       --amber-light: #fffbeb;
       --red: #dc2626;
       --red-light: #fef2f2;
-      
+      --purple: #9333ea;
+      --purple-light: #f3e8ff;
+      --pink: #db2777;
+      --pink-light: #fce7f3;
+
       --shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.04);
       --shadow-md: 0 8px 20px -4px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.04);
       --shadow-lg: 0 20px 32px -8px rgba(15, 23, 42, 0.12), 0 8px 16px -4px rgba(15, 23, 42, 0.06);
-      --shadow-nav: 0 -4px 20px rgba(15, 23, 42, 0.07);
       
       --radius-xl: 24px;
       --radius-lg: 18px;
@@ -66,7 +69,6 @@
       cursor: pointer;
     }
 
-    /* Spacious responsive page layout */
     .page {
       min-height: 100vh;
       display: flex;
@@ -79,10 +81,10 @@
         #e2e8f0;
     }
 
-    /* Main App Shell - clean, modern, spacious (no fake claustrophobic bezels/notch) */
+    /* Main App Shell */
     .phone {
       width: 100%;
-      max-width: 480px;
+      max-width: 490px;
       min-height: 780px;
       height: min(940px, calc(100vh - 36px));
       background: var(--bg);
@@ -104,30 +106,31 @@
       overflow: hidden;
     }
 
-    /* Top Bar Header */
+    /* Compact, High-Utility Top Bar */
     .topbar {
-      padding: 28px 22px 20px;
+      padding: 18px 20px 16px;
       color: white;
       position: relative;
       background: linear-gradient(155deg, #0b1124 0%, #151d38 65%, #242c58 100%);
       flex-shrink: 0;
-      border-bottom-left-radius: 28px;
-      border-bottom-right-radius: 28px;
-      box-shadow: 0 10px 24px rgba(11, 17, 36, 0.18);
+      border-bottom-left-radius: 26px;
+      border-bottom-right-radius: 26px;
+      box-shadow: 0 8px 20px rgba(11, 17, 36, 0.16);
+      z-index: 10;
     }
     .topbar::after {
       content: "";
       position: absolute;
-      width: 200px;
-      height: 200px;
+      width: 180px;
+      height: 180px;
       border-radius: 50%;
-      right: -80px;
-      top: -80px;
+      right: -60px;
+      top: -60px;
       background: radial-gradient(circle, rgba(99, 102, 241, 0.35), rgba(99, 102, 241, 0));
       pointer-events: none;
     }
 
-    .topbar-meta {
+    .topbar-content {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -136,143 +139,112 @@
       z-index: 2;
     }
 
-    .eyebrow {
-      font-size: 13px;
-      letter-spacing: 0.04em;
-      color: rgba(255, 255, 255, 0.75);
-      font-weight: 700;
+    .brand-section {
+      display: flex;
+      flex-direction: column;
+    }
+    .brand-title {
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: white;
+      line-height: 1.2;
       display: flex;
       align-items: center;
       gap: 6px;
     }
-    .eyebrow::before {
-      content: "✦";
-      color: #818cf8;
-      font-size: 12px;
+    .brand-title span.heli {
+      color: #38bdf8;
+    }
+    .eyebrow-date {
+      font-size: 12.5px;
+      color: rgba(255, 255, 255, 0.75);
+      font-weight: 600;
+      margin-top: 2px;
     }
 
-    .topbar-actions {
+    .topbar-controls {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
-    /* Compact interactive Sync Badge */
-    .sync-pill {
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      background: rgba(255, 255, 255, 0.08);
+    /* Active Caregiver User Switcher */
+    .user-select-wrap {
+      position: relative;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 999px;
-      padding: 5px 12px;
-      display: inline-flex;
+      padding: 0 10px 0 30px;
+      display: flex;
       align-items: center;
-      gap: 7px;
-      color: white;
-      font-size: 12px;
-      font-weight: 700;
-      transition: all 0.2s;
+      height: 36px;
+      transition: background 0.15s;
     }
-    .sync-pill:hover {
-      background: rgba(255, 255, 255, 0.14);
+    .user-select-wrap:hover {
+      background: rgba(255, 255, 255, 0.18);
     }
-    .sync-dot {
-      width: 8px;
-      height: 8px;
+    .user-select-icon {
+      position: absolute;
+      left: 9px;
+      width: 16px;
+      height: 16px;
       border-radius: 50%;
-      background: #22c55e;
-      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+      background: #818cf8;
+      display: grid;
+      place-items: center;
+      font-size: 10px;
+      font-weight: 800;
+      color: white;
+    }
+    .user-select {
+      background: transparent;
+      border: 0;
+      color: white;
+      font-size: 13px;
+      font-weight: 700;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      padding-right: 12px;
+    }
+    .user-select option {
+      background: #171d38;
+      color: white;
+    }
+    .user-select-caret {
+      position: absolute;
+      right: 10px;
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.7);
+      pointer-events: none;
     }
 
     .icon-btn {
-      width: 38px;
-      height: 38px;
+      width: 36px;
+      height: 36px;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.18);
       background: rgba(255, 255, 255, 0.09);
       color: white;
       display: grid;
       place-items: center;
-      font-size: 15px;
+      font-size: 14px;
       backdrop-filter: blur(8px);
       transition: all 0.15s;
     }
     .icon-btn:hover {
-      background: rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.18);
     }
     .icon-btn:active {
       transform: scale(0.94);
     }
 
-    .headline-row {
-      margin-top: 14px;
-      position: relative;
-      z-index: 2;
-    }
-    h1 {
-      font-size: 25px;
-      line-height: 1.2;
-      margin: 0;
-      letter-spacing: -0.02em;
-      font-weight: 800;
-    }
-    .subhead {
-      margin: 6px 0 0;
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.82);
-      font-weight: 500;
-    }
-
-    /* Collapsible / expandable sync banner */
-    .sync-strip {
-      margin-top: 14px;
-      padding: 10px 14px;
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      position: relative;
-      z-index: 2;
-    }
-    .sync-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 0;
-    }
-    .sync-title {
-      font-size: 13px;
-      font-weight: 700;
-      color: white;
-    }
-    .sync-meta {
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.7);
-      margin-top: 2px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .link-btn {
-      border: 0;
-      background: rgba(255, 255, 255, 0.15);
-      color: white;
-      font-size: 12.5px;
-      font-weight: 800;
-      padding: 6px 12px;
-      border-radius: 999px;
-      transition: background 0.15s;
-    }
-    .link-btn:hover {
-      background: rgba(255, 255, 255, 0.25);
-    }
-
-    /* Scrollable content container */
+    /* Scrollable content */
     .content {
       flex: 1;
       overflow-y: auto;
-      padding: 20px 20px 105px;
+      padding: 16px 18px 96px;
       scrollbar-width: thin;
       scrollbar-color: rgba(15, 23, 42, 0.15) transparent;
     }
@@ -296,40 +268,39 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Week Strip with comfortable large touch targets */
+    /* Weekday Strip */
     .week-strip {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
-      gap: 8px;
-      margin-bottom: 18px;
+      gap: 6px;
+      margin-bottom: 14px;
     }
     .day-pill {
       border: 1.5px solid var(--line);
       background: var(--surface);
       border-radius: var(--radius-md);
-      padding: 10px 4px 8px;
+      padding: 8px 2px 6px;
       color: var(--muted);
       text-align: center;
       transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
       flex-direction: column;
       align-items: center;
-      min-height: 60px;
+      min-height: 56px;
       justify-content: center;
     }
     .day-pill:hover {
       border-color: #cbd5e1;
-      transform: translateY(-1px);
     }
     .day-pill .dow {
-      font-size: 11.5px;
+      font-size: 11px;
       font-weight: 800;
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
     .day-pill .num {
-      margin-top: 4px;
-      font-size: 16px;
+      margin-top: 3px;
+      font-size: 15.5px;
       font-weight: 800;
       color: var(--ink);
       line-height: 1;
@@ -338,7 +309,7 @@
       background: var(--primary-light);
       color: var(--primary);
       border-color: var(--primary);
-      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.18);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.16);
     }
     .day-pill.active .num {
       color: var(--primary);
@@ -350,19 +321,16 @@
       border-radius: 50%;
       background: var(--primary);
       display: block;
-      margin: 4px auto 0;
-    }
-    .day-pill.active.has-event .num::after {
-      background: var(--primary);
+      margin: 3px auto 0;
     }
 
-    /* Filter Bar - spacious, clear pills */
+    /* Family Filter Bar - Distinct visual cues */
     .filter-bar {
       display: flex;
-      gap: 8px;
-      margin-bottom: 18px;
+      gap: 6px;
+      margin-bottom: 14px;
       overflow-x: auto;
-      padding-bottom: 4px;
+      padding-bottom: 2px;
       scrollbar-width: none;
     }
     .filter-bar::-webkit-scrollbar {
@@ -372,22 +340,25 @@
       border: 1.5px solid var(--line);
       background: var(--surface);
       border-radius: 999px;
-      padding: 8px 15px;
-      font-size: 13px;
+      padding: 6px 14px;
+      font-size: 12.5px;
       font-weight: 700;
       color: var(--ink-secondary);
       white-space: nowrap;
       transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
     }
     .filter-chip:hover {
-      border-color: #cbd5e1;
       background: #f8fafc;
+      border-color: #cbd5e1;
     }
     .filter-chip.active {
       background: var(--ink);
       color: white;
       border-color: var(--ink);
-      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.15);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
     }
 
     /* Common Card Styling */
@@ -398,147 +369,291 @@
       box-shadow: var(--shadow-sm);
     }
 
-    /* Unified Hero Mission Control Card */
-    .hero-status-card {
-      padding: 18px 20px;
+    /* =========================================================
+       NEW: Highly-Focused "Next Departure" Card
+       Emphasizes Kid, Location, Arrive By, Depart By & User Role
+       ========================================================= */
+    .departure-hero-card {
+      background: linear-gradient(145deg, #ffffff 0%, #f7f9fe 100%);
+      border: 1.8px solid #c7d2fe;
       border-radius: var(--radius-xl);
-      background: linear-gradient(145deg, #ffffff 0%, #f9fafb 100%);
-      border: 1.5px solid #e2e8f0;
-      box-shadow: var(--shadow-md);
-      margin-bottom: 20px;
+      padding: 18px 20px;
+      box-shadow: 0 10px 24px -4px rgba(79, 70, 229, 0.12), 0 2px 6px rgba(15, 23, 42, 0.04);
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .departure-hero-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      background: var(--primary);
+    }
+    .departure-hero-card.conflict {
+      border-color: #fca5a5;
+      background: #fff8f8;
+    }
+    .departure-hero-card.conflict::before {
+      background: var(--red);
     }
 
-    .hero-status-head {
+    .hero-top-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
       margin-bottom: 12px;
     }
-    .hero-badge {
+    .hero-user-badge {
       display: inline-flex;
       align-items: center;
       gap: 6px;
       font-size: 12px;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      padding: 5px 10px;
-      border-radius: 8px;
-      background: #eef2ff;
+      letter-spacing: 0.05em;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: var(--primary-light);
       color: var(--primary);
     }
-    .hero-badge.conflict {
+    .hero-user-badge.conflict {
       background: var(--red-light);
       color: var(--red);
     }
-    .hero-badge.good {
-      background: var(--green-light);
-      color: var(--green);
-    }
 
-    .readiness-pill {
+    /* PROMINENT KID BADGE */
+    .kid-hero-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+      color: #9d174d;
+      border: 1.5px solid #f472b6;
+      border-radius: 999px;
+      padding: 5px 12px;
       font-size: 13px;
       font-weight: 800;
+      box-shadow: 0 2px 6px rgba(219, 39, 119, 0.12);
+    }
+    .kid-hero-pill .kid-icon {
+      font-size: 14px;
+    }
+
+    /* Destination & Arrive By Focus */
+    .hero-main-focus {
+      margin: 4px 0 14px;
+    }
+    .destination-headline {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 800;
       color: var(--ink);
+      line-height: 1.3;
       display: flex;
       align-items: center;
       gap: 6px;
-      background: #f1f5f9;
-      padding: 5px 12px;
-      border-radius: 999px;
     }
-    .readiness-pill strong {
+    .destination-venue {
       color: var(--primary);
-      font-size: 14px;
     }
 
-    .hero-mission-title {
-      font-size: 17px;
+    /* Arrive By & Depart By Highlights */
+    .timing-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+      background: white;
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--line);
+    }
+    .timing-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .timing-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 800;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    .arrive-time {
+      font-size: 18px;
       font-weight: 800;
       color: var(--ink);
-      margin: 0;
-      line-height: 1.35;
+      line-height: 1.2;
     }
-    .hero-mission-desc {
-      margin: 6px 0 0;
-      font-size: 14px;
+    .depart-time {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--primary);
+      line-height: 1.2;
+    }
+    .timing-sub {
+      font-size: 11.5px;
       color: var(--muted);
-      line-height: 1.45;
+      margin-top: 2px;
     }
 
-    .hero-progress-section {
-      margin-top: 16px;
-      padding-top: 14px;
-      border-top: 1px solid var(--line-subtle);
-    }
-    .hero-progress-labels {
+    /* Hero Footer with driver info & directions */
+    .hero-footer-row {
+      margin-top: 14px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .driver-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
       font-size: 13px;
       font-weight: 700;
       color: var(--ink-secondary);
-      margin-bottom: 8px;
     }
-    .hero-progress-labels span:last-child {
-      color: var(--primary);
+    .driver-avatar-mini {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      font-size: 11px;
       font-weight: 800;
+      display: grid;
+      place-items: center;
     }
-    .progress-track-light {
-      height: 8px;
-      background: #e2e8f0;
-      border-radius: 999px;
-      overflow: hidden;
+    .directions-btn {
+      border: 0;
+      background: var(--primary);
+      color: white;
+      font-weight: 800;
+      font-size: 13px;
+      padding: 7px 14px;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);
+      transition: all 0.15s;
     }
-    .progress-fill-light {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #0284c7 0%, #4f46e5 100%);
-      border-radius: 999px;
-      transition: width 0.35s ease;
+    .directions-btn:hover {
+      background: var(--primary-hover);
     }
 
-    /* Section Titles */
+    /* Compact AI Smart Notice (Replaces 3 huge cards!) */
+    .smart-ai-banner {
+      margin-bottom: 16px;
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%);
+      border: 1.5px solid #bae6fd;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      animation: fadeIn 0.2s ease-out;
+    }
+    .smart-ai-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .smart-ai-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: white;
+      color: var(--cyan);
+      display: grid;
+      place-items: center;
+      font-size: 15px;
+      box-shadow: var(--shadow-sm);
+      flex-shrink: 0;
+    }
+    .smart-ai-copy {
+      font-size: 12.5px;
+      line-height: 1.35;
+      color: #0369a1;
+      font-weight: 600;
+    }
+    .smart-ai-copy strong {
+      color: var(--ink);
+      display: block;
+      font-size: 13px;
+    }
+    .smart-ai-action {
+      border: 0;
+      background: var(--primary);
+      color: white;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 6px 12px;
+      border-radius: 8px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Relay Section Title & Subtle Completion Counter */
     .section-title {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin: 24px 2px 14px;
+      margin: 18px 2px 12px;
+    }
+    .section-left {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
     }
     .section-title h2 {
       margin: 0;
-      font-size: 18px;
+      font-size: 17.5px;
       letter-spacing: -0.015em;
       font-weight: 800;
       color: var(--ink);
+    }
+    .relay-status-counter {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--muted);
+      background: #e2e8f0;
+      padding: 2px 8px;
+      border-radius: 999px;
     }
     .section-action-btn {
       border: 1.5px solid var(--primary-light);
       background: var(--primary-light);
       color: var(--primary);
       font-weight: 800;
-      font-size: 13px;
-      padding: 6px 12px;
+      font-size: 12.5px;
+      padding: 5px 12px;
       border-radius: 999px;
       transition: all 0.15s;
     }
     .section-action-btn:hover {
       background: #e0e7ff;
-      border-color: #c7d2fe;
     }
 
-    /* Timeline & Event Cards - Clean, spacious, highly legible */
+    /* Timeline & Event Cards */
     .timeline {
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
     }
     .event-wrapper {
       position: relative;
     }
     .event-card {
-      padding: 18px;
+      padding: 16px 18px;
       position: relative;
       background: white;
       border-radius: var(--radius-lg);
@@ -562,7 +677,7 @@
     }
     .event-card.completed {
       background: #f8fafc;
-      opacity: 0.72;
+      opacity: 0.7;
     }
     .event-card.completed .event-title {
       text-decoration: line-through;
@@ -584,40 +699,61 @@
       font-weight: 800;
       color: var(--ink-secondary);
       background: #f1f5f9;
-      padding: 5px 10px;
-      border-radius: 8px;
+      padding: 4px 9px;
+      border-radius: 7px;
       display: inline-block;
-      margin-bottom: 6px;
+      margin-bottom: 5px;
     }
     .event-title {
-      font-size: 16.5px;
+      font-size: 16px;
       font-weight: 800;
       margin: 0;
       color: var(--ink);
-      line-height: 1.35;
+      line-height: 1.3;
     }
+    
+    /* CHILD TAG vs DRIVER TAG */
     .event-subline {
-      margin-top: 8px;
+      margin-top: 7px;
       display: flex;
-      gap: 8px;
+      gap: 7px;
       flex-wrap: wrap;
       align-items: center;
     }
-    .chip {
+    .kid-tag {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      padding: 5px 10px;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: #fdf2f8;
+      border: 1px solid #fbcfe8;
+      color: #be185d;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .mode-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
       border-radius: 999px;
       background: #f1f5f9;
       color: var(--ink-secondary);
       font-size: 12px;
       font-weight: 700;
     }
-    .chip.warning {
+    .conflict-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 999px;
       background: #fef2f2;
       color: var(--red);
       border: 1px solid #fecaca;
+      font-size: 12px;
+      font-weight: 800;
     }
 
     .card-actions {
@@ -630,8 +766,8 @@
       border: 1px solid var(--line);
       background: #f8fafc;
       color: var(--muted);
-      width: 36px;
-      height: 36px;
+      width: 34px;
+      height: 34px;
       border-radius: 10px;
       display: grid;
       place-items: center;
@@ -658,10 +794,10 @@
       transform: scale(0.92);
     }
 
-    /* Readable, elegant journey block */
+    /* Readable journey ribbon */
     .journey-block {
-      margin-top: 14px;
-      padding: 14px 16px;
+      margin-top: 12px;
+      padding: 12px 14px;
       border-radius: 14px;
       background: linear-gradient(135deg, #f8faff 0%, #f0f8ff 100%);
       border: 1px solid #e0e7ff;
@@ -670,23 +806,23 @@
       display: grid;
       grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
     .route-stop {
       min-width: 0;
     }
     .route-label {
       display: block;
-      font-size: 11px;
+      font-size: 10.5px;
       text-transform: uppercase;
       letter-spacing: 0.06em;
       color: var(--muted);
       font-weight: 800;
-      margin-bottom: 3px;
+      margin-bottom: 2px;
     }
     .route-stop strong {
       display: block;
-      font-size: 13.5px;
+      font-size: 13px;
       font-weight: 700;
       color: var(--ink);
       line-height: 1.35;
@@ -699,14 +835,14 @@
     }
     .route-arrow {
       text-align: center;
-      min-width: 84px;
+      min-width: 78px;
       color: var(--primary);
     }
     .route-arrow strong {
       display: block;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 800;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
     .route-line {
       height: 3px;
@@ -719,16 +855,16 @@
       position: absolute;
       right: -2px;
       top: 50%;
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       border-top: 2px solid var(--primary);
       border-right: 2px solid var(--primary);
       transform: translateY(-50%) rotate(45deg);
     }
 
     .journey-footer {
-      margin-top: 14px;
-      padding-top: 12px;
+      margin-top: 12px;
+      padding-top: 10px;
       border-top: 1px dashed #cbd5e1;
       display: flex;
       align-items: center;
@@ -739,29 +875,29 @@
     .lead-row {
       display: flex;
       align-items: center;
-      gap: 9px;
-      font-size: 13px;
+      gap: 8px;
+      font-size: 12.5px;
       font-weight: 700;
       color: var(--ink);
     }
     .avatar {
-      width: 28px;
-      height: 28px;
+      width: 26px;
+      height: 26px;
       border-radius: 50%;
       display: grid;
       place-items: center;
       color: white;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 800;
       flex-shrink: 0;
     }
     .depart-badge {
-      padding: 6px 12px;
+      padding: 5px 11px;
       border-radius: 999px;
       background: white;
       border: 1.5px solid #c7d2fe;
       color: var(--primary);
-      font-size: 12.5px;
+      font-size: 12px;
       font-weight: 800;
     }
     .depart-badge.conflict {
@@ -770,134 +906,13 @@
       background: #fef2f2;
     }
     .slack-row {
-      margin-top: 10px;
+      margin-top: 8px;
       color: var(--muted);
-      font-size: 12px;
-      line-height: 1.4;
-    }
-
-    /* AI Suggestions */
-    .ai-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .ai-card {
-      padding: 18px;
-      border-radius: var(--radius-lg);
-      border: 1.5px solid #e0e7ff;
-      background: linear-gradient(145deg, #ffffff 0%, #f9faff 100%);
-    }
-    .ai-head {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .ai-copy b {
-      display: block;
-      font-size: 15px;
-      font-weight: 800;
-      color: var(--ink);
-      line-height: 1.35;
-    }
-    .ai-copy span {
-      display: block;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
-      margin-top: 6px;
-    }
-    .ai-tag {
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: var(--primary-light);
-      color: var(--primary);
       font-size: 11.5px;
-      font-weight: 800;
-      letter-spacing: 0.04em;
-      flex-shrink: 0;
-    }
-    .ai-actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 14px;
-    }
-    .ai-actions button {
-      border: 0;
-      border-radius: 12px;
-      padding: 9px 16px;
-      font-size: 13px;
-      font-weight: 800;
-      transition: all 0.15s;
-    }
-    .ai-apply {
-      background: var(--primary);
-      color: white;
-    }
-    .ai-apply:hover {
-      background: var(--primary-hover);
-    }
-    .ai-dismiss {
-      background: #f1f5f9;
-      color: var(--ink-secondary);
-    }
-    .ai-dismiss:hover {
-      background: #e2e8f0;
-    }
-
-    /* Quick Action Grid */
-    .quick-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .quick {
-      border: 1.5px solid var(--line);
-      background: white;
-      border-radius: var(--radius-lg);
-      padding: 16px;
-      text-align: left;
-      box-shadow: var(--shadow-sm);
-      transition: all 0.15s;
-      display: flex;
-      flex-direction: column;
-    }
-    .quick:hover {
-      border-color: #cbd5e1;
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-md);
-    }
-    .quick:active {
-      transform: scale(0.98);
-    }
-    .quick-icon {
-      width: 38px;
-      height: 38px;
-      border-radius: 12px;
-      display: grid;
-      place-items: center;
-      background: var(--primary-light);
-      color: var(--primary);
-      font-size: 16px;
-      font-weight: 800;
-      margin-bottom: 10px;
-    }
-    .quick b {
-      display: block;
-      font-size: 14px;
-      font-weight: 800;
-      color: var(--ink);
-    }
-    .quick span {
-      display: block;
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 4px;
       line-height: 1.35;
     }
 
-    /* Reset Hero & Checklist (Plan Screen) */
+    /* Plan Screen (Reset Sprint) */
     .reset-hero {
       padding: 20px;
       background: linear-gradient(145deg, #10162f 0%, #1e254e 100%);
@@ -952,7 +967,6 @@
       padding: 16px 18px;
       border-bottom: 1.5px solid var(--line);
       background: white;
-      transition: background 0.15s;
     }
     .check-row:last-child {
       border-bottom: 0;
@@ -972,7 +986,6 @@
       font-weight: 800;
       font-size: 14px;
       flex-shrink: 0;
-      transition: all 0.15s;
     }
     .check.done {
       background: var(--green);
@@ -984,32 +997,26 @@
     }
     .check-copy b {
       display: block;
-      font-size: 14.5px;
+      font-size: 14px;
       font-weight: 800;
       color: var(--ink);
     }
     .check-copy span {
       display: block;
-      font-size: 12.5px;
+      font-size: 12px;
       color: var(--muted);
       margin-top: 3px;
-      line-height: 1.4;
     }
     .check-action {
       color: var(--primary);
       background: var(--primary-light);
       border: 0;
       border-radius: 10px;
-      padding: 8px 14px;
-      font-size: 12.5px;
+      padding: 7px 13px;
+      font-size: 12px;
       font-weight: 800;
-      transition: background 0.15s;
-    }
-    .check-action:hover {
-      background: #e0e7ff;
     }
 
-    /* Slider & Settings Card */
     .slider-card {
       margin-top: 16px;
       padding: 18px 20px;
@@ -1021,23 +1028,21 @@
       align-items: center;
     }
     .slider-head b {
-      font-size: 15px;
+      font-size: 14.5px;
       font-weight: 800;
-      color: var(--ink);
     }
     .slider-head output {
       color: var(--primary);
-      font-size: 15px;
+      font-size: 14.5px;
       font-weight: 800;
       background: var(--primary-light);
-      padding: 4px 10px;
+      padding: 3px 9px;
       border-radius: 8px;
     }
     .slider-copy {
       margin: 6px 0 14px;
       color: var(--muted);
-      font-size: 13px;
-      line-height: 1.45;
+      font-size: 12.5px;
     }
     input[type="range"] {
       width: 100%;
@@ -1045,47 +1050,44 @@
       height: 6px;
       border-radius: 999px;
       background: #e2e8f0;
-      outline: none;
     }
     .switch-row {
-      margin-top: 18px;
+      margin-top: 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      padding-top: 14px;
+      padding-top: 12px;
       border-top: 1px solid var(--line-subtle);
     }
     .switch-row b {
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 800;
       display: block;
-      color: var(--ink);
     }
     .switch-row span {
-      font-size: 12.5px;
+      font-size: 12px;
       color: var(--muted);
       display: block;
       margin-top: 2px;
     }
     .switch {
-      width: 52px;
-      height: 30px;
+      width: 50px;
+      height: 28px;
       border-radius: 999px;
       background: #cbd5e1;
       padding: 3px;
       border: 0;
-      transition: background 0.2s;
       flex-shrink: 0;
     }
     .switch::after {
       content: "";
       display: block;
-      width: 24px;
-      height: 24px;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
       background: white;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.18);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
       transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .switch.on {
@@ -1103,12 +1105,8 @@
       background: var(--primary);
       color: white;
       font-weight: 800;
-      font-size: 15px;
+      font-size: 14.5px;
       box-shadow: 0 8px 20px rgba(79, 70, 229, 0.24);
-      transition: all 0.15s;
-    }
-    .button-primary:hover {
-      background: var(--primary-hover);
     }
     .button-secondary {
       width: 100%;
@@ -1118,17 +1116,12 @@
       background: white;
       color: var(--ink);
       font-weight: 800;
-      font-size: 14.5px;
-      transition: all 0.15s;
-    }
-    .button-secondary:hover {
-      background: #f8fafc;
-      border-color: #cbd5e1;
+      font-size: 14px;
     }
 
     /* Map Screen */
     .map-card {
-      height: 220px;
+      height: 200px;
       position: relative;
       overflow: hidden;
       background: #e2e8f0;
@@ -1142,73 +1135,34 @@
       background-image: 
         linear-gradient(#cbd5e1 1.5px, transparent 1.5px),
         linear-gradient(90deg, #cbd5e1 1.5px, transparent 1.5px);
-      background-size: 36px 36px;
+      background-size: 34px 34px;
       transform: rotate(-5deg) scale(1.15);
     }
-    .road {
-      position: absolute;
-      height: 18px;
-      background: white;
-      box-shadow: 0 0 0 2px #cbd5e1 inset;
-      border-radius: 999px;
-    }
-    .road.one { width: 360px; left: -20px; top: 110px; transform: rotate(18deg); }
-    .road.two { width: 330px; left: 80px; top: 155px; transform: rotate(-24deg); }
-    .road.three { width: 310px; left: -40px; top: 45px; transform: rotate(-18deg); }
+    .road { position: absolute; height: 16px; background: white; border-radius: 999px; }
+    .road.one { width: 340px; left: -20px; top: 100px; transform: rotate(18deg); }
+    .road.two { width: 320px; left: 80px; top: 145px; transform: rotate(-24deg); }
+    .road.three { width: 300px; left: -40px; top: 40px; transform: rotate(-18deg); }
     .route {
-      position: absolute;
-      width: 220px;
-      height: 100px;
-      left: 70px;
-      top: 65px;
-      border: 4px dashed var(--primary);
-      border-left-color: transparent;
-      border-bottom-color: transparent;
-      border-radius: 50%;
-      transform: rotate(8deg);
+      position: absolute; width: 200px; height: 90px; left: 70px; top: 60px;
+      border: 4px dashed var(--primary); border-left-color: transparent; border-bottom-color: transparent;
+      border-radius: 50%; transform: rotate(8deg);
     }
     .pin {
-      position: absolute;
-      width: 36px;
-      height: 36px;
-      border-radius: 50% 50% 50% 12%;
-      transform: rotate(-45deg);
-      background: var(--primary);
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.22);
-      display: grid;
-      place-items: center;
-      color: white;
-      cursor: pointer;
-      transition: transform 0.15s;
+      position: absolute; width: 34px; height: 34px; border-radius: 50% 50% 50% 12%;
+      transform: rotate(-45deg); background: var(--primary); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
+      display: grid; place-items: center; color: white; cursor: pointer;
     }
-    .pin:hover {
-      transform: rotate(-45deg) scale(1.1);
-    }
-    .pin span {
-      transform: rotate(45deg);
-      font-size: 13px;
-      font-weight: 800;
-    }
-    .pin.home { left: 60px; top: 130px; background: #0f172a; }
-    .pin.school { right: 65px; top: 40px; background: #0284c7; }
-    .pin.field { right: 95px; bottom: 25px; background: var(--green); }
+    .pin span { transform: rotate(45deg); font-size: 13px; font-weight: 800; }
+    .pin.home { left: 60px; top: 120px; background: #0f172a; }
+    .pin.school { right: 65px; top: 35px; background: #0284c7; }
+    .pin.field { right: 95px; bottom: 20px; background: var(--green); }
     .map-overlay {
-      position: absolute;
-      left: 14px;
-      right: 14px;
-      top: 14px;
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
+      position: absolute; left: 12px; right: 12px; top: 12px;
+      display: flex; justify-content: space-between; gap: 8px;
     }
     .map-pill {
-      background: rgba(255, 255, 255, 0.94);
-      border: 1px solid rgba(226, 232, 240, 0.95);
-      border-radius: 999px;
-      padding: 6px 14px;
-      font-size: 12px;
-      font-weight: 800;
-      box-shadow: var(--shadow-sm);
+      background: rgba(255, 255, 255, 0.94); border: 1px solid rgba(226, 232, 240, 0.95);
+      border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 800;
     }
 
     .location-list {
@@ -1220,8 +1174,8 @@
     .location {
       display: flex;
       align-items: center;
-      gap: 14px;
-      padding: 14px 18px;
+      gap: 12px;
+      padding: 13px 16px;
       border-bottom: 1.5px solid var(--line);
       background: white;
     }
@@ -1229,13 +1183,13 @@
       border-bottom: 0;
     }
     .location-icon {
-      width: 40px;
-      height: 40px;
+      width: 38px;
+      height: 38px;
       border-radius: 12px;
       display: grid;
       place-items: center;
       background: var(--primary-light);
-      font-size: 17px;
+      font-size: 16px;
       flex-shrink: 0;
     }
     .location-copy {
@@ -1244,13 +1198,12 @@
     }
     .location-copy b {
       display: block;
-      font-size: 14.5px;
+      font-size: 14px;
       font-weight: 800;
-      color: var(--ink);
     }
     .location-copy span {
       color: var(--muted);
-      font-size: 12.5px;
+      font-size: 12px;
       margin-top: 2px;
       display: block;
       white-space: nowrap;
@@ -1258,48 +1211,62 @@
       text-overflow: ellipsis;
     }
     .eta {
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 800;
       color: var(--primary);
       background: var(--primary-light);
-      padding: 4px 10px;
-      border-radius: 8px;
+      padding: 4px 9px;
+      border-radius: 7px;
     }
 
     /* Family Screen */
+    .family-section-title {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 16px 2px 10px;
+    }
     .family-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 10px;
     }
     .person {
-      padding: 18px 16px;
+      padding: 16px 14px;
       text-align: center;
       border-radius: var(--radius-lg);
     }
     .person .avatar {
-      width: 52px;
-      height: 52px;
-      margin: 0 auto 10px;
-      font-size: 18px;
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 8px;
+      font-size: 17px;
     }
     .person b {
       display: block;
-      font-size: 15px;
+      font-size: 14.5px;
       font-weight: 800;
-      color: var(--ink);
     }
     .person span {
       display: block;
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--muted);
-      margin-top: 4px;
-      line-height: 1.35;
+      margin-top: 3px;
+    }
+    .person-tag {
+      display: inline-block;
+      font-size: 10.5px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 999px;
+      margin-top: 6px;
     }
     .load {
-      height: 6px;
+      height: 5px;
       border-radius: 999px;
-      margin-top: 12px;
+      margin-top: 10px;
       background: #e2e8f0;
       overflow: hidden;
     }
@@ -1310,112 +1277,104 @@
       background: linear-gradient(90deg, #0284c7, #4f46e5);
       transition: width 0.35s ease;
     }
+
     .location-control-grid {
       display: grid;
-      gap: 12px;
+      gap: 10px;
     }
     .location-control {
-      padding: 16px;
+      padding: 14px 16px;
       border-radius: var(--radius-lg);
     }
     .location-control-head {
       display: flex;
       justify-content: space-between;
       gap: 10px;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     .location-control-head b {
-      font-size: 14.5px;
+      font-size: 14px;
       font-weight: 800;
-      color: var(--ink);
     }
     .location-control-head span {
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--muted);
     }
     .location-control select {
       width: 100%;
       border: 1.5px solid var(--line);
       background: white;
-      border-radius: 12px;
-      padding: 10px 12px;
+      border-radius: 11px;
+      padding: 8px 11px;
       color: var(--ink);
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 600;
       outline: none;
     }
 
-    /* Bottom Navigation - clean, elevated, readable */
+    /* Bottom Navigation */
     .bottom-nav {
       position: absolute;
       left: 12px;
       right: 12px;
       bottom: 12px;
-      height: 72px;
-      border-radius: 26px;
-      background: rgba(255, 255, 255, 0.94);
+      height: 68px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.95);
       border: 1.5px solid rgba(226, 232, 240, 0.9);
       box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.16);
       backdrop-filter: blur(20px);
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      padding: 6px;
+      padding: 5px;
       z-index: 30;
     }
     .nav-btn {
       border: 0;
       background: transparent;
-      border-radius: 18px;
+      border-radius: 16px;
       color: #64748b;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 4px;
-      font-size: 12px;
+      gap: 3px;
+      font-size: 11.5px;
       font-weight: 800;
       transition: all 0.15s;
     }
     .nav-btn svg {
-      width: 22px;
-      height: 22px;
-      transition: transform 0.15s;
+      width: 21px;
+      height: 21px;
     }
     .nav-btn.active {
       color: var(--primary);
       background: var(--primary-light);
     }
-    .nav-btn.active svg {
-      transform: scale(1.08);
-    }
 
-    /* Floating Action Button (FAB) */
+    /* Floating Action Button */
     .fab {
       position: absolute;
-      right: 20px;
-      bottom: 96px;
-      width: 56px;
-      height: 56px;
-      border-radius: 20px;
+      right: 18px;
+      bottom: 90px;
+      width: 52px;
+      height: 52px;
+      border-radius: 18px;
       border: 0;
       color: white;
       background: linear-gradient(135deg, #4f46e5 0%, #0284c7 100%);
-      box-shadow: 0 10px 24px rgba(79, 70, 229, 0.38);
-      font-size: 28px;
+      box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
+      font-size: 26px;
       display: grid;
       place-items: center;
       z-index: 25;
-      transition: transform 0.15s, box-shadow 0.15s;
-    }
-    .fab:hover {
-      transform: scale(1.05);
-      box-shadow: 0 12px 28px rgba(79, 70, 229, 0.45);
+      transition: transform 0.15s;
     }
     .fab:active {
       transform: scale(0.94);
     }
 
-    /* Modals - Spacious and touch-friendly */
+    /* Modals */
     .modal-backdrop {
       position: absolute;
       inset: 0;
@@ -1432,22 +1391,22 @@
       width: 100%;
       background: #ffffff;
       border-radius: 32px 32px 0 0;
-      padding: 24px 22px calc(24px + env(safe-area-inset-bottom));
+      padding: 22px 20px calc(22px + env(safe-area-inset-bottom));
       box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.25);
       max-height: 88%;
       overflow-y: auto;
-      animation: slideUp 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     }
     @keyframes slideUp {
-      from { transform: translateY(32px); opacity: 0.3; }
+      from { transform: translateY(30px); opacity: 0.3; }
       to { transform: translateY(0); opacity: 1; }
     }
     .modal-handle {
-      width: 44px;
-      height: 5px;
+      width: 40px;
+      height: 4px;
       background: #cbd5e1;
       border-radius: 999px;
-      margin: 0 auto 16px;
+      margin: 0 auto 14px;
     }
     .modal-head {
       display: flex;
@@ -1457,35 +1416,29 @@
     }
     .modal-head h3 {
       margin: 0;
-      font-size: 20px;
+      font-size: 19px;
       font-weight: 800;
-      color: var(--ink);
     }
     .close-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 12px;
+      width: 34px;
+      height: 34px;
+      border-radius: 11px;
       border: 0;
       background: #f1f5f9;
       color: #64748b;
-      font-size: 20px;
+      font-size: 19px;
       display: grid;
       place-items: center;
-      transition: background 0.15s;
-    }
-    .close-btn:hover {
-      background: #e2e8f0;
-      color: var(--ink);
     }
     .field {
-      margin-top: 14px;
+      margin-top: 13px;
     }
     .field label {
       display: block;
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--muted);
       font-weight: 800;
-      margin-bottom: 6px;
+      margin-bottom: 5px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
@@ -1493,43 +1446,39 @@
       width: 100%;
       border: 1.5px solid var(--line);
       background: white;
-      border-radius: 14px;
-      padding: 12px 14px;
+      border-radius: 13px;
+      padding: 11px 13px;
       color: var(--ink);
       outline: none;
-      font-size: 15px;
+      font-size: 14.5px;
       font-weight: 600;
-      transition: border-color 0.15s;
-    }
-    .field input:focus, .field select:focus {
-      border-color: var(--primary);
     }
     .two-col {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 10px;
     }
     .modal-actions {
       display: grid;
       grid-template-columns: 1fr 1.5fr;
-      gap: 12px;
-      margin-top: 22px;
+      gap: 10px;
+      margin-top: 20px;
     }
 
-    /* Toast notification */
+    /* Toast */
     .toast {
       position: absolute;
       z-index: 90;
       left: 50%;
-      top: 24px;
+      top: 20px;
       transform: translate(-50%, -20px);
       background: #0f172a;
       color: white;
       border-radius: 999px;
-      padding: 10px 20px;
-      font-size: 13.5px;
+      padding: 9px 18px;
+      font-size: 13px;
       font-weight: 800;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
       opacity: 0;
       pointer-events: none;
       transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1540,239 +1489,226 @@
       transform: translate(-50%, 0);
     }
 
-    /* Native mobile adjustments */
     @media (max-width: 520px) {
-      .page {
-        padding: 0;
-        background: var(--bg);
-      }
-      .phone {
-        max-width: 100%;
-        height: 100vh;
-        min-height: 100vh;
-        border-radius: 0;
-        box-shadow: none;
-        border: 0;
-      }
-      .topbar {
-        border-radius: 0 0 24px 24px;
-        padding-top: calc(16px + env(safe-area-inset-top));
-      }
-      .bottom-nav {
-        bottom: calc(8px + env(safe-area-inset-bottom));
-      }
-      .fab {
-        bottom: calc(92px + env(safe-area-inset-bottom));
-      }
+      .page { padding: 0; background: var(--bg); }
+      .phone { max-width: 100%; height: 100vh; min-height: 100vh; border-radius: 0; border: 0; box-shadow: none; }
+      .topbar { border-radius: 0 0 22px 22px; padding-top: calc(14px + env(safe-area-inset-top)); }
+      .bottom-nav { bottom: calc(6px + env(safe-area-inset-bottom)); }
+      .fab { bottom: calc(86px + env(safe-area-inset-bottom)); }
     }
   </style>
 </head>
 <body>
 <div class="page">
-  <main class="phone" aria-label="Orbit family logistics app">
+  <main class="phone" aria-label="Heli-Pad family logistics app">
     <div class="app">
-      <!-- Header -->
+      <!-- Streamlined Header (Removed bulky greeting, added role switcher & quick share) -->
       <header class="topbar">
-        <div class="topbar-meta">
-          <div class="eyebrow" id="screenEyebrow">Monday, August 3</div>
-          <div class="topbar-actions">
-            <button class="sync-pill" id="syncBtn" aria-label="Calendar sync status">
-              <span class="sync-dot" id="syncDot"></span>
-              <span id="syncTitle">Calendar Sync</span>
-            </button>
-            <button class="icon-btn" id="bellBtn" aria-label="Notifications">🔔</button>
+        <div class="topbar-content">
+          <div class="brand-section">
+            <div class="brand-title"><span class="heli">Heli</span>-Pad</div>
+            <div class="eyebrow-date" id="screenEyebrow">Monday, August 3</div>
           </div>
-        </div>
-        
-        <div class="headline-row">
-          <h1 id="screenTitle">Good morning, Brooke</h1>
-          <p class="subhead" id="screenSubtitle">4 handoffs scheduled today.</p>
-        </div>
 
-        <!-- Sync details strip (can toggle or show sync feedback) -->
-        <div class="sync-strip" id="syncMetaStrip" style="display:none;">
-          <div class="sync-left">
-            <span class="sync-dot"></span>
-            <div>
-              <div class="sync-title">Google Calendar Synced</div>
-              <div class="sync-meta" id="syncMeta">Last synced 2m ago · 7 events imported</div>
+          <div class="topbar-controls">
+            <!-- Active Caregiver Switcher -->
+            <div class="user-select-wrap" title="Select active caregiver viewing the app">
+              <span class="user-select-icon" id="userBadgeIcon">M</span>
+              <select class="user-select" id="currentUserSelect" aria-label="Active caregiver">
+                <option value="Mom">Mom</option>
+                <option value="Dad">Dad</option>
+                <option value="Nani">Nani (Backup)</option>
+                <option value="Grandma">Grandma (Backup)</option>
+                <option value="All">Family (All)</option>
+              </select>
+              <span class="user-select-caret">▼</span>
             </div>
+
+            <!-- Quick Share Brief -->
+            <button class="icon-btn" id="shareBriefBtn" title="Copy day's brief to clipboard" aria-label="Share family brief">📤</button>
+            
+            <!-- Calendar Sync -->
+            <button class="icon-btn" id="syncBtn" title="Google Calendar sync status" aria-label="Calendar sync">
+              <span id="syncDot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;"></span>
+            </button>
+
+            <!-- Alerts -->
+            <button class="icon-btn" id="bellBtn" title="Notifications" aria-label="Notifications">🔔</button>
           </div>
-          <button class="link-btn" id="syncRefreshBtn">Sync Now</button>
         </div>
       </header>
 
-      <!-- Scrollable Main Content -->
+      <!-- Scrollable Content -->
       <section class="content">
         <!-- Screen: Today -->
         <div class="screen active" data-screen="today">
           <!-- Weekday Strip -->
           <div class="week-strip" id="weekStrip"></div>
 
-          <!-- Family Filter Bar -->
+          <!-- Family Filter Bar (Children clearly demarcated from Caregivers) -->
           <div class="filter-bar" id="filterBar">
-            <button class="filter-chip active" data-filter="all">All Family</button>
-            <button class="filter-chip" data-filter="Brooke">Brooke</button>
-            <button class="filter-chip" data-filter="Alex">Alex</button>
-            <button class="filter-chip" data-filter="Soni">Soni</button>
-            <button class="filter-chip" data-filter="Maya">Maya</button>
-            <button class="filter-chip" data-filter="Noah">Noah</button>
+            <button class="filter-chip active" data-filter="all">All</button>
+            <button class="filter-chip" data-filter="Mom">Mom</button>
+            <button class="filter-chip" data-filter="Dad">Dad</button>
+            <button class="filter-chip" data-filter="Nani">Nani</button>
+            <button class="filter-chip" data-filter="Grandma">Grandma</button>
+            <button class="filter-chip" data-filter="Soni">🎒 Soni</button>
+            <button class="filter-chip" data-filter="Maya">🎨 Maya</button>
+            <button class="filter-chip" data-filter="Noah">⚽ Noah</button>
           </div>
 
-          <!-- Unified Mission Control / Hero Handoff Card -->
-          <div class="hero-status-card" id="dayAlert">
-            <div class="hero-status-head">
-              <div class="hero-badge" id="dayAlertBadge">
-                <span id="dayAlertIcon">↗</span>
-                <span id="dayAlertTitle">Next Departure</span>
+          <!-- =========================================================
+               NEW: Tailored Next Departure Card
+               Personalized to active user, highlighting Kid, Venue, Arrive By
+               ========================================================= -->
+          <div class="departure-hero-card" id="nextDepartureCard">
+            <div class="hero-top-row">
+              <div class="hero-user-badge" id="heroUserRoleBadge">
+                <span>↗</span>
+                <span id="heroTargetUserTitle">Your Next Trip (Mom)</span>
               </div>
-              <div class="readiness-pill" id="readinessMeter">
-                <span>Readiness</span>
-                <strong id="readinessVal">88%</strong>
+              <div class="kid-hero-pill" id="heroKidBadge">
+                <span class="kid-icon">🎒</span>
+                <span id="heroKidName">Maya</span>
               </div>
             </div>
-            <h3 class="hero-mission-title" id="dayAlertBody">Orbit is calculating the next handoff.</h3>
-            <p class="hero-mission-desc" id="dayAlertSubtext">Real-time route feasibility and driver availability check.</p>
 
-            <div class="hero-progress-section">
-              <div class="hero-progress-labels">
-                <span>Completed Handoffs</span>
-                <span id="progressText">0 of 4</span>
+            <div class="hero-main-focus">
+              <div class="route-label">Next Destination</div>
+              <h3 class="destination-headline">
+                <span id="heroActivityTitle">Football Practice Pickup</span>
+                <span>·</span>
+                <span class="destination-venue" id="heroVenueName">North Athletic Field</span>
+              </h3>
+            </div>
+
+            <div class="timing-grid">
+              <div class="timing-item">
+                <span class="timing-label">Must Arrive By</span>
+                <div class="arrive-time" id="heroArriveTime">3:20 PM</div>
+                <div class="timing-sub" id="heroActivityWindow">3:20 – 4:30 PM</div>
               </div>
-              <div class="progress-track-light">
-                <div class="progress-fill-light" id="progressBar"></div>
+              <div class="timing-item">
+                <span class="timing-label">Target Departure</span>
+                <div class="depart-time" id="heroDepartTime">3:02 PM</div>
+                <div class="timing-sub" id="heroRouteSub">18 min drive from Office</div>
               </div>
+            </div>
+
+            <div class="hero-footer-row">
+              <div class="driver-pill">
+                <div class="driver-avatar-mini" id="heroDriverAvatar">M</div>
+                <span id="heroDriverText">You are assigned driver</span>
+              </div>
+              <button class="directions-btn" id="heroDirectionsBtn">
+                <span>🗺</span>
+                <span>Directions</span>
+              </button>
             </div>
           </div>
 
-          <!-- Relay Timeline Section -->
+          <!-- Compact Contextual AI Notice (Only shows if recommendation exists) -->
+          <div class="smart-ai-banner" id="smartAiBanner" style="display:none;">
+            <div class="smart-ai-left">
+              <div class="smart-ai-icon">✦</div>
+              <div class="smart-ai-copy" id="smartAiCopy">
+                <strong>Schedule Recommendation</strong>
+                <span id="smartAiText">Dad is closer to North Athletic Field.</span>
+              </div>
+            </div>
+            <button class="smart-ai-action" id="smartAiActionBtn">Apply</button>
+          </div>
+
+          <!-- Relay Timeline Section with subtle completion tracker -->
           <div class="section-title">
-            <h2>Today’s Relay</h2>
-            <button class="section-action-btn" id="autoBalanceBtn">⚡ Auto-Balance Leads</button>
+            <div class="section-left">
+              <h2>Today’s Relay</h2>
+              <span class="relay-status-counter" id="relayCompletedCounter">0 of 4 done</span>
+            </div>
+            <button class="section-action-btn" id="autoBalanceBtn">⚡ Auto-Balance</button>
           </div>
           <div class="timeline" id="timeline"></div>
-
-          <!-- AI Planner Suggestions -->
-          <div class="section-title">
-            <h2>AI Route Intelligence</h2>
-            <button class="section-action-btn" id="refreshSuggestionsBtn">Refresh</button>
-          </div>
-          <div class="ai-list" id="aiList"></div>
-
-          <!-- Quick Tools -->
-          <div class="section-title">
-            <h2>Quick Actions</h2>
-            <button class="section-action-btn" data-go="plan">Open Reset Sprint</button>
-          </div>
-          <div class="quick-grid">
-            <button class="quick" id="commuteBtn">
-              <div class="quick-icon">🚗</div>
-              <b>Refresh Travel</b>
-              <span>Update live traffic estimates</span>
-            </button>
-            <button class="quick" id="importBtn">
-              <div class="quick-icon">📅</div>
-              <b>Import Events</b>
-              <span>Sync school & sports calendars</span>
-            </button>
-            <button class="quick" id="messageBtn">
-              <div class="quick-icon">💬</div>
-              <b>Share Brief</b>
-              <span>Send today's relay to Alex</span>
-            </button>
-            <button class="quick" data-open="location">
-              <div class="quick-icon">📍</div>
-              <b>Add Location</b>
-              <span>Save venue & loading buffers</span>
-            </button>
-          </div>
         </div>
 
         <!-- Screen: Plan (Sunday Reset Sprint) -->
         <div class="screen" data-screen="plan">
           <div class="card reset-hero">
             <h2>Sunday Reset Sprint</h2>
-            <p>Convert calendars, school schedules and driver availability into one synchronized, stress-free week.</p>
+            <p>Lock in external calendars, verify commute buffers, and distribute handoffs fairly between Mom & Dad.</p>
             <div class="progress-track"><div class="progress-fill" id="resetProgress"></div></div>
-            <div class="progress-meta"><span id="resetCount">3 of 5 complete</span><span>10 min remaining</span></div>
+            <div class="progress-meta"><span id="resetCount">3 of 5 complete</span><span>Readiness: <strong id="readinessVal">88%</strong></span></div>
           </div>
 
           <div class="card checklist" id="checklist">
             <div class="check-row">
               <button class="check done">✓</button>
               <div class="check-copy">
-                <b>Import external calendars</b>
-                <span>Google, school portal and sports schedules</span>
+                <b>Sync school & sports calendars</b>
+                <span>Google calendars, school portals, team schedules</span>
               </div>
-              <button class="check-action" id="refreshCalendars">Refresh</button>
+              <button class="check-action" id="refreshCalendars">Sync</button>
             </div>
             <div class="check-row">
               <button class="check done">✓</button>
               <div class="check-copy">
-                <b>Confirm locations & buffers</b>
-                <span>Verify address and parking ease for each venue</span>
+                <b>Confirm venues & parking buffers</b>
+                <span>Check address and turnaround ease for all places</span>
               </div>
-              <button class="check-action" data-go="map">Review</button>
+              <button class="check-action" data-go="map">Venues</button>
             </div>
             <div class="check-row">
               <button class="check done">✓</button>
               <div class="check-copy">
-                <b>Optimize lead assignments</b>
-                <span>Assign parents based on commute origin & driving burden</span>
+                <b>Rebalance Mom & Dad assignments</b>
+                <span>Assign based on commute origin & driving minutes</span>
               </div>
-              <button class="check-action" id="rebalancePlan">Optimize</button>
+              <button class="check-action" id="rebalancePlan">Rebalance</button>
             </div>
             <div class="check-row">
               <button class="check"></button>
               <div class="check-copy">
-                <b>Plan protected family meals</b>
-                <span>Ensure evening handoffs don't collide with dinner</span>
+                <b>Protect family dinner</b>
+                <span>Keep 6:30 – 7:15 PM free of conflicting pickups</span>
               </div>
-              <button class="check-action" id="mealPlanBtn">Plan</button>
+              <button class="check-action" id="mealPlanBtn">Protect</button>
             </div>
             <div class="check-row">
               <button class="check"></button>
               <div class="check-copy">
-                <b>Assign emergency backup driver</b>
-                <span>Designate secondary contact for tight handoffs</span>
+                <b>Designate backup caregiver</b>
+                <span>Assign Nani or Grandma for tight handoffs</span>
               </div>
               <button class="check-action" id="backupBtn">Assign</button>
             </div>
           </div>
 
-          <div class="section-title">
-            <h2>AI Plan Audit</h2>
-            <button class="section-action-btn" id="planAiRefresh">Analyze Week</button>
-          </div>
-          <div class="ai-list" id="planAiList"></div>
-
           <div class="card slider-card">
             <div class="slider-head">
-              <b>Target Travel Buffer</b>
+              <b>Target Commute Buffer</b>
               <output id="bufferOut">12 min</output>
             </div>
-            <p class="slider-copy">Depart-by times automatically incorporate this safety margin to absorb traffic variability.</p>
+            <p class="slider-copy">Depart-by times incorporate this margin to guard against unexpected traffic spikes.</p>
             <input id="bufferSlider" type="range" min="0" max="30" value="12" step="1" />
             
             <div class="switch-row">
               <div>
-                <b>Adaptive Traffic Mode</b>
-                <span>Recalculate route assumptions based on peak hours</span>
+                <b>Peak Hour Traffic Mode</b>
+                <span>Adjust departure estimates automatically</span>
               </div>
               <button class="switch on" id="trafficSwitch" aria-label="Adaptive traffic mode"></button>
             </div>
             
             <div class="switch-row">
               <div>
-                <b>Protect Family Dinner</b>
+                <b>Dinner Window Alert</b>
                 <span>Flag any pickup overlapping 6:30 – 7:15 PM</span>
               </div>
               <button class="switch on" id="dinnerSwitch" aria-label="Protect family dinner"></button>
             </div>
           </div>
 
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:16px;">
-            <button class="button-secondary" id="previewBtn">Preview Week</button>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:16px;">
+            <button class="button-secondary" id="previewBtn">Preview Schedule</button>
             <button class="button-primary" id="publishBtn">Publish Plan</button>
           </div>
         </div>
@@ -1789,98 +1725,88 @@
             <div class="pin school" data-place="Oak Ridge Elementary"><span>🏫</span></div>
             <div class="pin field" data-place="Lakeside Sports Complex"><span>⚽</span></div>
             <div class="map-overlay">
-              <div class="map-pill">Live Traffic · Normal</div>
+              <div class="map-pill">Route Radar · Normal</div>
               <div class="map-pill" id="mapEta">24 min total</div>
             </div>
           </div>
 
           <div class="section-title">
-            <h2>Saved Places</h2>
-            <button class="section-action-btn" data-open="location">+ Add Place</button>
+            <h2>Saved Venues & Buffers</h2>
+            <button class="section-action-btn" data-open="location">+ Add Venue</button>
           </div>
           <div class="card location-list" id="locationList"></div>
 
-          <div class="section-title">
-            <h2>Route Intelligence</h2>
-            <button class="section-action-btn" id="optimizeBtn">Optimize</button>
-          </div>
-          <div class="card slider-card">
+          <div class="card slider-card" style="margin-top:14px;">
             <div class="slider-head">
-              <b>Departure Confidence</b>
+              <b>Departure Reliability</b>
               <output id="confidenceOut">94%</output>
             </div>
-            <p class="slider-copy">Reliability rating calculated from parking ease, load duration, and buffer minutes.</p>
+            <p class="slider-copy">Calculated from parking turnaround, venue loading buffer, and traffic margin.</p>
             <input id="confidenceSlider" type="range" min="60" max="99" value="94" />
-            <button class="button-primary" style="margin-top:14px" id="openMapsBtn">Open in Navigation</button>
+            <button class="button-primary" style="margin-top:14px" id="openMapsBtn">Open in Maps</button>
           </div>
         </div>
 
         <!-- Screen: Family -->
         <div class="screen" data-screen="family">
-          <div class="section-title">
-            <h2>Parent Starting Locations</h2>
-            <button class="section-action-btn" id="refreshLocationPlanBtn">Apply to Plan</button>
-          </div>
+          <div class="family-section-title">Primary Caregivers & Starting Points</div>
           <div class="location-control-grid">
             <div class="card location-control">
               <div class="location-control-head">
-                <b>Brooke</b>
+                <b>Mom</b>
                 <span>Default Work/Start Venue</span>
               </div>
-              <select id="brookeLocationSelect"></select>
+              <select id="momLocationSelect"></select>
             </div>
             <div class="card location-control">
               <div class="location-control-head">
-                <b>Alex</b>
+                <b>Dad</b>
                 <span>Default Work/Start Venue</span>
               </div>
-              <select id="alexLocationSelect"></select>
+              <select id="dadLocationSelect"></select>
             </div>
           </div>
 
           <div class="section-title">
-            <h2>Weekly Driving Load Balance</h2>
+            <h2>Weekly Driving Distribution</h2>
             <button class="section-action-btn" id="familyBalanceBtn">Rebalance</button>
           </div>
           <div class="family-grid" id="familyGrid"></div>
 
-          <div class="section-title">
-            <h2>Smart Assignment Rules</h2>
-            <button class="section-action-btn" id="editRulesBtn">Manage Rules</button>
-          </div>
+          <div class="family-section-title" style="margin-top:20px;">Caregiver Smart Rules</div>
           <div class="card checklist">
             <div class="check-row">
-              <div class="quick-icon">A</div>
+              <div class="avatar" style="background:#0284c7;font-size:12px;">D</div>
               <div class="check-copy">
-                <b>Alex prefers morning drop-offs</b>
-                <span>Applied when departure times don't conflict with work calls</span>
+                <b>Dad handles morning drop-offs</b>
+                <span>Preferred tie-breaker before Dad's work morning meetings</span>
               </div>
               <button class="check-action">Active</button>
             </div>
             <div class="check-row">
-              <div class="quick-icon">B</div>
+              <div class="avatar" style="background:#4f46e5;font-size:12px;">M</div>
               <div class="check-copy">
-                <b>Brooke handles pediatric healthcare</b>
-                <span>Prioritizes clinic visits unless route creates an impossible handoff</span>
+                <b>Mom coordinates pediatric visits</b>
+                <span>Prioritizes clinic checkups unless impossible commute overlap</span>
               </div>
               <button class="check-action">Active</button>
             </div>
             <div class="check-row">
-              <div class="quick-icon">⚖</div>
+              <div class="avatar" style="background:#d946ef;font-size:12px;">N</div>
               <div class="check-copy">
-                <b>Equitable driving minutes balance</b>
-                <span>Normalizes behind-the-wheel burden across both partners</span>
+                <b>Nani & Grandma on backup roster</b>
+                <span>Can be tagged for overlapping afternoon lessons</span>
               </div>
-              <button class="check-action">Active</button>
+              <button class="check-action">Backup</button>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- Primary Floating Action Button -->
+      <!-- Primary FAB -->
       <button class="fab" data-open="activity" aria-label="Add activity">+</button>
 
-      <!-- Elevated Bottom Navigation -->
+      <!-- Bottom Navigation -->
       <nav class="bottom-nav" aria-label="Primary navigation">
         <button class="nav-btn active" data-nav="today">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/></svg>
@@ -1929,21 +1855,23 @@
           </div>
           <div class="two-col">
             <div class="field">
-              <label>Lead Driver</label>
+              <label>Lead Caregiver</label>
               <select id="activityOwner">
-                <option>Brooke</option>
-                <option>Alex</option>
-                <option>Unassigned</option>
-                <option>Family</option>
+                <option value="Mom">Mom (Primary)</option>
+                <option value="Dad">Dad (Primary)</option>
+                <option value="Nani">Nani (Backup)</option>
+                <option value="Grandma">Grandma (Backup)</option>
+                <option value="Family">Both / Family</option>
+                <option value="Unassigned">Unassigned</option>
               </select>
             </div>
             <div class="field">
-              <label>Family Member</label>
+              <label>Child Participant</label>
               <select id="activityKid">
-                <option>Soni</option>
-                <option>Maya</option>
-                <option>Noah</option>
-                <option>All</option>
+                <option value="Maya">Maya</option>
+                <option value="Soni">Soni</option>
+                <option value="Noah">Noah</option>
+                <option value="All">All Children</option>
               </select>
             </div>
           </div>
@@ -1969,11 +1897,11 @@
         <div class="modal">
           <div class="modal-handle"></div>
           <div class="modal-head">
-            <h3>Add Saved Place</h3>
+            <h3>Add Saved Venue</h3>
             <button class="close-btn" data-close>×</button>
           </div>
           <div class="field">
-            <label>Venue / Place Name</label>
+            <label>Venue / Location Name</label>
             <input id="locationName" placeholder="e.g. Piano Studio" value="Piano Studio" />
           </div>
           <div class="field">
@@ -2012,37 +1940,37 @@
 </div>
 
 <script>
-  const STORAGE_KEY = 'orbit-family-logistics-v4';
-  const LOCATION_KEY = 'orbit-family-locations-v4';
-  const SETTINGS_KEY = 'orbit-family-settings-v4';
+  const STORAGE_KEY = 'heli-pad-events-v5';
+  const LOCATION_KEY = 'heli-pad-locations-v5';
+  const SETTINGS_KEY = 'heli-pad-settings-v5';
 
   const defaultEvents = {
     0:[
-      {id:101,time:'07:35',endTime:'08:15',title:'School Drop-off',owner:'Alex',kid:'Soni',location:'Oak Ridge Elementary',mode:'Drive',done:true,color:'#0284c7'},
-      {id:102,time:'15:20',endTime:'16:30',title:'Football Practice Pickup',owner:'Brooke',kid:'Maya',location:'North Athletic Field',mode:'Drive',done:false,color:'#4f46e5'},
-      {id:103,time:'17:15',endTime:'18:30',title:'Soccer Practice',owner:'Alex',kid:'Noah',location:'Lakeside Sports Complex',mode:'Drive',done:false,color:'#16a34a'},
+      {id:101,time:'07:35',endTime:'08:15',title:'School Drop-off',owner:'Dad',kid:'Soni',location:'Oak Ridge Elementary',mode:'Drive',done:true,color:'#0284c7'},
+      {id:102,time:'15:20',endTime:'16:30',title:'Football Practice Pickup',owner:'Mom',kid:'Maya',location:'North Athletic Field',mode:'Drive',done:false,color:'#4f46e5'},
+      {id:103,time:'17:15',endTime:'18:30',title:'Soccer Practice',owner:'Dad',kid:'Noah',location:'Lakeside Sports Complex',mode:'Drive',done:false,color:'#0284c7'},
       {id:104,time:'18:40',endTime:'19:30',title:'Taco Bowls & Family Dinner',owner:'Family',kid:'All',location:'Home',mode:'Home',done:false,color:'#d97706'}
     ],
     1:[
-      {id:201,time:'07:35',endTime:'08:15',title:'School Drop-off',owner:'Alex',kid:'Soni',location:'Oak Ridge Elementary',mode:'Drive',done:false,color:'#0284c7'},
-      {id:202,time:'16:00',endTime:'17:00',title:'Pediatric Dental Appointment',owner:'Brooke',kid:'Soni',location:'Pediatric Clinic',mode:'Drive',done:false,color:'#dc2626'},
-      {id:203,time:'17:30',endTime:'18:30',title:'Piano Lesson',owner:'Alex',kid:'Maya',location:'Community Center',mode:'Drive',done:false,color:'#4f46e5'}
+      {id:201,time:'07:35',endTime:'08:15',title:'School Drop-off',owner:'Dad',kid:'Soni',location:'Oak Ridge Elementary',mode:'Drive',done:false,color:'#0284c7'},
+      {id:202,time:'16:00',endTime:'17:00',title:'Pediatric Dental Appointment',owner:'Mom',kid:'Soni',location:'Pediatric Clinic',mode:'Drive',done:false,color:'#4f46e5'},
+      {id:203,time:'17:30',endTime:'18:30',title:'Piano Lesson',owner:'Nani',kid:'Maya',location:'Community Center',mode:'Drive',done:false,color:'#d946ef'}
     ],
     2:[
-      {id:301,time:'07:35',endTime:'08:15',title:'School Drop-off',owner:'Alex',kid:'Soni',location:'Oak Ridge Elementary',mode:'Drive',done:false,color:'#0284c7'},
-      {id:302,time:'15:20',endTime:'16:30',title:'Football Practice',owner:'Alex',kid:'Maya',location:'North Athletic Field',mode:'Drive',done:false,color:'#4f46e5'},
-      {id:303,time:'18:00',endTime:'19:00',title:'Family Swimming',owner:'Brooke',kid:'All',location:'Lakeside Sports Complex',mode:'Drive',done:false,color:'#0284c7'}
+      {id:301,time:'07:35',endTime:'08:15',title:'School Drop-off',owner:'Dad',kid:'Soni',location:'Oak Ridge Elementary',mode:'Drive',done:false,color:'#0284c7'},
+      {id:302,time:'15:20',endTime:'16:30',title:'Football Practice',owner:'Dad',kid:'Maya',location:'North Athletic Field',mode:'Drive',done:false,color:'#0284c7'},
+      {id:303,time:'18:00',endTime:'19:00',title:'Family Swimming',owner:'Mom',kid:'All',location:'Lakeside Sports Complex',mode:'Drive',done:false,color:'#4f46e5'}
     ],
     3:[
-      {id:401,time:'07:35',endTime:'08:15',title:'School Drop-off',owner:'Alex',kid:'Soni',location:'Oak Ridge Elementary',mode:'Drive',done:false,color:'#0284c7'},
-      {id:402,time:'17:15',endTime:'18:30',title:'Soccer Tournament Prep',owner:'Brooke',kid:'Noah',location:'Lakeside Sports Complex',mode:'Drive',done:false,color:'#16a34a'}
+      {id:401,time:'07:35',endTime:'08:15',title:'School Drop-off',owner:'Dad',kid:'Soni',location:'Oak Ridge Elementary',mode:'Drive',done:false,color:'#0284c7'},
+      {id:402,time:'17:15',endTime:'18:30',title:'Soccer Tournament Prep',owner:'Mom',kid:'Noah',location:'Lakeside Sports Complex',mode:'Drive',done:false,color:'#4f46e5'}
     ],
     4:[
-      {id:501,time:'07:35',endTime:'08:15',title:'School Drop-off',owner:'Alex',kid:'Soni',location:'Oak Ridge Elementary',mode:'Drive',done:false,color:'#0284c7'},
-      {id:502,time:'15:00',endTime:'15:30',title:'Early Pickup · Half Day',owner:'Brooke',kid:'All',location:'Oak Ridge Elementary',mode:'Drive',done:false,color:'#dc2626'}
+      {id:501,time:'07:35',endTime:'08:15',title:'School Drop-off',owner:'Dad',kid:'Soni',location:'Oak Ridge Elementary',mode:'Drive',done:false,color:'#0284c7'},
+      {id:502,time:'15:00',endTime:'15:30',title:'Early Pickup · Half Day',owner:'Grandma',kid:'All',location:'Oak Ridge Elementary',mode:'Drive',done:false,color:'#10b981'}
     ],
-    5:[{id:601,time:'09:00',endTime:'11:00',title:'Soccer Tournament Game',owner:'Alex',kid:'Noah',location:'Lakeside Sports Complex',mode:'Drive',done:false,color:'#16a34a'}],
-    6:[{id:701,time:'10:00',endTime:'11:30',title:'Farmers Market Ride',owner:'Brooke',kid:'All',location:'Downtown Square',mode:'Drive',done:false,color:'#d97706'}]
+    5:[{id:601,time:'09:00',endTime:'11:00',title:'Soccer Tournament Game',owner:'Dad',kid:'Noah',location:'Lakeside Sports Complex',mode:'Drive',done:false,color:'#0284c7'}],
+    6:[{id:701,time:'10:00',endTime:'11:30',title:'Farmers Market Ride',owner:'Mom',kid:'All',location:'Downtown Square',mode:'Drive',done:false,color:'#4f46e5'}]
   };
 
   const defaultLocations = [
@@ -2063,7 +1991,8 @@
     synced:true,
     trafficMode:true,
     dinnerProtection:true,
-    parentLocations:{Brooke:'Product Office',Alex:'Warren Plant'}
+    currentUser:'Mom',
+    parentLocations:{Mom:'Product Office',Dad:'Warren Plant'}
   };
 
   const state = {
@@ -2082,7 +2011,15 @@
   const dayAbbrs = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const dayDates = [3,4,5,6,7,8,9];
   const icons = {Drive:'🚗',Walk:'🚶',Carpool:'👥','School Bus':'🚌',Home:'⌂'};
-  const ownerColors = {Brooke:'#4f46e5',Alex:'#0284c7',Family:'#d97706',Unassigned:'#dc2626'};
+  const ownerColors = {
+    Mom:'#4f46e5',
+    Dad:'#0284c7',
+    Nani:'#d946ef',
+    Grandma:'#10b981',
+    Family:'#d97706',
+    Unassigned:'#dc2626'
+  };
+  const kidIcons = {Maya:'🎨',Soni:'🎒',Noah:'⚽',All:'👨‍👩‍👧‍👦'};
 
   const routeMatrix = {
     'Home':{'Home':0,'Product Office':28,'Warren Plant':26,'Oak Ridge Elementary':14,'Lakeside Sports Complex':18,'North Athletic Field':22,'Pediatric Clinic':23,'Community Center':16,'Downtown Square':12,'Kroger Pickup':11},
@@ -2100,7 +2037,14 @@
   function saveState(){
     localStorage.setItem(STORAGE_KEY,JSON.stringify(state.eventsByDay));
     localStorage.setItem(LOCATION_KEY,JSON.stringify(state.locations));
-    localStorage.setItem(SETTINGS_KEY,JSON.stringify({buffer:state.buffer,synced:state.synced,trafficMode:state.trafficMode,dinnerProtection:state.dinnerProtection,parentLocations:state.parentLocations}));
+    localStorage.setItem(SETTINGS_KEY,JSON.stringify({
+      buffer:state.buffer,
+      synced:state.synced,
+      trafficMode:state.trafficMode,
+      dinnerProtection:state.dinnerProtection,
+      currentUser:state.currentUser,
+      parentLocations:state.parentLocations
+    }));
   }
 
   function toast(msg){
@@ -2144,13 +2088,15 @@
 
   function initialDriverState(){
     return {
-      Brooke:{position:state.parentLocations.Brooke||'Home',availableAt:0,lastEvent:null,driveMinutes:0},
-      Alex:{position:state.parentLocations.Alex||'Home',availableAt:0,lastEvent:null,driveMinutes:0}
+      Mom:{position:state.parentLocations.Mom||'Home',availableAt:0,lastEvent:null,driveMinutes:0},
+      Dad:{position:state.parentLocations.Dad||'Home',availableAt:0,lastEvent:null,driveMinutes:0},
+      Nani:{position:'Home',availableAt:0,lastEvent:null,driveMinutes:0},
+      Grandma:{position:'Home',availableAt:0,lastEvent:null,driveMinutes:0}
     };
   }
 
   function candidateDetails(event,name,drivers){
-    const driver=drivers[name];
+    const driver=drivers[name]||{position:'Home',availableAt:0,lastEvent:null,driveMinutes:0};
     const start=timeToMinutes(event.time);
     const recentHandoff=Boolean(driver.lastEvent && (start-driver.availableAt)<=180);
     const origin=start<9*60?'Home':recentHandoff?driver.position:(state.parentLocations[name]||'Home');
@@ -2158,7 +2104,7 @@
     const departBy=start-eta-state.buffer;
     const slack=recentHandoff?departBy-driver.availableAt:null;
     const overlap=slack!==null&&slack<0;
-    const preferencePenalty=(event.time<'09:00'&&name==='Brooke')?3:0;
+    const preferencePenalty=(event.time<'09:00'&&name==='Mom')?3:0;
     const loadPenalty=driver.driveMinutes*.08;
     const score=eta+preferencePenalty+loadPenalty+(overlap?1000+Math.abs(slack):0);
     return {name,origin,eta,departBy,slack,overlap,score,lastEvent:recentHandoff?driver.lastEvent:null};
@@ -2174,12 +2120,12 @@
       }
       let owner=event.owner;
       if(owner==='Unassigned'||!drivers[owner]){
-        owner=['Brooke','Alex'].map(name=>candidateDetails(event,name,drivers)).sort((a,b)=>a.score-b.score)[0].name;
+        owner=['Mom','Dad'].map(name=>candidateDetails(event,name,drivers)).sort((a,b)=>a.score-b.score)[0].name;
       }
       const detail=candidateDetails(event,owner,drivers);
       let conflict=null;
       if(detail.overlap){
-        conflict=`${Math.abs(detail.slack)} min overlap with ${detail.lastEvent?.title||'previous handoff'}`;
+        conflict=`${Math.abs(detail.slack)} min overlap with ${detail.lastEvent?.title||'prior event'}`;
       }
       const planned={...event,lead:owner,origin:detail.origin,eta:detail.eta,departBy:detail.departBy,slack:detail.slack,conflict,previousEvent:detail.lastEvent};
       plan.push(planned);
@@ -2196,7 +2142,8 @@
     const events=sortedEvents(day);
     for(const event of events){
       if(event.owner==='Family'||event.mode==='Home'||event.location==='Home')continue;
-      const choices=['Brooke','Alex'].map(name=>candidateDetails(event,name,drivers)).sort((a,b)=>a.score-b.score);
+      if(['Nani','Grandma'].includes(event.owner))continue; // preserve explicit secondary caregiver assignments
+      const choices=['Mom','Dad'].map(name=>candidateDetails(event,name,drivers)).sort((a,b)=>a.score-b.score);
       const best=choices[0];
       event.owner=best.name;
       event.color=ownerColor(best.name);
@@ -2217,12 +2164,6 @@
     return Math.max(35,Math.min(100,100-conflicts*22-unassigned*15-tight*8-missingLocations*10));
   }
 
-  function dinnerOverlap(plan){
-    if(!state.dinnerProtection)return null;
-    const dinnerStart=18*60+30,dinnerEnd=19*60+15;
-    return plan.find(e=>e.title.toLowerCase().includes('dinner')?false:(timeToMinutes(e.endTime)>dinnerStart&&timeToMinutes(e.time)<dinnerEnd));
-  }
-
   function buildSuggestions(day=state.activeDay){
     const {plan}=calculateDayPlan(day);
     const suggestions=[];
@@ -2231,19 +2172,19 @@
       const drivers=initialDriverState();
       for(const prior of sortedEvents(day)){
         if(prior.id===conflict.id)break;
-        if(prior.owner==='Brooke'||prior.owner==='Alex'){
+        if(drivers[prior.owner]){
           drivers[prior.owner].position=prior.location;
           drivers[prior.owner].availableAt=timeToMinutes(prior.endTime);
           drivers[prior.owner].lastEvent=prior;
         }
       }
-      const alternative=conflict.lead==='Brooke'?'Alex':'Brooke';
+      const alternative=conflict.lead==='Mom'?'Dad':'Mom';
       const alt=candidateDetails(conflict,alternative,drivers);
       suggestions.push({
         id:`switch-${conflict.id}`,
         title:`Switch ${conflict.title} to ${alternative}`,
-        body:`${conflict.lead} has a ${conflict.conflict}. ${alternative} can depart from ${alt.origin} with a ${alt.eta}-min drive at ${formatTime(minutesToTime(alt.departBy))}.`,
-        action:'Switch Driver',
+        body:`${conflict.lead} has a ${conflict.conflict}. ${alternative} can leave from ${alt.origin} at ${formatTime(minutesToTime(alt.departBy))}.`,
+        action:`Switch to ${alternative}`,
         type:'switch',
         eventId:conflict.id,
         newOwner:alternative
@@ -2254,61 +2195,21 @@
     if(planWithTravel[0]){
       const e=planWithTravel[0];
       const drivers=initialDriverState();
-      const brooke=candidateDetails(e,'Brooke',drivers),alex=candidateDetails(e,'Alex',drivers);
-      const best=[brooke,alex].sort((a,b)=>a.score-b.score)[0];
+      const mom=candidateDetails(e,'Mom',drivers),dad=candidateDetails(e,'Dad',drivers);
+      const best=[mom,dad].sort((a,b)=>a.score-b.score)[0];
       if(e.lead!==best.name){
         suggestions.push({
           id:`closer-${e.id}`,
           title:`${best.name} is closer to ${e.location}`,
-          body:`${best.name}: ${best.eta} min from ${best.origin}. ${e.lead}: ${e.eta} min from ${e.origin}.`,
-          action:'Use Closer Parent',
+          body:`${best.name} is ${best.eta} min from ${best.origin}. ${e.lead} is ${e.eta} min.`,
+          action:`Assign ${best.name}`,
           type:'switch',
           eventId:e.id,
           newOwner:best.name
         });
       }
     }
-
-    const schoolEvent=plan.find(e=>e.location==='Oak Ridge Elementary');
-    if(schoolEvent){
-      suggestions.push({
-        id:`errand-${schoolEvent.id}`,
-        title:'Bundle grocery pickup with school trip',
-        body:'Kroger Pickup is only 4 minutes from Oak Ridge Elementary and saves a separate evening trip.',
-        action:'Add Grocery Stop',
-        type:'errand',
-        afterEventId:schoolEvent.id
-      });
-    }
-
-    const dinnerConflict=dinnerOverlap(plan);
-    const dinner=plan.find(e=>e.title.toLowerCase().includes('dinner'));
-    const latestBeforeDinner=dinner?[...plan].filter(e=>e.id!==dinner.id&&timeToMinutes(e.endTime)<=timeToMinutes(dinner.time)).sort((a,b)=>timeToMinutes(b.endTime)-timeToMinutes(a.endTime))[0]:null;
-    const dinnerGap=dinner&&latestBeforeDinner?timeToMinutes(dinner.time)-timeToMinutes(latestBeforeDinner.endTime):null;
-    if(dinner&&(dinnerConflict||(dinnerGap!==null&&dinnerGap<20))){
-      const reason=dinnerConflict?`${dinnerConflict.title} overlaps the 6:30 PM dinner window.`:`Only ${dinnerGap} minutes separate ${latestBeforeDinner.title} from dinner.`;
-      suggestions.push({
-        id:`dinner-${dinner.id}`,
-        title:'Shift dinner by 30 minutes',
-        body:`${reason} Moving dinner to 7:10 PM gives everyone a stress-free evening handoff.`,
-        action:'Shift Dinner',
-        type:'shiftDinner',
-        eventId:dinner.id
-      });
-    }
-
-    const longTrip=plan.find(e=>e.eta>=17&&e.departBy!==null);
-    if(longTrip){
-      suggestions.push({
-        id:`buffer-${longTrip.id}`,
-        title:`Increase buffer for ${longTrip.title}`,
-        body:`The ${longTrip.eta}-minute commute is susceptible to traffic variability. Add 5 minutes to today's buffer.`,
-        action:'Add 5 Min Buffer',
-        type:'buffer'
-      });
-    }
-
-    return suggestions.filter(s=>!state.dismissedSuggestionIds.has(s.id)).slice(0,3);
+    return suggestions.filter(s=>!state.dismissedSuggestionIds.has(s.id));
   }
 
   function applySuggestion(suggestion){
@@ -2316,58 +2217,17 @@
     const events=state.eventsByDay[state.activeDay]||[];
     if(suggestion.type==='switch'){
       const event=events.find(e=>e.id===suggestion.eventId);
-      if(event){event.owner=suggestion.newOwner;event.color=ownerColor(suggestion.newOwner)}
-    }
-    if(suggestion.type==='buffer')state.buffer=Math.min(30,state.buffer+5);
-    if(suggestion.type==='shiftDinner'){
-      const event=events.find(e=>e.id===suggestion.eventId);
-      if(event){const duration=timeToMinutes(event.endTime)-timeToMinutes(event.time);event.time='19:10';event.endTime=minutesToTime(19*60+10+duration)}
-    }
-    if(suggestion.type==='errand'){
-      const source=events.find(e=>e.id===suggestion.afterEventId);
-      if(source){
-        const start=timeToMinutes(source.endTime)+5;
-        events.push({id:Date.now(),time:minutesToTime(start),endTime:minutesToTime(start+20),title:'Kroger Grocery Pickup',owner:source.owner,kid:'All',location:'Kroger Pickup',mode:'Drive',done:false,color:ownerColor(source.owner)});
+      if(event){
+        event.owner=suggestion.newOwner;
+        event.color=ownerColor(suggestion.newOwner);
       }
     }
     saveState();
-    $('#bufferSlider').value=state.buffer;
-    $('#bufferOut').textContent=`${state.buffer} min`;
     renderAll();
     toast(`Applied: ${suggestion.action}`);
   }
 
-  function renderSuggestions(containerId,day=state.activeDay){
-    const container=$(containerId);
-    if(!container)return;
-    const suggestions=buildSuggestions(day);
-    if(!suggestions.length){
-      container.innerHTML='<div class="card ai-card"><div class="ai-copy"><b>Schedule looking balanced</b><span>All handoffs and travel buffers are currently feasible with your selected locations.</span></div></div>';
-      return;
-    }
-    container.innerHTML=suggestions.map((s,i)=>`
-      <div class="card ai-card">
-        <div class="ai-head">
-          <div class="ai-copy">
-            <b>${s.title}</b>
-            <span>${s.body}</span>
-          </div>
-          <div class="ai-tag">AI Tip</div>
-        </div>
-        <div class="ai-actions">
-          <button class="ai-apply" data-ai-apply="${i}" data-container="${containerId}">${s.action}</button>
-          <button class="ai-dismiss" data-ai-dismiss="${i}" data-container="${containerId}">Dismiss</button>
-        </div>
-      </div>
-    `).join('');
-    container.querySelectorAll('[data-ai-apply]').forEach(btn=>btn.onclick=()=>applySuggestion(suggestions[Number(btn.dataset.aiApply)]));
-    container.querySelectorAll('[data-ai-dismiss]').forEach(btn=>btn.onclick=()=>{
-      state.dismissedSuggestionIds.add(suggestions[Number(btn.dataset.aiDismiss)].id);
-      renderSuggestions(containerId,day);
-      toast('Recommendation dismissed');
-    });
-  }
-
+  /* Render Week Strip */
   function renderWeek(){
     $('#weekStrip').innerHTML=dayNames.map((name,i)=>`
       <button class="day-pill ${i===state.activeDay?'active':''} ${(state.eventsByDay[i]||[]).length?'has-event':''}" data-day="${i}">
@@ -2382,66 +2242,136 @@
     });
   }
 
+  /* Render Header */
   function renderHeader(){
-    const count=(state.eventsByDay[state.activeDay]||[]).length;
     $('#screenEyebrow').textContent=`${dayNames[state.activeDay]}, August ${dayDates[state.activeDay]}`;
-    if($('.screen.active')?.dataset.screen==='today'){
-      $('#screenTitle').textContent='Good morning, Brooke';
-      $('#screenSubtitle').textContent=`${count} ${count===1?'handoff':'handoffs'} scheduled today.`;
+    $('#currentUserSelect').value=state.currentUser;
+    $('#userBadgeIcon').textContent=state.currentUser[0];
+    $('#userBadgeIcon').style.background=ownerColor(state.currentUser);
+  }
+
+  /* Render Tailored Next Departure Card */
+  function renderNextDeparture(plan){
+    const card=$('#nextDepartureCard');
+    const isCaregiverFilter=state.currentUser!=='All';
+    
+    // Find next pending departure for current user or overall
+    let nextEvent=null;
+    if(isCaregiverFilter){
+      nextEvent=plan.find(e=>!e.done && e.departBy!==null && e.lead===state.currentUser);
+      if(!nextEvent){
+        // If nothing pending for this caregiver, check for any pending in family
+        nextEvent=plan.find(e=>!e.done && e.departBy!==null);
+      }
+    } else {
+      nextEvent=plan.find(e=>!e.done && e.departBy!==null);
+    }
+
+    if(!nextEvent){
+      // All clear state
+      card.className='departure-hero-card';
+      $('#heroUserRoleBadge').className='hero-user-badge';
+      $('#heroUserRoleBadge').innerHTML='<span>✓</span><span>Schedule Complete</span>';
+      $('#heroKidBadge').style.display='none';
+      $('#heroActivityTitle').textContent='No more handoffs today';
+      $('#heroVenueName').textContent='All activities complete or at Home';
+      $('#heroArriveTime').textContent='All Set';
+      $('#heroDepartTime').textContent='Relax';
+      $('#heroActivityWindow').textContent='Rest of day free';
+      $('#heroRouteSub').textContent='No travel pending';
+      $('#heroDriverAvatar').textContent='✓';
+      $('#heroDriverAvatar').style.background='#16a34a';
+      $('#heroDriverText').textContent='All family activities covered';
+      $('#heroDirectionsBtn').style.display='none';
+      return;
+    }
+
+    // Active pending departure
+    card.className=`departure-hero-card ${nextEvent.conflict?'conflict':''}`;
+    
+    // User Role context
+    const isMe=nextEvent.lead===state.currentUser;
+    const roleTitle=nextEvent.conflict?'⚠ Commute Conflict':(isMe?`Your Next Departure (${state.currentUser})`:`${nextEvent.lead}'s Next Departure`);
+    $('#heroTargetUserTitle').textContent=roleTitle;
+    $('#heroUserRoleBadge').className=`hero-user-badge ${nextEvent.conflict?'conflict':''}`;
+
+    // Kid Highlight
+    $('#heroKidBadge').style.display='inline-flex';
+    $('#heroKidBadge').querySelector('.kid-icon').textContent=kidIcons[nextEvent.kid]||'🎒';
+    $('#heroKidName').textContent=nextEvent.kid==='All'?'All Kids':nextEvent.kid;
+
+    // Venue & Activity Title
+    $('#heroActivityTitle').textContent=nextEvent.title;
+    $('#heroVenueName').textContent=nextEvent.location;
+
+    // Arrive By & Depart By Times
+    $('#heroArriveTime').textContent=formatTime(nextEvent.time);
+    $('#heroActivityWindow').textContent=`${formatTime(nextEvent.time)} – ${formatTime(nextEvent.endTime)}`;
+    $('#heroDepartTime').textContent=formatTime(minutesToTime(nextEvent.departBy));
+    $('#heroRouteSub').textContent=`${nextEvent.eta} min drive from ${nextEvent.origin}`;
+
+    // Driver footer
+    $('#heroDriverAvatar').textContent=nextEvent.lead[0];
+    $('#heroDriverAvatar').style.background=ownerColor(nextEvent.lead);
+    $('#heroDriverText').textContent=isMe?`You (${nextEvent.lead}) are assigned lead`:`${nextEvent.lead} is assigned driver`;
+
+    // Directions button
+    const dirBtn=$('#heroDirectionsBtn');
+    dirBtn.style.display='inline-flex';
+    dirBtn.onclick=()=>toast(`Navigating to ${nextEvent.location} (ETA ${nextEvent.eta}m)`);
+  }
+
+  /* Render Smart AI banner if recommendations exist */
+  function renderSmartAiBanner(){
+    const banner=$('#smartAiBanner');
+    const suggestions=buildSuggestions();
+    if(suggestions.length>0){
+      const s=suggestions[0];
+      banner.style.display='flex';
+      $('#smartAiText').textContent=s.body;
+      const btn=$('#smartAiActionBtn');
+      btn.textContent=s.action;
+      btn.onclick=()=>{
+        applySuggestion(s);
+        banner.style.display='none';
+      };
+    } else {
+      banner.style.display='none';
     }
   }
 
+  /* Render Timeline */
   function renderTimeline(){
     const raw=sortedEvents();
     const {plan}=calculateDayPlan();
+    
+    // Filter by person
     const filtered=plan.filter(e=>{
       if(state.activeFilter==='all')return true;
-      if(['Brooke','Alex'].includes(state.activeFilter))return e.lead===state.activeFilter;
+      if(['Mom','Dad','Nani','Grandma'].includes(state.activeFilter))return e.lead===state.activeFilter;
       return e.kid===state.activeFilter||e.kid==='All';
     });
 
+    // Update Subtle Completion Counter
     const completed=raw.filter(e=>e.done).length;
-    const pct=raw.length?Math.round(completed/raw.length*100):0;
-    $('#progressBar').style.width=`${pct}%`;
-    $('#progressText').textContent=`${completed} of ${raw.length} complete`;
+    $('#relayCompletedCounter').textContent=`${completed} of ${raw.length} done`;
 
-    const readiness=calculateReadiness(plan);
-    $('#readinessVal').textContent=`${readiness}%`;
+    // Render Next Departure card & AI Banner
+    renderNextDeparture(plan);
+    renderSmartAiBanner();
 
-    const firstPending=plan.find(e=>!e.done&&e.departBy!==null);
-    const firstConflict=plan.find(e=>e.conflict);
-    const alertCard=$('#dayAlert');
-    const badge=$('#dayAlertBadge');
-    
-    if(firstConflict){
-      badge.className='hero-badge conflict';
-      $('#dayAlertIcon').textContent='⚠';
-      $('#dayAlertTitle').textContent='Conflict Detected';
-      $('#dayAlertBody').textContent=`${firstConflict.title}: ${firstConflict.conflict}`;
-      $('#dayAlertSubtext').textContent='Apply the AI suggested fix below to resolve this overlap.';
-    } else if(firstPending){
-      badge.className='hero-badge';
-      $('#dayAlertIcon').textContent='↗';
-      $('#dayAlertTitle').textContent='Next Departure';
-      $('#dayAlertBody').textContent=`${firstPending.lead} departs at ${formatTime(minutesToTime(firstPending.departBy))}`;
-      $('#dayAlertSubtext').textContent=`To reach ${firstPending.location} by ${formatTime(firstPending.time)} (${firstPending.eta} min drive from ${firstPending.origin}).`;
-    } else {
-      badge.className='hero-badge good';
-      $('#dayAlertIcon').textContent='✓';
-      $('#dayAlertTitle').textContent='All Clear';
-      $('#dayAlertBody').textContent='All activities complete or no travel required.';
-      $('#dayAlertSubtext').textContent='Your family handoffs for today are on track.';
-    }
-
+    // Render timeline items
     if(!filtered.length){
-      $('#timeline').innerHTML=`<div style="text-align:center;padding:40px 14px;color:var(--muted);font-size:14.5px;background:white;border-radius:18px;border:1.5px dashed var(--line)">No activities scheduled for this filter on ${dayNames[state.activeDay]}.</div>`;
-      renderSuggestions('#aiList');
+      $('#timeline').innerHTML=`<div style="text-align:center;padding:36px 14px;color:var(--muted);font-size:14px;background:white;border-radius:18px;border:1.5px dashed var(--line)">No activities scheduled for this filter on ${dayNames[state.activeDay]}.</div>`;
       return;
     }
 
     $('#timeline').innerHTML=filtered.map(e=>{
-      const slackCopy=e.slack===null?'First handoff of the day for this driver':e.slack<0?`${Math.abs(e.slack)} min overlap with ${e.previousEvent?.title||'prior event'}`:`${e.slack} min slack after ${e.previousEvent?.title||'prior event'}`;
-      const depart=e.departBy===null?'No transit needed':`Depart by ${formatTime(minutesToTime(e.departBy))}`;
+      const isKidAll=e.kid==='All';
+      const kidBadge=`<span class="kid-tag">${kidIcons[e.kid]||'🎒'} ${isKidAll?'All Children':e.kid}</span>`;
+      const slackCopy=e.slack===null?'First handoff of the day':e.slack<0?`${Math.abs(e.slack)} min overlap with ${e.previousEvent?.title||'prior activity'}`:`${e.slack} min buffer after ${e.previousEvent?.title||'prior drop-off'}`;
+      const depart=e.departBy===null?'At destination':`Depart by ${formatTime(minutesToTime(e.departBy))}`;
+      
       return `
         <div class="event-wrapper">
           <div class="event-card ${e.done?'completed':''} ${e.conflict?'conflict':''}" style="--event-color:${ownerColor(e.lead)}">
@@ -2450,9 +2380,9 @@
                 <span class="time-badge">${formatTime(e.time)} – ${formatTime(e.endTime)}</span>
                 <h4 class="event-title">${e.title}</h4>
                 <div class="event-subline">
-                  <span class="chip">👤 ${e.kid}</span>
-                  <span class="chip">${icons[e.mode]||'🚗'} ${e.mode}</span>
-                  ${e.conflict?`<span class="chip warning">⚠ ${e.conflict}</span>`:''}
+                  ${kidBadge}
+                  <span class="mode-chip">${icons[e.mode]||'🚗'} ${e.mode}</span>
+                  ${e.conflict?`<span class="conflict-chip">⚠ ${e.conflict}</span>`:''}
                 </div>
               </div>
               <div class="card-actions">
@@ -2481,17 +2411,16 @@
               <div class="journey-footer">
                 <div class="lead-row">
                   <div class="avatar" style="background:${ownerColor(e.lead)}">${e.lead[0]}</div>
-                  <span><strong>${e.lead}</strong> is lead driver</span>
+                  <span><strong>${e.lead}</strong> is driver</span>
                 </div>
                 <span class="depart-badge ${e.conflict?'conflict':''}">${depart}</span>
               </div>
-              <div class="slack-row">${slackCopy}${e.departBy!==null?` · target buffer ${state.buffer} min`:''}</div>
+              <div class="slack-row">${slackCopy}${e.departBy!==null?` · buffer ${state.buffer} min`:''}</div>
             </div>
           </div>
         </div>
       `;
     }).join('');
-    renderSuggestions('#aiList');
   }
 
   function renderLocations(){
@@ -2509,7 +2438,7 @@
   }
 
   function renderParentLocationControls(){
-    ['Brooke','Alex'].forEach(name=>{
+    ['Mom','Dad'].forEach(name=>{
       const select=$(`#${name.toLowerCase()}LocationSelect`);
       if(!select)return;
       select.innerHTML=state.locations.map(l=>`<option ${state.parentLocations[name]===l.name?'selected':''}>${l.name}</option>`).join('');
@@ -2517,29 +2446,30 @@
         state.parentLocations[name]=e.target.value;
         saveState();
         renderAll();
-        toast(`${name} starts from ${e.target.value}`);
+        toast(`${name} starting point updated to ${e.target.value}`);
       };
     });
   }
 
   function renderFamily(){
-    const weeklyDrive={Brooke:0,Alex:0};
+    const weeklyDrive={Mom:0,Dad:0,Nani:0,Grandma:0};
     for(let day=0;day<7;day++){
       const {plan}=calculateDayPlan(day);
       plan.forEach(e=>{if(weeklyDrive[e.lead]!==undefined)weeklyDrive[e.lead]+=e.eta});
     }
-    const max=Math.max(1,weeklyDrive.Brooke,weeklyDrive.Alex);
+    const max=Math.max(1,weeklyDrive.Mom,weeklyDrive.Dad);
     const family=[
-      {name:'Brooke',role:`${state.parentLocations.Brooke} • ${weeklyDrive.Brooke} drive min`,initials:'B',bg:'#4f46e5',load:Math.round(weeklyDrive.Brooke/max*100)},
-      {name:'Alex',role:`${state.parentLocations.Alex} • ${weeklyDrive.Alex} drive min`,initials:'A',bg:'#0284c7',load:Math.round(weeklyDrive.Alex/max*100)},
-      {name:'Maya',role:'Football & Piano',initials:'M',bg:'#ec4899',load:60},
-      {name:'Noah',role:'Soccer & Swimming',initials:'N',bg:'#d97706',load:55}
+      {name:'Mom',role:`${state.parentLocations.Mom} · Primary`,detail:`${weeklyDrive.Mom} drive mins this week`,tag:'Primary Driver',initials:'M',bg:'#4f46e5',tagBg:'#eef2ff',tagColor:'#4f46e5',load:Math.round(weeklyDrive.Mom/max*100)},
+      {name:'Dad',role:`${state.parentLocations.Dad} · Primary`,detail:`${weeklyDrive.Dad} drive mins this week`,tag:'Primary Driver',initials:'D',bg:'#0284c7',tagBg:'#e0f2fe',tagColor:'#0284c7',load:Math.round(weeklyDrive.Dad/max*100)},
+      {name:'Nani',role:'Secondary Caregiver',detail:`${weeklyDrive.Nani} mins · Piano backup`,tag:'On-Call Backup',initials:'N',bg:'#d946ef',tagBg:'#fdf4ff',tagColor:'#c026d3',load:20},
+      {name:'Grandma',role:'Secondary Caregiver',detail:`${weeklyDrive.Grandma} mins · Friday early pickup`,tag:'On-Call Backup',initials:'G',bg:'#10b981',tagBg:'#f0fdf4',tagColor:'#16a34a',load:15}
     ];
     $('#familyGrid').innerHTML=family.map(p=>`
       <div class="card person">
         <div class="avatar" style="background:${p.bg}">${p.initials}</div>
         <b>${p.name}</b>
         <span>${p.role}</span>
+        <span class="person-tag" style="background:${p.tagBg};color:${p.tagColor}">${p.tag}</span>
         <div class="load"><i style="width:${p.load}%"></i></div>
       </div>
     `).join('');
@@ -2552,7 +2482,8 @@
     renderLocations();
     renderParentLocationControls();
     renderFamily();
-    renderSuggestions('#planAiList');
+    const {plan}=calculateDayPlan();
+    $('#readinessVal').textContent=`${calculateReadiness(plan)}%`;
   }
 
   function setupFilters(){
@@ -2567,17 +2498,7 @@
   function go(screen){
     $$('.screen').forEach(s=>s.classList.toggle('active',s.dataset.screen===screen));
     $$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.nav===screen));
-    const copy={
-      today:[`${dayNames[state.activeDay]}, August ${dayDates[state.activeDay]}`,'Good morning, Brooke',`${(state.eventsByDay[state.activeDay]||[]).length} handoffs scheduled today.`],
-      plan:['Weekly Reset Sprint','Build the week once','Assign leads, calibrate safety buffers, and publish one shared family schedule.'],
-      map:['Live Logistics & Places','Departure & route radar','Predictive drive durations and venue loading profiles.'],
-      family:['Family & Workload','Balance the invisible load','Parent default locations, weekly drive hours, and smart handoff rules.']
-    }[screen];
-    $('#screenEyebrow').textContent=copy[0];
-    $('#screenTitle').textContent=copy[1];
-    $('#screenSubtitle').textContent=copy[2];
     $('.content').scrollTop=0;
-    if(screen==='plan')renderSuggestions('#planAiList');
   }
 
   function openModal(id){
@@ -2592,8 +2513,8 @@
     $('#activityTitle').value='Piano Lesson';
     $('#activityTime').value='17:30';
     $('#activityEndTime').value='18:30';
-    $('#activityOwner').value='Unassigned';
-    $('#activityKid').value='Soni';
+    $('#activityOwner').value=state.currentUser==='All'?'Mom':state.currentUser;
+    $('#activityKid').value='Maya';
     $('#activityMode').value='Drive';
     if($('#activityLocation').options.length)$('#activityLocation').selectedIndex=0;
   }
@@ -2628,6 +2549,7 @@
     openModal('activity');
   };
 
+  /* Navigation & Controls */
   $$('.nav-btn').forEach(b=>b.onclick=()=>go(b.dataset.nav));
   $$('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
   $$('[data-open]').forEach(b=>b.onclick=()=>{
@@ -2637,6 +2559,23 @@
   $$('[data-close]').forEach(b=>b.onclick=closeModals);
   $$('.modal-backdrop').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModals()}));
 
+  // Switch Active Caregiver User
+  $('#currentUserSelect').onchange=e=>{
+    state.currentUser=e.target.value;
+    saveState();
+    renderAll();
+    toast(`Viewing Heli-Pad as ${state.currentUser}`);
+  };
+
+  // Quick Share Brief
+  $('#shareBriefBtn').onclick=()=>{
+    const {plan}=calculateDayPlan();
+    const brief=plan.map(e=>`• ${formatTime(e.time)}: ${e.title} (${e.kid}) - Driver: ${e.lead} to ${e.location}`).join('\n');
+    navigator.clipboard?.writeText?.(brief).catch(()=>{});
+    toast('Daily family brief copied to clipboard!');
+  };
+
+  // Buffer and switches
   $('#bufferSlider').value=state.buffer;
   $('#bufferOut').textContent=`${state.buffer} min`;
   $('#bufferSlider').oninput=e=>{
@@ -2646,10 +2585,8 @@
     renderAll();
   };
   $('#confidenceSlider').oninput=e=>$('#confidenceOut').textContent=`${e.target.value}%`;
-  
   $('#trafficSwitch').classList.toggle('on',state.trafficMode);
   $('#dinnerSwitch').classList.toggle('on',state.dinnerProtection);
-  
   $('#trafficSwitch').onclick=()=>{
     state.trafficMode=!state.trafficMode;
     $('#trafficSwitch').classList.toggle('on',state.trafficMode);
@@ -2664,56 +2601,24 @@
     toast(state.dinnerProtection?'Dinner protection active':'Dinner protection paused');
   };
 
-  // Sync button toggling
   $('#syncBtn').onclick=()=>{
     state.synced=!state.synced;
     $('#syncDot').style.background=state.synced?'#22c55e':'#f59e0b';
-    $('#syncTitle').textContent=state.synced?'Calendar Synced':'Sync Paused';
-    const strip=$('#syncMetaStrip');
-    if(strip) strip.style.display=strip.style.display==='none'?'flex':'none';
     saveState();
     toast(state.synced?'Google Calendar synchronized':'Calendar sync paused');
   };
-  const syncRefreshBtn=$('#syncRefreshBtn');
-  if(syncRefreshBtn){
-    syncRefreshBtn.onclick=()=>{
-      toast('Google Calendar updated · 7 events synced');
-      $('#syncMetaStrip').style.display='none';
-    };
-  }
-
   $('#bellBtn').onclick=()=>{
     const conflicts=calculateDayPlan().plan.filter(e=>e.conflict).length;
-    toast(conflicts?`⚠ ${conflicts} handoff conflict detected today`:'✓ No urgent schedule conflicts');
+    toast(conflicts?`⚠ ${conflicts} handoff conflict detected today`:'✓ All family routes on track');
   };
-  $('#commuteBtn').onclick=()=>{
-    renderAll();
-    toast('Live travel estimates refreshed');
-  };
-  $('#importBtn').onclick=()=>toast('3 external calendar events scanned & imported');
-  $('#messageBtn').onclick=()=>toast('Family relay brief copied to clipboard');
   $('#autoBalanceBtn').onclick=()=>{
     optimizeDay();
     renderAll();
-    toast('Leads auto-balanced by driver location & burden');
+    toast('Lead drivers optimized by location & balance');
   };
   $('#rebalancePlan').onclick=()=>{
     $('#autoBalanceBtn').click();
-    toast('Weekly plan optimized');
-  };
-  $('#refreshSuggestionsBtn').onclick=()=>{
-    state.dismissedSuggestionIds.clear();
-    renderSuggestions('#aiList');
-    toast('AI suggestions updated');
-  };
-  $('#planAiRefresh').onclick=()=>{
-    state.dismissedSuggestionIds.clear();
-    renderSuggestions('#planAiList');
-    toast('Weekly schedule audited');
-  };
-  $('#refreshLocationPlanBtn').onclick=()=>{
-    renderAll();
-    toast('Parent locations updated in schedule');
+    toast('Schedule rebalanced');
   };
 
   $('#saveActivityBtn').onclick=()=>{
@@ -2744,7 +2649,7 @@
     saveState();
     closeModals();
     renderAll();
-    toast(editId?'Activity updated':'Activity added');
+    toast(editId?'Activity updated':'Activity added in schedule');
   };
 
   $('#saveLocationBtn').onclick=()=>{
@@ -2756,7 +2661,7 @@
     renderLocations();
     renderParentLocationControls();
     closeModals();
-    toast('Location saved');
+    toast('Venue saved');
   };
 
   function updateResetProgress(){
@@ -2771,19 +2676,17 @@
     updateResetProgress();
   });
 
-  $('#refreshCalendars').onclick=()=>toast('External calendars are up to date');
-  $('#mealPlanBtn').onclick=()=>toast('Dinner options scheduled around activities');
-  $('#backupBtn').onclick=()=>toast('Secondary emergency contact assigned');
-  $('#previewBtn').onclick=()=>{go('today');toast('Previewing Monday schedule')};
-  $('#publishBtn').onclick=()=>toast('Plan published to family calendar');
-  $('#optimizeBtn').onclick=()=>{$('#mapEta').textContent='20 min total';toast('Route duration trimmed by 4 mins')};
-  $('#openMapsBtn').onclick=()=>toast('Opening Google Maps navigation...');
+  $('#refreshCalendars').onclick=()=>toast('Connected calendars are up to date');
+  $('#mealPlanBtn').onclick=()=>toast('Dinner window protected against late handoffs');
+  $('#backupBtn').onclick=()=>toast('Nani and Grandma designated on backup roster');
+  $('#previewBtn').onclick=()=>{go('today');toast('Previewing Monday relay')};
+  $('#publishBtn').onclick=()=>toast('Weekly plan published to family calendar');
+  $('#openMapsBtn').onclick=()=>toast('Opening navigation...');
   $('#familyBalanceBtn').onclick=()=>{
     for(let day=0;day<7;day++)optimizeDay(day);
     renderAll();
     toast('Weekly driving distribution normalized');
   };
-  $('#editRulesBtn').onclick=()=>toast('Handoff rules manager opened');
   $$('.pin').forEach(pin=>pin.onclick=()=>toast(`Destination: ${pin.dataset.place}`));
 
   renderAll();
