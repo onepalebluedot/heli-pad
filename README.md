@@ -12,6 +12,21 @@ A modern, iOS-inspired mobile web application designed for stress-free family ha
 
 ## Key Features
 
+### 0. "Go" Tab — At-a-Glance Departure View (Design Study)
+
+A ground-up redesign of the Today content, built as a separate tab so the two
+approaches can be compared side by side. Its premise: a parent reading this
+screen is usually holding keys, so it answers one question — *do I need to move,
+and when?* — and draws everything else as a mark rather than a sentence.
+
+- **Countdown Dial**: A depleting SVG ring carries the state through color rather than text — cool (more than an hour out, showing the clock time to leave), green (on track), amber (inside 15 minutes), red (leave now / already started). The ring is pinned full outside the 60-minute run-up so it never reads as empty-and-broken, and it re-renders on the shared 5-second ticker.
+- **Defined State Matrix**: `later` · `ontrack` · `soon` · `now` · `started` · `nothing-left`. Stops more than 20 minutes past their start roll off the dial and stay flagged on the rail, so a phone opened at 11 PM shows "Nothing left to drive · 3 stops never checked off" instead of a four-hundred-minute red alarm.
+- **Travel Bar**: Departure and arrival as two anchors with a car marker that advances along the line as the run-up elapses — the trip's shape at a glance, no prose.
+- **Time Spine**: The day as a vertical rail of stops. The title owns the whole flexible column, so activity names never truncate; only the venue may ellipsize. Driver identity is an avatar, children are emoji, transit mode is an icon.
+- **One-Tap Completion**: Tapping a stop's marker checks it off; tapping the row opens it. The dial then advances to the next departure on its own.
+- **Wheel Time Bar**: The day's driving split drawn as one proportional bar of caregiver-colored segments instead of a table of minutes.
+- **Single Caregiver Source**: The crew strip writes to the same `state.currentUser` as the header switcher. This screen deliberately adds no second caregiver filter of its own.
+
 ### 1. Dynamic Next Departure Hero
 - **Real-Time Urgency Countdown**: Reads clock time and calculates dynamic departure alerts (`⏱ Leave in 18 min`, `⏱ Leave in 3 min` with pulse animation, and prominent `🚨 Past Departure` warnings).
 - **Multi-Child Badges**: Prominently highlights which children are participating in each event with dedicated tag pills.
@@ -70,6 +85,8 @@ When migrating this prototype to native Swift / SwiftUI:
 2. **CoreLocation**: User and venue coordinates will be backed by `CLGeocoder` and live device GPS.
 3. **EventKit / Reminders**: Calendar synchronization will link directly into Apple Calendar and Reminders APIs.
 4. **Prototype Scaffolding**: The `.demo-sim-strip` (Live Clock and Day scrubber) is strictly marked as prototype test scaffolding and will not be carried into the native iOS shell.
+5. **Go Tab Mapping**: The countdown dial is a `TimelineView(.periodic)` driving a trimmed `Circle()` stroke; the time spine is a `List` with `.swipeActions`; the whole dial is the natural source for a Live Activity / Dynamic Island and a Watch complication, since it is already reduced to one number and one color.
+6. **Departure Clamping**: `calculateDayPlan` can return a negative `departBy` for an early event with a long ETA, which `minutesToTime` would wrap into a late-night time. The Go screen floors this at midnight (`goSafeDepart`); the native model should make departure a real date rather than minutes-since-midnight and drop the wrap entirely.
 
 ---
 
