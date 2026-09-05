@@ -1,6 +1,6 @@
 # Heli-Pad — System Document
 
-**Status:** living draft  
+**Status:** living draft (Task model confirmed 2026-09-05)  
 **Product:** Orbit Family Logistics (heli-pad)  
 **Live UX lab:** https://heli-pad.vercel.app  
 **Repo:** `onepalebluedot/heli-pad`
@@ -76,7 +76,7 @@ Home-tab choice is still open; the lab may keep more than one concept until prod
 ├─────────────────────────────────────────┤
 │  Application / use cases                │  next handoff, leave-by, filters, assign
 ├─────────────────────────────────────────┤
-│  Domain                                 │  Person, Place, Handoff, TripPlan, DayAgenda
+│  Domain                                 │  Person, Place, Task, TripPlan, DayAgenda
 ├─────────────────────────────────────────┤
 │  Ports                                  │  CalendarProvider, TravelEstimator, MapsLauncher, Store
 ├─────────────────────────────────────────┤
@@ -101,46 +101,53 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 - Kind: home, school, activity venue, other
 - Owned or shared within a family
 
-**Handoff** (logistics view of a calendar event)
+**Task** (confirmed root coordination unit — v1)
 
-- Links to external calendar event id(s)
-- Title, start/end (arrive-by typically = event start for activities)
-- Children involved
-- Assigned driver (caregiver) or `TBD`
-- Origin place → destination place
-- Mode: drive, walk, home/no-travel, …
-- Completion / confirmation state (app overlay)
+- Kinds include at least: `drive` · `cook` · `lead` · `placeholder` (and related caregiver coordination)
+- Links to external calendar event id(s) when the schedule came from Calendar (optional)
+- Title, start/end (or soft window for placeholders)
+- Children / people involved as needed
+- **Overlays** (app + shared backend): assignee, done/confirm, buffer, notes — not stored in Google Calendar for v1
+- Optional **travel facet**: origin Place → destination Place, mode (drive, walk, home/no-travel, …)
+- Travel / TripPlan apply only when the kind (or facet) needs them — e.g. cook/lead may have none
+
+**Handoff** (view, not a separate root)
+
+- Drive-shaped projection of a `Task` with a travel facet: used by leave-by, urgency, and TripPlan inputs
+- Prefer speaking “drive task” in APIs; “handoff” remains valid UX language from the lab
 
 **TripPlan** (derived)
 
 - `departBy`, `travelMinutes`, `arriveBy`
 - Buffer vs late margin
 - Urgency tone: e.g. `later` · `ontrack` · `soon` · `now` · `started` · `nothing-left` · `late` · `driver-needed`
-- Inputs: wall clock (or lab preview clock), Handoff, TravelEstimator result
+- Inputs: wall clock (or lab preview clock), Task (+ travel facet), TravelEstimator result
+- Only computed when the Task needs travel
 
 **DayAgenda**
 
-- Ordered handoffs for a calendar day
+- Ordered Tasks for a calendar day (all kinds in scope for the viewer)
 - Filters: caregiver facet, child facet
 - Includes unconfirmed / past-due items the UX chooses to keep visible
 
 **Family**
 
 - Membership of people and shared places
-- Future: invites, roles, permissions (out of scope for first ship)
+- Shared backend is source of truth for Task overlays and multi-caregiver “keep each other informed” (v1)
+- Invites / fine-grained permissions: evolve after first sync path works
 
 ### 4.4 Core use cases
 
 | Use case | Behavior |
 | --- | --- |
-| Sync day | Pull Google Calendar events for the family calendars; upsert Handoffs; preserve local overlays |
-| Resolve places | Map event locations to Places (geocode / user pick); remember mappings |
-| Estimate travel | Origin → destination travel minutes for the assigned (or suggested) driver context |
-| Compute next | Given viewer + filters + clock, pick next actionable handoff + TripPlan |
-| Suggest driver | Rank available caregivers (existing prototype heuristics → production rules) |
-| Assign driver | Write overlay; optionally write back a Calendar annotation later |
-| Complete / confirm | Mark handoff done or needs follow-up |
-| Leave reminder | Schedule local notification at departBy − ε |
+| Sync day | Pull Google Calendar events; upsert Tasks (preserve overlays); sync overlays via shared backend |
+| Resolve places | Map event / task locations to Places (geocode / user pick); remember mappings |
+| Estimate travel | When Task has a travel facet: origin → destination minutes for assignee context |
+| Compute next | Given viewer + filters + clock, pick next actionable Task (+ TripPlan if travel) |
+| Suggest assignee | Rank available caregivers (lab heuristics → production rules); drive tasks emphasize drivers |
+| Assign | Write Task overlay (shared backend); Calendar stays read-only in v1 |
+| Complete / confirm | Mark Task done or needs follow-up (synced overlay) |
+| Leave reminder | For travel Tasks: local + shared-aware departBy notifications |
 
 ### 4.5 Integration ports
 
@@ -149,7 +156,7 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 - OAuth for the signing-in caregiver (v1: one account; later: family-linked calendars)
 - Read events in a rolling window (e.g. today ± N days)
 - Optional later: write annotations / secondary logistics calendar
-- App never treats Calendar as the store for driver assignment or completion unless we explicitly design that writeback
+- v1: Calendar is **read-only**; assignee / done / buffer live on Task overlays in the shared backend (no Calendar writeback required for first ship)
 
 **TravelEstimator**
 
@@ -167,7 +174,7 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 
 **Store**
 
-- Local persistence of People, Places, Handoff overlays, cached TripPlans
+- Local persistence of People, Places, Tasks (+ overlays cache), cached TripPlans; shared backend is multi-caregiver source of truth for overlays
 - Survive offline / cold start
 
 **Notifier**
@@ -178,43 +185,57 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 ## 5. Information flow (happy path)
 
 1. User opens app → Store shows last synced DayAgenda immediately
-2. CalendarProvider refreshes → Handoffs updated
+2. CalendarProvider refreshes → schedule-backed Tasks upserted; shared backend refreshes overlays
 3. Missing Place coords → geocode / prompt
-4. TravelEstimator fills travel minutes for upcoming drive handoffs
-5. Use cases recompute TripPlans and urgency
-6. Home UI renders next handoff + agenda
-7. User taps navigate → MapsLauncher
-8. User marks complete → Store overlay; UI advances to next
+4. TravelEstimator fills travel minutes for Tasks with a travel facet
+5. Use cases recompute urgency (+ TripPlans when needed)
+6. Home UI (Today playground first) renders next Task + agenda
+7. User taps navigate → MapsLauncher (travel Tasks)
+8. User marks complete / reassigns → shared backend overlay; UI advances
 
 ## 6. Non-goals (near term)
 
 - Android / web production clients
-- Full multi-family SaaS backend (unless sync requirements force a thin API later)
+- Broad multi-family SaaS beyond the shared Task-overlay backend needed for multi-caregiver sync
 - Replacing Google Calendar as the scheduling UI for creating school/activity events
 - Desktop layouts
 - Shipping all three home concepts as equal product surfaces
 
-## 7. Open decisions
+## 7. Decisions & open items
+
+### Confirmed (2026-09-05)
+
+| Decision | Call |
+| --- | --- |
+| Root model | Broader **`Task`** with kinds `drive` · `cook` · `lead` · `placeholder` · …; travel is an **optional facet** |
+| Handoff | Drive-shaped view / TripPlan input — not a separate root entity |
+| Sync | **Shared backend** for multi-caregiver overlays + informed state; not on-device-only |
+| Calendar v1 | **Read-only**; Task overlays sync via backend |
+| Near-term UX priority | **Home tab first** — Today as playground; Go/Next as controls until Lena’s test wins |
+| Out of scope now | AI recommendations/automation; side surfaces; chrome freeze before Lena |
+
+### Still open
 
 | Decision | Options | Notes |
 | --- | --- | --- |
-| Production client | Native SwiftUI vs hybrid (Capacitor) wrapping lab | Native favored for Calendar, background alerts, maps; lab stays HTML either way |
-| Primary home | Next vs Go vs Today | Keep others as lab tabs until frozen |
+| Production client | Native SwiftUI vs hybrid (Capacitor) wrapping lab | Lab stays HTML either way; freeze waits on Lena + John |
+| Primary home chrome | Today playground vs winning Go/Next control | Implement against Today first; no merge of chrome until Lena |
 | Travel provider | MapKit vs Google Directions | Product may want Google ETAs to match Maps app choice |
-| Family sync | On-device only vs shared backend | Multi-caregiver truth needs a sync story beyond one Google account |
-| Calendar writeback | Read-only vs write driver/notes | Start read-only + local overlay |
+| Depart-by audience | Assignee-only vs every caregiver | Avery to spike with shared push once sync shape lands |
+| Exact Task kind enum | Final set / naming beyond the confirmed list | Keep extensible; ship drive-shaped UX first while model stays broad |
 
 ## 8. Evolution path
 
 1. **Lab** — continue HTML for UX/feature discovery (current repo)
 2. **System doc** — this file; update when domain or integrations change
-3. **Freeze** — one home concept + native-vs-hybrid call
-4. **Skeleton app** — domain + fake CalendarProvider + fake TravelEstimator driving SwiftUI (or chosen shell)
-5. **Live adapters** — Google Calendar OAuth + real routing
-6. **Hardening** — notifications, offline, place mapping UX, multi-caregiver sync
+3. **Home-tab lab** — Today playground; Go/Next as controls; no chrome freeze until Lena
+4. **Shared sync spike** — Task overlays + push; Calendar read-only
+5. **Skeleton app** — Task domain + fake CalendarProvider / TravelEstimator / SyncStore
+6. **Live adapters** — Google Calendar OAuth + real routing + shared backend
+7. **Hardening** — notifications, offline TTL, place mapping, kind coverage beyond drive UX
 
 ## 9. Doc ownership
 
 - Software Lead maintains this document
-- Escalate to Engineering Manager on scope/timeline tradeoffs (client stack, sync backend, home freeze)
+- Escalate to Marcus Hale (EM) on scope/timeline tradeoffs (client stack, sync scope eating home-tab week, home freeze)
 - Prototype README remains the lab feature narrative; this doc is the system of record for architecture
