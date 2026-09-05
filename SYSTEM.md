@@ -92,7 +92,14 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 
 - Caregiver or child
 - Display name, role, optional avatar / color
-- Caregivers can be “active viewer” (whose day am I looking at?)
+
+**Active viewer** (first-class facet — hard boundary)
+
+- The caregiver whose day the UI is computing: agenda, hottest Task, glanceables, and notify state are **per viewer**, never a household mash with a swapped label
+- **Production:** viewer is sticky (mom stays mom for that install/session identity)
+- **Lab:** viewer is switchable (mom / dad / …) so each caregiver’s unique aspects can be tested independently
+- Filters (child facet, etc.) apply *within* the active viewer’s frame; they do not merge other caregivers’ chrome into the hero
+- Sync / overlays / push key off viewer + assignee the same way (no leaking mom’s chrome into dad’s view)
 
 **Place**
 
@@ -126,7 +133,7 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 
 **DayAgenda**
 
-- Ordered Tasks for a calendar day (all kinds in scope for the viewer)
+- Ordered Tasks for a calendar day **for the active viewer** (all kinds in their frame)
 - Filters: caregiver facet, child facet
 - Includes unconfirmed / past-due items the UX chooses to keep visible
 
@@ -143,11 +150,11 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 | Sync day | Pull Google Calendar events; upsert Tasks (preserve overlays); sync overlays via shared backend |
 | Resolve places | Map event / task locations to Places (geocode / user pick); remember mappings |
 | Estimate travel | When Task has a travel facet: origin → destination minutes for assignee context |
-| Compute hottest | Given viewer + filters + clock, pick the **hottest Task** of any kind for the home hero (+ TripPlan if that Task needs travel) |
+| Compute hottest | Given **active viewer** + filters + clock, pick that viewer’s **hottest Task** of any kind for the home hero (+ TripPlan if travel) |
 | Suggest assignee | Rank available caregivers (lab heuristics → production rules); drive tasks emphasize drivers |
 | Assign | Write Task overlay (shared backend); Calendar stays read-only in v1 |
 | Complete / confirm | Mark Task done or needs follow-up (synced overlay) |
-| Leave reminder | For travel Tasks: local + shared-aware departBy notifications |
+| Leave reminder | For travel Tasks: local + shared-aware departBy notifications, scoped to the relevant viewer/assignee |
 
 ### 4.5 Integration ports
 
@@ -189,7 +196,7 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 3. Missing Place coords → geocode / prompt
 4. TravelEstimator fills travel minutes for Tasks with a travel facet
 5. Use cases recompute urgency (+ TripPlans when needed)
-6. Home UI (Today playground first) renders **hottest Task** hero (any kind) + agenda
+6. Home UI (Today playground first) renders **active viewer**’s hottest Task hero (any kind) + that viewer’s agenda
 7. User taps navigate → MapsLauncher (travel Tasks)
 8. User marks complete / reassigns → shared backend overlay; UI advances
 
@@ -212,6 +219,7 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 | Sync | **Shared backend** for multi-caregiver overlays + informed state; not on-device-only |
 | Calendar v1 | **Read-only**; Task overlays sync via backend |
 | Home hero | **Hottest Task** (any kind) — not “next drive/handoff” only |
+| Active viewer | First-class facet: sticky in production, switchable in lab; agenda / hero / notify are per caregiver, not label-swapped household chrome |
 | Near-term UX priority | **Home tab first** — Today as playground; Go/Next as controls until Lena’s test wins |
 | Out of scope now | AI recommendations/automation; side surfaces; chrome freeze before Lena |
 
