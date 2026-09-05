@@ -7,7 +7,7 @@
 
 ## 1. Intent
 
-Heli-Pad helps caregivers run the day: who has which kids, when to leave, and whether the next handoff is still on track.
+Heli-Pad helps caregivers run the day: who has which kids, when to leave, and which Task is hottest right now.
 
 **Long-term target**
 
@@ -26,7 +26,7 @@ Heli-Pad helps caregivers run the day: who has which kids, when to leave, and wh
 
 Parents and caregivers need answers under time pressure:
 
-1. What is my **next** handoff?
+1. What is my **hottest** Task right now (any kind — not only the next drive)?
 2. **When do I leave**, given travel time and buffer?
 3. **Who is driving**, and who else could cover?
 4. What else is on the **day’s agenda**, filterable by caregiver and child?
@@ -143,7 +143,7 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 | Sync day | Pull Google Calendar events; upsert Tasks (preserve overlays); sync overlays via shared backend |
 | Resolve places | Map event / task locations to Places (geocode / user pick); remember mappings |
 | Estimate travel | When Task has a travel facet: origin → destination minutes for assignee context |
-| Compute next | Given viewer + filters + clock, pick next actionable Task (+ TripPlan if travel) |
+| Compute hottest | Given viewer + filters + clock, pick the **hottest Task** of any kind for the home hero (+ TripPlan if that Task needs travel) |
 | Suggest assignee | Rank available caregivers (lab heuristics → production rules); drive tasks emphasize drivers |
 | Assign | Write Task overlay (shared backend); Calendar stays read-only in v1 |
 | Complete / confirm | Mark Task done or needs follow-up (synced overlay) |
@@ -189,7 +189,7 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 3. Missing Place coords → geocode / prompt
 4. TravelEstimator fills travel minutes for Tasks with a travel facet
 5. Use cases recompute urgency (+ TripPlans when needed)
-6. Home UI (Today playground first) renders next Task + agenda
+6. Home UI (Today playground first) renders **hottest Task** hero (any kind) + agenda
 7. User taps navigate → MapsLauncher (travel Tasks)
 8. User marks complete / reassigns → shared backend overlay; UI advances
 
@@ -211,6 +211,7 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 | Handoff | Drive-shaped view / TripPlan input — not a separate root entity |
 | Sync | **Shared backend** for multi-caregiver overlays + informed state; not on-device-only |
 | Calendar v1 | **Read-only**; Task overlays sync via backend |
+| Home hero | **Hottest Task** (any kind) — not “next drive/handoff” only |
 | Near-term UX priority | **Home tab first** — Today as playground; Go/Next as controls until Lena’s test wins |
 | Out of scope now | AI recommendations/automation; side surfaces; chrome freeze before Lena |
 
