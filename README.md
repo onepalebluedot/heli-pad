@@ -12,6 +12,26 @@ A modern, iOS-inspired mobile web application designed for stress-free family ha
 
 ## Key Features
 
+### "Next" Tab — Third Homepage Concept
+
+An ivory and forest-green design centered on the next family handoff. Open
+`index.html#next` or select **Next** in the bottom navigation.
+
+- A trip card names the child, caregiver, origin, destination, leave-by time,
+  and arrive-by time. Timing distinguishes using the buffer from arriving late.
+- A daily agenda supports child filters, appointment details, editing, and
+  completion. Earlier unconfirmed handoffs stay visible for review.
+- "Who's got what?" shows each caregiver's handoffs and estimated driving
+  minutes. Selecting a caregiver switches the agenda and trip card together.
+- Driver suggestions use the existing sample scheduling logic. Changes go
+  through the existing caregiver comparison and assignment dialog.
+- A labeled preview clock defaults to 2:40 PM, with 3:00 PM, 3:15 PM, and live
+  options. It does not change the Go or Today simulation clock.
+
+The new design lives in `next-concept.css` and `next-concept.js`, shared by both
+HTML entry points. It uses the existing local sample data; travel estimates,
+calendar integration, and multi-user syncing remain prototype behavior.
+
 ### 0. "Go" Tab — At-a-Glance Departure View (Design Study)
 
 A ground-up redesign of the Today content, built as a separate tab so the two
