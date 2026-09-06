@@ -1,0 +1,118 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+		3B1EFF5979EC4398A3F718EF /* HeliPadApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeliPadApp.swift; sourceTree = "<group>"; };
+		BE52FD12127B488E94364C81 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		9368B64A059B4C86A754F5EC /* TodayUseCases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayUseCases.swift; sourceTree = "<group>"; };
+		651CEC46B9674EC18A48E753 /* EditSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditSheet.swift; sourceTree = "<group>"; };
+		2009525032EB46ADAA23EBAA /* TodayTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayTheme.swift; sourceTree = "<group>"; };
+		C61DAC60D61A4DA48269FD36 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
+		C78F375EDD484121AD2B5CB6 /* TodayViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayViewModel.swift; sourceTree = "<group>"; };
+		F7D670D9F431480C9FC9E85B /* Ports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ports.swift; sourceTree = "<group>"; };
+		CDC043AA92AA43F1A5B7CE5A /* HeliPad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HeliPad.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8168FF392A4345618B3EC1EF /* HeliPadApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B1EFF5979EC4398A3F718EF /* HeliPadApp.swift */; };
+		3D2814E3D77B48429DD1CA3E /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE52FD12127B488E94364C81 /* Models.swift */; };
+		CFC2847F71E7451C8F58C303 /* TodayUseCases.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9368B64A059B4C86A754F5EC /* TodayUseCases.swift */; };
+		B511AFD6DC6D4B54AEECCE70 /* EditSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 651CEC46B9674EC18A48E753 /* EditSheet.swift */; };
+		8804AA1FBBF04707876770A8 /* TodayTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2009525032EB46ADAA23EBAA /* TodayTheme.swift */; };
+		0D0C5F874AAA45EDAEF1744B /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C61DAC60D61A4DA48269FD36 /* TodayView.swift */; };
+		40E651D730164F1EA0D3CC37 /* TodayViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C78F375EDD484121AD2B5CB6 /* TodayViewModel.swift */; };
+		E5D62473907C4CC096BF51CF /* Ports.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D670D9F431480C9FC9E85B /* Ports.swift */; };
+		7E500C53C6B24E048DFE2A6E /* App */ = {isa = PBXGroup; children = (3B1EFF5979EC4398A3F718EF /* HeliPadApp.swift */, ); path = App; sourceTree = "<group>"; };
+		59A88AB60EAB491EAA94B9CD /* Domain */ = {isa = PBXGroup; children = (BE52FD12127B488E94364C81 /* Models.swift */, 9368B64A059B4C86A754F5EC /* TodayUseCases.swift */, ); path = Domain; sourceTree = "<group>"; };
+		FE5F8E2B6900484A957AEC7E /* Ports */ = {isa = PBXGroup; children = (F7D670D9F431480C9FC9E85B /* Ports.swift */, ); path = Ports; sourceTree = "<group>"; };
+		39F0634B543A47118E23604B /* Today */ = {isa = PBXGroup; children = (651CEC46B9674EC18A48E753 /* EditSheet.swift */, 2009525032EB46ADAA23EBAA /* TodayTheme.swift */, C61DAC60D61A4DA48269FD36 /* TodayView.swift */, C78F375EDD484121AD2B5CB6 /* TodayViewModel.swift */, ); path = Today; sourceTree = "<group>"; };
+		4FDF63A02F954F86B392997B /* Features */ = {isa = PBXGroup; children = (39F0634B543A47118E23604B /* Today */, ); path = Features; sourceTree = "<group>"; };
+		8084A2972F59408C8015762E /* HeliPad */ = {isa = PBXGroup; children = (7E500C53C6B24E048DFE2A6E /* App */, 59A88AB60EAB491EAA94B9CD /* Domain */, FE5F8E2B6900484A957AEC7E /* Ports */, 4FDF63A02F954F86B392997B /* Features */, ); path = HeliPad; sourceTree = "<group>"; };
+		9A4AB5DCFB5E407AB1D1F3A0 /* Products */ = {isa = PBXGroup; children = (CDC043AA92AA43F1A5B7CE5A /* HeliPad.app */, ); name = Products; sourceTree = "<group>"; };
+		EFAA4DCD15DF428EB0D0C541 = {isa = PBXGroup; children = (8084A2972F59408C8015762E /* HeliPad */, 9A4AB5DCFB5E407AB1D1F3A0 /* Products */, ); sourceTree = "<group>"; };
+		3A251AEEF98A45DC87DA9056 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (8168FF392A4345618B3EC1EF /* HeliPadApp.swift in Sources */, 3D2814E3D77B48429DD1CA3E /* Models.swift in Sources */, CFC2847F71E7451C8F58C303 /* TodayUseCases.swift in Sources */, B511AFD6DC6D4B54AEECCE70 /* EditSheet.swift in Sources */, 8804AA1FBBF04707876770A8 /* TodayTheme.swift in Sources */, 0D0C5F874AAA45EDAEF1744B /* TodayView.swift in Sources */, 40E651D730164F1EA0D3CC37 /* TodayViewModel.swift in Sources */, E5D62473907C4CC096BF51CF /* Ports.swift in Sources */, ); runOnlyForDeploymentPostprocessing = 0; };
+		148B9A00343840ECB1235D04 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		5EA9BD4C84D3402E967DF041 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		55EA15E486C948A0A468659D /* HeliPad */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 89BC2985020547FE927B8083 /* Build configuration list for PBXNativeTarget "HeliPad" */;
+			buildPhases = (3A251AEEF98A45DC87DA9056 /* Sources */, 148B9A00343840ECB1235D04 /* Frameworks */, 5EA9BD4C84D3402E967DF041 /* Resources */, );
+			buildRules = ();
+			dependencies = ();
+			name = HeliPad;
+			productName = HeliPad;
+			productReference = CDC043AA92AA43F1A5B7CE5A /* HeliPad.app */;
+			productType = "com.apple.product-type.application";
+		};
+		C4A896D211324CA79D77017C /* Project object */ = {
+			isa = PBXProject;
+			attributes = { BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 1500; LastUpgradeCheck = 1500; };
+			buildConfigurationList = AFA5703DFB694E108C7C8B6A /* Build configuration list for PBXProject "HeliPad" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base, );
+			mainGroup = EFAA4DCD15DF428EB0D0C541;
+			productRefGroup = 9A4AB5DCFB5E407AB1D1F3A0 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (55EA15E486C948A0A468659D /* HeliPad */, );
+		};
+		17184B01016B47C484A68D85 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = HeliPad;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", );
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.onepalebluedot.helipad;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;				SWIFT_OPTIMIZATION_LEVEL = "-Onone";			}; name = Debug; };
+		A059AF773E114CABAA708749 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = HeliPad;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", );
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.onepalebluedot.helipad;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";				SWIFT_COMPILATION_MODE = wholemodule;			}; name = Release; };
+		1DCFC72BDDB347A9AC9E09DB /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				DEBUG_INFORMATION_FORMAT = dwarf;				ENABLE_TESTABILITY = YES;				GCC_PREPROCESSOR_DEFINITIONS = ("DEBUG=1", "$(inherited)", );				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;			}; name = Debug; };
+		C0442E3B11F04B58838CB508 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";				VALIDATE_PRODUCT = YES;			}; name = Release; };
+		AFA5703DFB694E108C7C8B6A /* Build configuration list for PBXProject "HeliPad" */ = {isa = XCConfigurationList; buildConfigurations = (1DCFC72BDDB347A9AC9E09DB /* Debug */, C0442E3B11F04B58838CB508 /* Release */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		89BC2985020547FE927B8083 /* Build configuration list for PBXNativeTarget "HeliPad" */ = {isa = XCConfigurationList; buildConfigurations = (17184B01016B47C484A68D85 /* Debug */, A059AF773E114CABAA708749 /* Release */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+	};
+	rootObject = C4A896D211324CA79D77017C /* Project object */;
+}
