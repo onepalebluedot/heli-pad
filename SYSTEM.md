@@ -222,9 +222,21 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 | Home hero | **Hottest Task** (any kind) — not “next drive/handoff” only |
 | Active viewer | First-class facet: sticky in production, switchable in lab; agenda / hero / notify are per caregiver, not label-swapped household chrome |
 | Design ↔ eng contract | Today ports must honor: hottest Task hero, shared overlays/notify, per-viewer chrome, travel only when needed — escalate gaps to Software Lead; do not silently approximate |
-| Phone input | Swipe where it fits (done, snooze, lab viewer switch, dismiss notify, agenda peek) with **tap fallbacks** for critical actions — not tap-only, not swipe-only |
+| Phone input | Swipe where it fits with **tap primary** for critical actions — not tap-only, not swipe-only |
 | Near-term UX priority | **Home tab first** — Today as playground; Go/Next as controls until Lena’s test wins |
 | Out of scope now | AI recommendations/automation; side surfaces; chrome freeze before Lena |
+
+### Today gesture contract (Lena amend — Samira pressure-test)
+
+Gate Avery’s Today port against this map; escalate gaps — do not approximate.
+
+| Gesture / layout | Rule |
+| --- | --- |
+| Critical actions | **Tap remains primary** (complete/done, Send on Tell-the-crew, etc.) |
+| Tell-the-crew swipe-down | Returns to **Edit only** — never skip Send, never silent discard |
+| Snooze ≥ 10 min | Still routes through **Tell-the-crew** (crew must be informed) |
+| Week / filters | Must **not** sit above the leave-in dial |
+| Other swipes | done, snooze, lab viewer switch, dismiss notify, agenda peek — where they fit, with tap fallbacks |
 
 ### Still open
 
