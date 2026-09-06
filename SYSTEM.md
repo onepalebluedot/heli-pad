@@ -67,6 +67,7 @@ Home-tab choice is still open; the lab may keep more than one concept until prod
 3. **Travel is computed** — never hardcode ETAs in production paths
 4. **Offline-tolerant** — last-known agenda and ETAs work without network for the next few hours
 5. **Mobile-only** — design and QA for phone; no desktop product commitment
+6. **Honor the contract** — lab/ports implement design’s feature contracts or escalate; never silently approximate unsupported behavior
 
 ### 4.2 Logical layers
 
@@ -220,6 +221,8 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 | Calendar v1 | **Read-only**; Task overlays sync via backend |
 | Home hero | **Hottest Task** (any kind) — not “next drive/handoff” only |
 | Active viewer | First-class facet: sticky in production, switchable in lab; agenda / hero / notify are per caregiver, not label-swapped household chrome |
+| Design ↔ eng contract | Today ports must honor: hottest Task hero, shared overlays/notify, per-viewer chrome, travel only when needed — escalate gaps to Software Lead; do not silently approximate |
+| Phone input | Swipe where it fits (done, snooze, lab viewer switch, dismiss notify, agenda peek) with **tap fallbacks** for critical actions — not tap-only, not swipe-only |
 | Near-term UX priority | **Home tab first** — Today as playground; Go/Next as controls until Lena’s test wins |
 | Out of scope now | AI recommendations/automation; side surfaces; chrome freeze before Lena |
 
