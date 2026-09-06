@@ -37,6 +37,12 @@ final class TodayViewModel: ObservableObject {
         TodayUseCases.restGroups(in: agenda, excluding: hero?.id)
     }
 
+    var wasSummary: String? {
+        guard let leave = baselineLeaveBy else { return nil }
+        let driver = personName(baselineAssigneeId)
+        return "Was: \(driver) · leave \(leave.formatted(date: .omitted, time: .shortened))"
+    }
+
     var askConfirmName: String {
         // Ask the other caregiver (backup / non-assignee) to confirm.
         let other = draftAssigneeId == "mom" ? "dad" : "mom"
