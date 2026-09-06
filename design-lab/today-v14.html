@@ -1423,20 +1423,28 @@
   function snoozeTrip(id, mins) {
     const t = trips.find(x => x.id === id);
     if (!t) return;
-    // Open Edit path with leave bump so ≥10 still runs Tell-the-crew (Samira contract)
-    leaveBefore = t.leaveBy;
-    driverBefore = t.driver;
+    // Stash pre-snooze leave/driver BEFORE bump — openSheet must not restamp "Was:"
+    const preLeave = t.leaveBy;
+    const preDriver = t.driver;
     const next = parseHM(t.leaveBy) + mins;
     t.leaveBy = String(Math.floor(next/60)%24).padStart(2,'0') + ':' + String(next%60).padStart(2,'0');
     const arr = next + t.driveMin + t.bufferMin;
     t.arriveBy = String(Math.floor(arr/60)%24).padStart(2,'0') + ':' + String(arr%60).padStart(2,'0');
     editId = id;
     sheetMode = 'edit';
-    // If crew-facing (≥10), morph to Tell-the-crew; else toast + render
-    if (needsNotify(t)) {
+    leaveBefore = preLeave;
+    driverBefore = preDriver;
+    // needsNotify uses leaveBefore vs current — stash already set
+    if (Math.abs(parseHM(t.leaveBy) - parseHM(preLeave)) >= 10 || t.driver !== preDriver) {
       openSheet(id, 'edit');
-      // after sheet paints, jump to notify step
-      setTimeout(() => showNotifyStep(t), 0);
+      // Re-apply stash after openSheet (which restamps from current trip)
+      leaveBefore = preLeave;
+      driverBefore = preDriver;
+      setTimeout(() => {
+        leaveBefore = preLeave;
+        driverBefore = preDriver;
+        showNotifyStep(t);
+      }, 0);
     } else {
       showToast('Snoozed +' + mins + ' min', t.kid ? (t.kid + ' · ' + t.activity) : t.activity);
       playSettle = true;
