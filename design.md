@@ -258,6 +258,7 @@ The hero swap has one rule worth preserving: `null` means *follow the live stop*
 | When a stop starts | The rail's time column | The clock time |
 | When to leave for it | — (it is derived, not scheduled) | `Leave 2:51 PM` inside the row |
 | Day completion | Pips in the panel head | None |
+| How heavy a day is | The dot under each day, deeper and larger with load | None (the detail is in the label) |
 | Driving split | One bar per caregiver at chart strength | The minutes |
 | Position in the day | Spine behind the rail markers | None |
 
@@ -315,6 +316,26 @@ One icon, top right of the masthead, for today. It is the only ambient fact on t
 Five sky tokens are drawn: `sun`, `partly`, `cloud`, `rain`, `storm`. The forecast description and temperature live in `title` and `aria-label`; only the icon is on the canvas. There is no temperature text, no second row, no forecast strip — a weather module would compete with the dial, and the dial is the reason the screen exists.
 
 `goWeather(dayIdx)` is a stub over sample data. Production reads a **WeatherProvider** port keyed by date and the family's home coordinates (WeatherKit on iOS), cached with a TTL like `TravelEstimator` — see [SYSTEM.md](./SYSTEM.md). Keep the return shape: one `sky` token that maps to an icon, one human `label` for the tooltip, so the view never has to know about a forecast payload.
+
+### The week strip
+
+Seven soft cards — off-white `#fbfaf3` over a hairline `#e8e9dd`, with the selected day filled forest. Uppercase day label, tabular numeral, and a dot beneath.
+
+**The dot is a load gauge, not a yes/no.** A binary "has something on it" answers the wrong question, because by Wednesday every day has something on it. What a caregiver scans for is *which day is heavy*, so the dot carries weight through four steps of depth and size — and it does so **for whoever the list is scoped to**, so switching from Mom to Nani repaints the whole week.
+
+Weight blends two things, because neither alone would say it: the number of stops, and the minutes behind the wheel. Four short hops and one long haul are both a heavy day. Twenty minutes of driving weighs about the same as one more stop.
+
+The scale is **relative to the busiest day of that person's own week**, not to a fixed number of stops. "Busy" only means anything comparatively: four stops is a heavy Tuesday for Nani and an ordinary one for the whole family, and one absolute scale saturates the family view to solid dots that say nothing. The peak is floored, so a week holding a single stop does not paint that day as the heaviest thing imaginable.
+
+| Level | Unselected | On the selected forest pill |
+| --- | --- | --- |
+| 0 — nothing on | Transparent, space kept | Transparent |
+| 1 | `#d3dac6`, 5px | `#ffffff4d` |
+| 2 | `#b0bf9a`, 6px | `#ffffff85` |
+| 3 | `#7f9a68`, 7px | `#dbe8b0` |
+| 4 — the week's peak | Forest, 8px | `#e7df93` |
+
+The precise figures live in the label — "Thursday, August 6 — 3 stops, 47 min driving for Dad" — so the mark is a glance and the detail is one press away. The new-stop sheet uses the same button, so you can see which day is already heavy before you schedule another stop into it.
 
 ### Rail and wheel time
 
@@ -391,11 +412,12 @@ Those inputs are the only things on this screen that open a keyboard. Everything
 | Card actions | 12px radius; minimum height 46px; wide primary plus an icon-only secondary |
 | Hero dot | 22px target around a 5px dot; the active dot becomes a 17px bar |
 | Scope row | 16px radius; 44px minimum segment height |
-| Day button | 13px radius; 52px minimum height; seven equal columns |
+| Day button | 14px radius; 62px minimum height; hairline card, 5px grid gap |
+| Day load dot | 5–8px, four steps of depth and size |
 | Rail row | `48px / 22px / flexible / 46px` columns; 13px vertical padding; spine at 68px |
 | Wheel-time row | `46px / flexible / 46px` columns; 10px track |
 
-Below 370px the masthead drops to 24px, the ring to 156px, the numeral to 50px, and the rail becomes `48px / 20px / flexible / 42px` with a 12.5px time and the spine at 64px. The sheet tightens to 15px gutters and its tiles to 66px.
+Below 370px the masthead drops to 24px, the ring to 156px, the numeral to 50px, the day cards to 58px, and the rail becomes `48px / 20px / flexible / 42px` with a 12.5px time and the spine at 64px. The sheet tightens to 15px gutters and its tiles to 66px.
 
 ## Responsive behavior
 

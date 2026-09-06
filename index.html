@@ -2971,27 +2971,61 @@
     }
     .go-scope-drawer:not(:empty) { padding: 13px 0 0; }
 
-    .go-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+    .go-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+    /* Soft card per day. The off-white sits a shade above ivory and a shade
+       below the sheet's paper, so the same pill reads as a card on both. */
     .go-day {
       min-width: 0;
-      min-height: 52px;
-      border: 0;
-      border-radius: 13px;
-      background: transparent;
-      padding: 6px 0;
+      min-height: 62px;
+      border: 1px solid #e8e9dd;
+      border-radius: 14px;
+      background: #fbfaf3;
+      box-shadow: 0 1px 2px #2357460d;
+      padding: 8px 0 7px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 2px;
+      justify-content: center;
+      gap: 3px;
       cursor: pointer;
+      transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
     }
-    .go-day span { font-size: 10px; font-weight: 600; color: var(--g-slate); }
-    .go-day strong { font-size: 17px; line-height: 1.3; font-weight: 700; font-variant-numeric: tabular-nums; }
-    .go-day i { width: 4px; height: 4px; border-radius: 50%; background: #9ca58e; }
-    .go-day i.empty { background: transparent; }
-    .go-day[aria-pressed='true'] { background: var(--g-forest); color: var(--g-paper); }
+    .go-day span {
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--g-slate);
+    }
+    .go-day strong { font-size: 18px; line-height: 1.15; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+    /* The dot is a load gauge, not a yes/no. Deeper and slightly larger as the
+       day fills up for whoever the list is scoped to. */
+    .go-day i {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: transparent;
+      margin-top: 1px;
+      transition: background 0.2s, width 0.2s, height 0.2s;
+    }
+    .go-day i.lv1 { background: #d3dac6; }
+    .go-day i.lv2 { background: #b0bf9a; width: 6px; height: 6px; }
+    .go-day i.lv3 { background: #7f9a68; width: 7px; height: 7px; }
+    .go-day i.lv4 { background: var(--g-forest); width: 8px; height: 8px; }
+
+    .go-day[aria-pressed='true'] {
+      background: var(--g-forest);
+      border-color: var(--g-forest);
+      color: var(--g-paper);
+      box-shadow: 0 4px 10px -6px #23574680;
+    }
     .go-day[aria-pressed='true'] span { color: #c5d8c8; }
-    .go-day[aria-pressed='true'] i { background: #e7df93; }
+    /* Inverted ramp, so weight still reads on the dark pill. */
+    .go-day[aria-pressed='true'] i.lv1 { background: #ffffff4d; }
+    .go-day[aria-pressed='true'] i.lv2 { background: #ffffff85; }
+    .go-day[aria-pressed='true'] i.lv3 { background: #dbe8b0; }
+    .go-day[aria-pressed='true'] i.lv4 { background: #e7df93; }
 
     .go-crew { display: flex; align-items: flex-start; justify-content: space-between; gap: 4px; }
     .go-person {
@@ -3508,6 +3542,9 @@
       .go-stop { grid-template-columns: 48px 20px minmax(0, 1fr) 42px; gap: 0 6px; }
       .go-stop-time { font-size: 12.5px; letter-spacing: -0.02em; }
       .go-rail::before { left: 64px; }
+      .go-days { gap: 4px; }
+      .go-day { min-height: 58px; border-radius: 12px; }
+      .go-day strong { font-size: 16px; }
       .go-sheet-body { padding-left: 15px; padding-right: 15px; }
       .go-sheet-foot { padding-left: 15px; padding-right: 15px; }
       .go-add-row { grid-template-columns: 48px minmax(0, 1fr) 14px; gap: 8px; }
@@ -3522,6 +3559,7 @@
       .go-dial-card[data-tone='started'] .go-ring-bead,
       .go-bead-glow { animation: none; }
       .go-ring-bead circle { transition: none; }
+      .go-day, .go-day i { transition: none; }
       .go-sheet, .go-add-drawer { animation: none; }
     }
 
@@ -5482,6 +5520,65 @@
   function goListWho(){ return state.goCrewFilter || state.currentUser; }
   function goListScope(e){ return goOwnedBy(e, goListWho()) && goMatchesKid(e); }
 
+  /* --- How full a day is, for whoever the list is scoped to ------------------
+     A binary "has something / has nothing" dot answers the wrong question: by
+     Wednesday every day has something on it. What a caregiver is actually
+     scanning for is which day is heavy, so the dot carries weight instead.
+
+     Weight blends the number of stops with the minutes behind the wheel,
+     because four short hops and one long haul are both a heavy day, and
+     neither count alone would say so. Twenty minutes of driving weighs about
+     the same as one more stop. */
+  const GO_LOAD_PER_STOP = 20;
+  const GO_LOAD_FLOOR = 4;   // a quiet week must still be allowed to look quiet
+
+  /* Weight is graded against the busiest day of that person's own week, not
+     against a fixed number of stops. "Busy" only means anything relative to
+     your other days: four stops is a heavy Tuesday for Nani and an ordinary
+     one for the whole family, and one absolute scale would saturate the
+     family view to solid dots and say nothing.
+
+     The peak is floored, so a week with a single stop in it does not paint
+     that day as the heaviest thing imaginable. */
+  function goWeekLoads(){
+    const who = goListWho();
+    const days = [0, 1, 2, 3, 4, 5, 6].map(off => {
+      const idx = (getTodayIndex() + off) % 7;
+      const {plan, drivers} = calculateDayPlan(idx);
+      const mine = plan.filter(e => goOwnedBy(e, who) && goMatchesKid(e));
+      const mins = Math.round(who === 'All'
+        ? Object.values(drivers).reduce((sum, d) => sum + d.driveMinutes, 0)
+        : (drivers[who] ? drivers[who].driveMinutes : 0));
+      return {stops: mine.length, mins, score: mine.length + mins / GO_LOAD_PER_STOP};
+    });
+    const peak = Math.max(GO_LOAD_FLOOR, ...days.map(d => d.score));
+    return days.map(d => ({
+      ...d,
+      level: d.stops ? Math.max(1, Math.min(4, Math.ceil(d.score / peak * 4))) : 0
+    }));
+  }
+
+  function goLoadLabel(load){
+    if(!load.stops) return 'nothing on';
+    const stops = `${load.stops} stop${load.stops > 1 ? 's' : ''}`;
+    return load.mins ? `${stops}, ${load.mins} min driving` : stops;
+  }
+
+  /* One day button, shared by the scope drawer and the new-stop sheet so the
+     two pickers can never drift apart. */
+  function goDayButton(off, selected, handler, load){
+    const idx = (getTodayIndex() + off) % 7;
+    const who = goListWho();
+    const whose = who === 'All' ? 'the family' : who;
+    return `<button class="go-day" aria-pressed="${selected}" onclick="${handler}"
+               title="${dayNames[idx]} · ${goLoadLabel(load)} for ${whose}"
+               aria-label="${dayNames[idx]}, August ${goDateOf(off)} — ${goLoadLabel(load)} for ${whose}">
+              <span>${off === 0 ? 'Today' : dayAbbrs[idx]}</span>
+              <strong>${goDateOf(off)}</strong>
+              <i class="lv${load.level}"></i>
+            </button>`;
+  }
+
   // calculateDayPlan can return a negative departBy (early event, long ETA);
   // minutesToTime would wrap that into a late-night time. Floor it at midnight.
   function goSafeDepart(e){
@@ -5963,20 +6060,12 @@
     if(!open){ el.innerHTML = ''; return; }
 
     if(open === 'day'){
-      const todayIdx = getTodayIndex();
       const offset = state.goDayOffset || 0;
-      el.innerHTML = `<div class="go-days">` + [0,1,2,3,4,5,6].map(off => {
-        const idx = (todayIdx + off) % 7;
-        // The dot marks a day that has something in the current scope, so an
-        // empty Thursday is obvious before you tap it.
-        const busy = (state.eventsByDay[idx] || []).some(goListScope);
-        return `<button class="go-day" aria-pressed="${off === offset}" onclick="goSetDay(${off})"
-                   aria-label="${dayNames[idx]}, August ${goDateOf(off)}">
-                  <span>${off === 0 ? 'Today' : dayAbbrs[idx]}</span>
-                  <strong>${goDateOf(off)}</strong>
-                  <i class="${busy ? '' : 'empty'}"></i>
-                </button>`;
-      }).join('') + `</div>`;
+      const loads = goWeekLoads();
+      el.innerHTML = `<div class="go-days">` +
+        [0,1,2,3,4,5,6].map(off =>
+          goDayButton(off, off === offset, `goSetDay(${off})`, loads[off])).join('') +
+        `</div>`;
       return;
     }
 
@@ -6509,7 +6598,6 @@
   }
 
   function goAddFieldsHtml(d){
-    const todayIdx = getTodayIndex();
     const customPlace = goIsCustomPlace(d);
     const customTime = d.customTime || !GO_TIME_PRESETS.includes(d.time);
     const customMins = d.customMins || !GO_DURATIONS.includes(d.mins);
@@ -6550,16 +6638,13 @@
                value="${goEsc(d.place)}" aria-label="Place name"
                oninput="goAddPlaceInput(this.value)">` : '');
 
+    // Same button as the scope drawer, so you can see which day is already
+    // heavy before you schedule another stop into it.
+    const loads = goWeekLoads();
     const whenDrawer = `
-      <div class="go-days">` + [0,1,2,3,4,5,6].map(off => {
-        const idx = (todayIdx + off) % 7;
-        return `<button class="go-day" aria-pressed="${off === d.dayOffset}"
-                   onclick="goAddSet({dayOffset:${off}})"
-                   aria-label="${dayNames[idx]}, August ${goDateOf(off)}">
-                  <span>${off === 0 ? 'Today' : dayAbbrs[idx]}</span>
-                  <strong>${goDateOf(off)}</strong>
-                </button>`;
-      }).join('') + `</div>
+      <div class="go-days">` +
+      [0,1,2,3,4,5,6].map(off =>
+        goDayButton(off, off === d.dayOffset, `goAddSet({dayOffset:${off}})`, loads[off])).join('') + `</div>
       <div class="go-add-stepper">
         <button onclick="goAddNudge(-15)" aria-label="15 minutes earlier">−</button>
         <span class="go-add-clock">${formatTime(d.time)}<em>starts</em></span>
