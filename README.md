@@ -13,6 +13,19 @@ A modern, iOS-inspired mobile web application designed for stress-free family ha
 
 ---
 
+## Plan: weekly planning
+
+Go is the chosen daily workflow. Open `index.html#plan` for its weekly companion:
+
+- A seven-day readiness graphic with flagged unassigned and tentative events.
+- Day browsing and a schedule/driving-load swap, with caregiver filters independent of Go.
+- Caregiver comparison, assignment locks, and reviewed rebalancing suggestions.
+- Dated future events and weekly recurrence, with editing per occurrence.
+- Dinner protection, a weekly priority, and meal ideas in a separate sheet.
+- Clearly labeled Google Calendar pull/push **preview**. No Google account, live routing, or AI service is connected.
+
+The Plan implementation is shared by both HTML entry points through `plan.css`, `plan.js`, and `plan-core.js`. Changes persist locally. Run `node --test tests/plan-core.test.cjs` for the planning-rule checks.
+
 ## Key Features
 
 ### "Next" Tab — Third Homepage Concept
@@ -54,7 +67,8 @@ in the warm Next design language on 2026-09-05; see [`design.md`](./design.md).
 - **Week Strip as a Load Gauge**: Each day's dot carries weight, not a yes/no — four steps of depth and size, blending stops with minutes behind the wheel, graded against the busiest day of *that person's* own week. Switching from Mom to Nani repaints the whole strip, so you can see at a glance whose week is heavy and where the gaps are. The same buttons appear in the new-stop sheet, so you can see which day is already full before scheduling into it.
 - **Scope Swap**: One row stands in for a day strip, a crew strip, and a filter row. Each segment shows its current value as a mark plus a word and swaps the matching picker into a single drawer. It sits below the dial, so a filter never outranks leave-in.
 - **Panel Swap**: The rest-of-day rail and the wheel-time chart share one slot behind a two-icon toggle, instead of stacking as two permanent modules.
-- **Route Bar**: Departure and arrival as a hollow origin dot and a filled square destination, with a car marker that advances along the dashed line as the run-up elapses — the trip's shape at a glance, no prose.
+- **Route Beside the Dial**: The two times and the count are one decision, so they are one glance — the ring on the left, a vertical route on the right. Hollow origin, dashed run, filled square destination, with a bead (the same mark that rides the ring) advancing as the run-up elapses. Lifting the route out from under the dial shortens the card by about a third, which brings the destination, the people and the actions above the fold.
+- **Line Work, Not Emoji**: Transit modes are 1.6px line glyphs in the screen's own palette — car, walker, carpool, bus, house — rather than emoji, which arrive with someone else's colour and gloss and read as clip art beside a hand-drawn dial. Children keep their emoji, because there the emoji is the identity a family already uses.
 - **Time Spine**: The day as a vertical rail of stops. The time column is the **arrival** — when the thing actually starts — and the derived departure rides inside the row as a `Leave 2:51 PM` line, so two different kinds of time never share one column. The title owns the whole flexible column, so activity names never truncate; only the venue may ellipsize. Children and the lead caregiver are named, not just badged — a pale disc carries the colour and the word beneath it carries the identity ("You" for your own stops, "Needs driver" when unassigned).
 - **One Sheet for Add and Edit**: A sheet built from the screen's own parts — a live tone-card preview, five field rows, and the scope row's swap for the pickers. Tapping an existing stop opens the same sheet, seeded: "Edit stop", "Save changes", and a quiet "Remove this stop". Nothing is a blank field: an activity preset supplies the venue, travel mode and duration; the day comes from the list you were looking at; the driver is you; the title composes itself ("Noah Practice").
 - **A Time Range, Not a Length**: The When drawer shows `2:30 PM → 2:50 PM` with the duration derived beneath it, so nobody does arithmetic to answer a question they already know ("it finishes at three"). Tapping either end aims the stepper, the hour chips and the exact input at it; moving the start carries the end along. Presets are whole hours from 7 AM to 9 PM, with ± 15 minutes for the fine adjustment.

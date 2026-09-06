@@ -2663,7 +2663,71 @@
       pointer-events: none;
     }
 
-    .go-dial-wrap { position: relative; width: 172px; height: 172px; margin: 2px auto 0; }
+    /* Dial and route share the top of the card. Side by side, the two times
+       and the count are one glance instead of two, and the card is shorter. */
+    .go-dial-head { display: flex; align-items: center; justify-content: center; gap: 12px; }
+    .go-dial-head.has-aside { justify-content: flex-start; gap: 16px; padding-right: 2px; }
+    .go-dial-wrap { position: relative; width: 172px; height: 172px; margin: 2px auto 0; flex: 0 0 auto; }
+    .go-dial-head.has-aside .go-dial-wrap { width: 158px; height: 158px; margin: 0; }
+
+    /* Next's route, stood on end: hollow origin, dashed line, filled square
+       destination, with a bead for the traveller. */
+    .go-route { flex: 1; min-width: 0; padding-right: 2px; }
+    .go-route-row { display: grid; grid-template-columns: 11px minmax(0, 1fr); align-items: center; gap: 9px; }
+    .go-route-row strong {
+      display: block;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+    }
+    .go-route-row span {
+      display: block;
+      font-size: 8.5px;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: #ffffff73;
+      margin-top: 3px;
+    }
+    .go-route-mark { width: 11px; height: 11px; border-radius: 50%; border: 2px solid #bdcdb8; justify-self: center; }
+    .go-route-mark.end { background: #e5e5b2; border-color: #e5e5b2; border-radius: 3px; }
+    /* The leg: a dashed run with the traveller on it and the estimate beside. */
+    .go-route-leg {
+      position: relative;
+      height: 46px;
+      margin: 5px 0;
+      padding-left: 20px;
+      display: flex;
+      align-items: center;
+    }
+    .go-route-line {
+      position: absolute;
+      left: 5px;
+      top: 0;
+      bottom: 0;
+      border-left: 1px dashed #d5e4d68c;
+    }
+    .go-route-bead {
+      position: absolute;
+      left: 5px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #e5e5b2;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 0 4px #e5e5b230;
+      transition: top 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .go-route-leg em {
+      font-style: normal;
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: #ffffff8a;
+    }
+    .go-route.is-home { display: flex; align-items: center; }
     /* The quarter turn lives on a group inside the SVG now, so the bead's own
        coordinates stay in the SVG's frame and the gradient is not double-turned. */
     .go-dial-wrap svg { width: 100%; height: 100%; display: block; position: relative; z-index: 1; }
@@ -2710,6 +2774,13 @@
     }
     .go-dial-num.is-word { font-size: 30px; letter-spacing: -0.03em; }
     .go-dial-num.is-long { font-size: 46px; }   /* three-digit minute counts */
+    .go-dial-head.has-aside .go-dial-num { font-size: 48px; }
+    .go-dial-head.has-aside .go-dial-num.is-word { font-size: 26px; }
+    .go-dial-head.has-aside .go-dial-num.is-long { font-size: 38px; }
+    .go-dial-head.has-aside .go-dial-num.is-hours { font-size: 34px; }
+    .go-dial-head.has-aside .go-dial-num.is-hours small { font-size: 19px; }
+    .go-dial-head.has-aside .go-dial-unit { font-size: 8px; letter-spacing: 0.16em; }
+    .go-dial-head.has-aside .go-dial-icon { font-size: 34px; }
     /* Past an hour the count reads in hours; the units ride small and light. */
     .go-dial-num.is-hours { font-size: 44px; letter-spacing: -0.04em; }
     .go-dial-num.is-hours small { font-size: 24px; font-weight: 500; letter-spacing: -0.02em; margin-left: 1px; }
@@ -2749,7 +2820,20 @@
       line-height: 1.15;
       margin: 0 0 4px;
     }
-    .go-dest-where { font-size: 11.5px; color: #cde0cf; font-weight: 600; }
+    .go-dest-where {
+      font-size: 11.5px;
+      color: #cde0cf;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      justify-content: center;
+    }
+    /* Named -transit, not -mode: `go-mode` is already the shell's class on
+       .app, and a bare `.go-mode` rule sizes the whole phone frame. */
+    .go-transit { display: inline-flex; width: 15px; height: 15px; flex: 0 0 auto; }
+    .go-transit svg { width: 100%; height: 100%; display: block; }
+    .go-stop-meta .go-transit { width: 13px; height: 13px; opacity: 0.8; }
     .go-dest-where b { font-weight: 700; opacity: 0.7; margin-left: 3px; }
     .go-dial-card[data-tone='now'] .go-dest-where,
     .go-dial-card[data-tone='started'] .go-dest-where { color: #f4dbcf; }
@@ -3370,14 +3454,6 @@
     .go-add-where { font-size: 11.5px; font-weight: 600; color: #cde0cf; }
     .go-add-preview .go-facepile { margin: 11px 0 0; }
     .go-add-preview .go-timebar { margin: 11px 0 0; }
-    /* Say plainly why there is no leave-by here, rather than inventing one. */
-    .go-add-hint {
-      margin: 9px 2px 0;
-      font-size: 10px;
-      line-height: 1.5;
-      font-weight: 600;
-      color: #b9cfbc;
-    }
 
     /* Field rows: the scope row, stacked. */
     .go-add-row {
@@ -3587,6 +3663,13 @@
     @media (max-width: 370px) {
       .go-masthead h1 { font-size: 24px; }
       .go-dial-wrap { width: 156px; height: 156px; }
+      .go-dial-head { gap: 9px; }
+      .go-dial-head.has-aside .go-dial-wrap { width: 138px; height: 138px; }
+      .go-dial-head.has-aside .go-dial-num { font-size: 42px; }
+      .go-dial-head.has-aside .go-dial-num.is-long { font-size: 34px; }
+      .go-dial-head.has-aside .go-dial-num.is-hours { font-size: 30px; }
+      .go-dial-head.has-aside .go-dial-num.is-hours small { font-size: 17px; }
+      .go-route-row strong { font-size: 14.5px; }
       .go-dial-num { font-size: 50px; }
       .go-stop { grid-template-columns: 48px 20px minmax(0, 1fr) 42px; gap: 0 6px; }
       .go-stop-time { font-size: 12.5px; letter-spacing: -0.02em; }
@@ -3610,7 +3693,7 @@
       .go-dial-card[data-tone='started'] .go-ring-bead,
       .go-bead-glow { animation: none; }
       .go-ring-bead circle { transition: none; }
-      .go-day, .go-day i, .go-add-range button { transition: none; }
+      .go-day, .go-day i, .go-add-range button, .go-route-bead { transition: none; }
       .go-sheet, .go-add-drawer { animation: none; }
     }
 
@@ -4791,14 +4874,14 @@
 
     for(const event of dayEvents){
       // Family event or stay-at-home
-      if(event.owner==='Family' || event.mode==='Home'){
-        const isHome = event.location==='Home';
+      if(event.owner==='Family' || event.mode==='Home' || event.location==='Home'){
+        const isHome = event.mode==='Home' || event.location==='Home';
         const eta = isHome ? 0 : travelMinutes('Home', event.location);
         const start = timeToMinutes(event.time);
-        const departBy = start - eta - (eta > 0 ? state.buffer : 5);
+        const departBy = start - eta - (eta > 0 ? state.buffer : 0);
         plan.push({
           ...event,
-          lead:'Family',
+          lead:event.owner || 'TBD',
           origin:'Home',
           eta,
           departBy,
@@ -4806,6 +4889,13 @@
           conflict:null,
           previousEvent:null
         });
+        // Non-travel tasks still belong to their assignee and reserve their time.
+        if (drivers[event.owner]) {
+          drivers[event.owner].position = event.location;
+          drivers[event.owner].availableAt = timeToMinutes(event.endTime);
+          drivers[event.owner].lastEvent = event;
+          drivers[event.owner].driveMinutes += eta;
+        }
         continue;
       }
 
@@ -5669,6 +5759,21 @@
   ];
   function goWeather(dayIdx){ return GO_WEATHER[dayIdx % 7] || GO_WEATHER[0]; }
 
+  /* Transit mode as line glyphs rather than emoji. Emoji arrive with someone
+     else's colour, weight and gloss, and next to a hand-drawn dial they read
+     as clip art. These are the same 1.6px stroke as the weather icon. */
+  const GO_MODE = {
+    Drive: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 15.6h16.8v-3.3a2 2 0 0 0-.35-1.13L18.3 8.3a2 2 0 0 0-1.66-.88H7.36A2 2 0 0 0 5.7 8.3l-1.75 2.87a2 2 0 0 0-.35 1.13z"/><path d="M6.6 15.6v1.6M17.4 15.6v1.6"/><circle cx="7.6" cy="13" r=".9" fill="currentColor" stroke="none"/><circle cx="16.4" cy="13" r=".9" fill="currentColor" stroke="none"/></svg>`,
+    Walk: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.6" r="1.9"/><path d="M12.3 21l1.1-6-2.6-2.3.9-4.3 3.4 2 2.4 1.4M11.7 8.4 8.4 10l-1 3.4M12.3 15l-3.1 6"/></svg>`,
+    Carpool: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3.4 19a5.6 5.6 0 0 1 11.2 0"/><path d="M16.2 5.6a3 3 0 0 1 0 4.8M18.6 19a5.6 5.6 0 0 0-2.2-4.5"/></svg>`,
+    'School Bus': `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4.6" width="16" height="11" rx="2.4"/><path d="M4 10h16M9.4 4.6v5.4M6.8 15.6v1.8M17.2 15.6v1.8"/><circle cx="7.6" cy="13" r=".9" fill="currentColor" stroke="none"/><circle cx="16.4" cy="13" r=".9" fill="currentColor" stroke="none"/></svg>`,
+    Home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V19a1.4 1.4 0 0 1-1.4 1.4H5.4A1.4 1.4 0 0 1 4 19z"/><path d="M9.6 20.4v-6h4.8v6"/></svg>`
+  };
+  function goModeIcon(e){
+    const svg = goNoTravel(e) ? GO_MODE.Home : (GO_MODE[e.mode] || GO_MODE.Drive);
+    return `<span class="go-transit" aria-hidden="true">${svg}</span>`;
+  }
+
   const GO_ICON_RAIL = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="6" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="5" cy="18" r="1.5"/><path d="M10 6h9M10 12h9M10 18h9"/></svg>`;
   const GO_ICON_LOAD = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h11M4 12h16M4 17h7"/></svg>`;
 
@@ -5776,7 +5881,7 @@
                   class="go-tick ${i % 3 === 0 ? 'major' : ''}"/>`;
   }).join('');
 
-  function goDialShell(tone, ringFraction, centerHtml, bodyHtml, actionsHtml){
+  function goDialShell(tone, ringFraction, centerHtml, bodyHtml, actionsHtml, asideHtml){
     const f = Math.max(0, Math.min(1, ringFraction));
     const offset = GO_RING_C * (1 - f);
     const [deep, bright] = GO_RING[tone] || GO_RING.clear;
@@ -5797,6 +5902,7 @@
 
     return `
       <div class="go-dial-card" data-tone="${GO_CARD_TONE[tone] || 'calm'}">
+        <div class="go-dial-head ${asideHtml ? 'has-aside' : ''}">
         <div class="go-dial-wrap" style="--g-bloom:${bright}">
           <svg viewBox="0 0 200 200" aria-hidden="true">
             <defs>
@@ -5826,6 +5932,8 @@
           </svg>
           <div class="go-dial-center">${centerHtml}</div>
         </div>
+        ${asideHtml || ''}
+        </div>
         ${bodyHtml}
         ${actionsHtml}
       </div>`;
@@ -5835,7 +5943,7 @@
      carries the colour, the word carries the identity. */
   function goDriverChip(lead){
     const tbd = lead === 'TBD' || lead === 'Unassigned';
-    const name = tbd ? 'Needs driver' : (lead === state.currentUser ? `${lead} (you)` : lead);
+    const name = tbd ? 'Needs driver' : lead;
     return `<span class="go-chip-face">
               <span class="go-mark ${tbd ? 'tbd' : ''}" ${tbd ? '' : `style="background:${goPersonBg(lead)}"`}
                     aria-hidden="true">${tbd ? '?' : lead[0]}</span>${name}
@@ -5873,7 +5981,7 @@
         `<div class="go-dial-icon">✓</div><div class="go-dial-unit">done</div>`,
         `<button class="go-dest" onclick="goEditOpen(${e.id})" aria-label="Open ${e.title}">
            <h2 class="go-dest-title">${e.title}</h2>
-           <div class="go-dest-where">${goNoTravel(e) ? '⌂' : (icons[e.mode] || '🚗')} ${e.location}<b>›</b></div>
+           <div class="go-dest-where">${goModeIcon(e)} ${e.location}<b>›</b></div>
          </button>
          <div class="go-facepile">${goDriverChip(e.lead)}${goKidChips(e)}</div>`,
         `<div class="go-actions" style="grid-template-columns:1fr">
@@ -5926,38 +6034,43 @@
     if(depart !== null && start > depart) progress = (v.now - depart) / (start - depart);
     progress = Math.max(0, Math.min(1, progress)) * 100;
 
+    /* The two times sit beside the dial rather than under it. They are the
+       same decision the ring is counting toward, so reading them should not
+       cost a downward glance - and lifting them up shortens the card, which
+       brings the title and the actions above the fold.
+
+       Drawn vertically, in Next's route idiom: a hollow origin, a dashed
+       line, a filled square destination. The traveller is a bead on that
+       line, the same mark that rides the ring, rather than an emoji car. */
+    const route = noTravel
+      ? `<div class="go-route is-home">
+           <div class="go-route-row">
+             <span class="go-route-mark end"></span>
+             <div><strong>${formatTime(e.time)}</strong><span>together</span></div>
+           </div>
+         </div>`
+      : `<div class="go-route">
+           <div class="go-route-row">
+             <span class="go-route-mark start"></span>
+             <div><strong>${depart === null ? '—' : formatTime(minutesToTime(depart))}</strong><span>leave</span></div>
+           </div>
+           <div class="go-route-leg">
+             <span class="go-route-line"></span>
+             <span class="go-route-bead" style="top:${progress}%"></span>
+             <em>${e.eta} min</em>
+           </div>
+           <div class="go-route-row">
+             <span class="go-route-mark end"></span>
+             <div><strong>${formatTime(e.time)}</strong><span>arrive</span></div>
+           </div>
+         </div>`;
+
     const body = `
       <button class="go-dest" onclick="goEditOpen(${e.id})" aria-label="Open ${e.title}">
         <h2 class="go-dest-title">${e.title}</h2>
-        <div class="go-dest-where">${noTravel ? '⌂' : (icons[e.mode] || '🚗')} ${e.location}<b>›</b></div>
+        <div class="go-dest-where">${goModeIcon(e)} ${e.location}<b>›</b></div>
       </button>
-      <div class="go-facepile">${goDriverChip(e.lead)}${goKidChips(e)}</div>
-      ${noTravel ? `
-      <div class="go-timebar is-home">
-        <span class="go-mark kid" role="img" aria-label="At home">⌂</span>
-        <div class="go-timebar-end">
-          <div class="go-tb-time">${formatTime(e.time).replace(' ', '')}</div>
-          <div class="go-tb-label">together</div>
-        </div>
-      </div>` : `
-      <div class="go-timebar">
-        <div class="go-timebar-end">
-          <div class="go-tb-time">${depart === null ? '—' : formatTime(minutesToTime(depart)).replace(' ', '')}</div>
-          <div class="go-tb-label">leave</div>
-        </div>
-        <div class="go-timebar-mid">
-          <div class="go-tb-line">
-            <span class="go-tb-eta">${e.eta} min</span>
-            <span class="go-tb-dot start"></span>
-            <span class="go-tb-dot end"></span>
-            <span class="go-tb-car" style="left:${progress}%">🚗</span>
-          </div>
-        </div>
-        <div class="go-timebar-end">
-          <div class="go-tb-time">${formatTime(e.time).replace(' ', '')}</div>
-          <div class="go-tb-label">arrive</div>
-        </div>
-      </div>`}`;
+      <div class="go-facepile">${goDriverChip(e.lead)}${goKidChips(e)}</div>`;
 
     const actions = isTBD
       ? `<div class="go-actions" style="grid-template-columns:1fr">
@@ -5972,7 +6085,7 @@
            <button class="go-btn ghost" onclick="goToggleDone(${e.id})" aria-label="Mark ${e.title} done" title="Mark done">✓</button>
          </div>`;
 
-    el.innerHTML = goDialShell(st.kind, fraction, center, body, actions);
+    el.innerHTML = goDialShell(st.kind, fraction, center, body, actions, route);
   }
 
   /* The dots are the discoverable path into the hero swap; the drag is only an
@@ -6128,7 +6241,7 @@
             <p class="go-stop-title">${e.title}</p>
             <div class="go-stop-meta">
               ${kids}
-              <span aria-hidden="true">${goNoTravel(e) ? '⌂' : (icons[e.mode] || '🚗')}</span>
+              ${goModeIcon(e)}
               <span class="go-stop-venue">${e.location}</span>
               ${e.gcal ? `<span class="go-stop-gcal" title="Queued for Google Calendar"
                                 aria-label="Queued for Google Calendar">📅</span>` : ''}
@@ -6571,7 +6684,6 @@
             <div class="go-tb-label">ends</div>
           </div>
         </div>
-        <p class="go-add-hint">Leave-by is worked out from the rest of the day once this is saved.</p>
       </div>`;
   }
 

@@ -1,4 +1,4 @@
-# Heli-Pad: the warm design language (Next and Go)
+# Heli-Pad: the warm design language (Go and Plan)
 
 This document describes the shared design language used by two home-screen concepts, as of September 5, 2026:
 
@@ -7,7 +7,7 @@ This document describes the shared design language used by two home-screen conce
 
 Both share an ivory page, forest-green tone cards, a serif editorial voice, and compact sans-serif labels for times, children, places, and responsibilities. The strongest visual emphasis belongs to the next decision a caregiver needs to make. Next presents the whole day as a handoff sheet; Go presents one decision — *do I need to move, and when?* — and draws everything else as a mark.
 
-The concepts remain experiments within the UX lab. [SYSTEM.md](./SYSTEM.md) defines the broader product direction and the unresolved choice of home screen.
+Go is the product owner's chosen home design and intended daily workflow. Plan is its weekly planning companion. Next and Today remain reference experiments in the UX lab. [SYSTEM.md](./SYSTEM.md) records the architecture and integration boundaries.
 
 ## Standing direction: graphic over text
 
@@ -18,6 +18,8 @@ This is the product owner's stated preference and it outranks the more specific 
 
 - **A gauge must actually move.** A ring, bar, or meter pinned at full for hours is decoration, not information. If a range is too wide for a linear mapping, make the mapping piecewise so the gauge is most expressive where the decision lives.
 - **One channel, one job.** Do not encode the same fact twice. In Go the card background carries *how urgent* and the ring carries *how much run-up is left* — two channels, two facts, no explanatory sentence.
+- **Line work, not emoji.** Emoji arrive with somebody else's colour, weight and gloss, and beside a hand-drawn dial they read as clip art. Transit modes and the weather are drawn as 1.6px line glyphs in the screen's own palette. The exception is children, where the emoji *is* the identity a family already uses.
+
 - **A mark plus a name, never a mark alone.** *(Amended after review — an earlier pass put caregiver and child names in `title`/`aria-label` only, and a lone initial or emoji turned out to be a memory test.)* People are the one thing that must not be reduced to a glyph: pair the pale disc or emoji tile with the written name. The disc carries the colour, the word carries the identity. Every other fact on the screen still prefers the mark.
 - **Swap instead of stack.** When two surfaces answer related questions, give them one slot and a visible way to switch, rather than two permanent modules. Fewer assets on screen beats more information per scroll.
 - **Reduce copy to its operative words.** "min to leave" becomes "min". "Nothing left to drive · 3 stops never checked off" becomes a moon glyph, "Day is over", and "3 never checked off".
@@ -77,7 +79,7 @@ Use muted green and warm neutrals throughout the Next content. Forest green is t
 
 Go reuses these exact values; it adds no palette of its own. Forest, olive, and clay are the three tone-card backgrounds, butter is the primary action on a dark card, ochre marks the sun and needs-attention states, and sage rules divide the rail.
 
-Caregiver identity uses pale backgrounds and dark initials. Under the graphic-first direction the initial usually stands alone, with the written name carried in `title` and `aria-label`.
+Caregiver identity uses pale backgrounds and dark initials. Pair each initial with a visible written name. Tooltips and accessibility labels supplement the name; they do not replace it.
 
 | Caregiver | Badge background | Badge text |
 | --- | --- | --- |
@@ -212,7 +214,7 @@ Nothing sits above the dial. The week strip and the filters live below it, which
 | Order | Element | Role |
 | --- | --- | --- |
 | 1 | Masthead | Today's date in serif on the left, today's weather on the right. No greeting, no scope sentence. |
-| 2 | Dial card | The whole decision: countdown ring, destination, who and which kids as named chips, route bar, actions. |
+| 2 | Dial card | The whole decision: countdown ring **beside** the route, then destination, who and which kids as named chips, actions. |
 | 3 | Hero dots | One dot per stop *of mine*; the tap path into the hero swap, plus a **Live** return. |
 | 4 | Scope row | Three segments — day, caregiver, child — each showing its current value as a mark and a word. |
 | 5 | Scope drawer | Whichever picker the scope row has swapped open. Empty by default. |
@@ -246,6 +248,16 @@ Swapping is how Go keeps its asset count down. Each swap replaces a module that 
 
 The hero swap has one rule worth preserving: `null` means *follow the live stop*. Any other value pins the dial to a stop the parent chose, and a **Live** button appears to hand it back. Only switching profile or completing the pinned stop releases the pin — the scope row does not, because it does not own the dial. A drag in flight owns the card, so the five-second ticker skips its re-render rather than dropping the peek. The rail's own rows open the stop's details; they do not move the dial, because the list may be showing a day that is not mine.
 
+### The route, beside the dial
+
+The two times and the count are one decision, so they are one glance. The dial and the route share the top of the card — the dial at 158px on the left, the route filling the rest — rather than the route sitting under the dial where reading it costs a downward look. Lifting it also shortens the card by roughly a third, which brings the destination, the people and the actions above the fold.
+
+The route is drawn vertically, in Next's idiom: a hollow origin circle, a dashed run, a filled square destination, with the time and its label beside each mark. The traveller on that line is a **bead** — the same mark that rides the countdown ring — not a vehicle. A car emoji did two things wrong: it competed with the destination square for attention, and it was the one piece of clip art on a screen otherwise drawn by hand.
+
+A no-travel stop collapses the route to a single square and one time, labelled `together`.
+
+Nothing in the hero says "(you)". The dial is only ever the signed-in profile's next stop, so the parenthetical was a word confirming something the whole screen already guarantees.
+
 ### Marks
 
 | Fact | Mark | Words on screen |
@@ -254,7 +266,8 @@ The hero swap has one rule worth preserving: `null` means *follow the live stop*
 | How much run-up is left | Depleting ring, piecewise (see below) | The count in minutes |
 | Who is driving | Pale disc, dark initial; hatched ochre when unassigned | **The name** — "Dad", or "You" for the signed-in profile |
 | Which children | Emoji on a butter tile | **The name** |
-| Where, and how far | Hollow origin dot, dashed line, filled square destination, car by elapsed run-up | `leave`, `arrive`, and the ETA |
+| Where, and how far | Hollow origin dot, dashed line, filled square destination, bead by elapsed run-up | `leave`, `arrive`, and the ETA |
+| How you get there | A line glyph — car, walker, two figures, bus, house | None |
 | When a stop starts | The rail's time column | The clock time |
 | When to leave for it | — (it is derived, not scheduled) | `Leave 2:51 PM` inside the row |
 | Day completion | Pips in the panel head | None |
@@ -381,7 +394,7 @@ Both ends stay on screen. Tapping one aims the stepper, the hour chips and the e
 
 **Presets are whole hours.** Seven AM to nine PM, and the ± stepper takes it from there in quarter hours. An arbitrary handful of oddly specific times — 3:15, 5:30 — reads as somebody else's schedule; a run of hours reads as a scale you find your place on. The labels drop the `:00`, because it is noise on a whole hour and fifteen chips need the width.
 
-**No leave-by, on purpose.** The sheet shows when the stop *starts* and how long it *runs*, and says in one line that the leave-by is worked out from the rest of the day once it is saved. A departure is only meaningful once we know where the caregiver will be coming from, and at composition time we do not — the stop before it may not exist yet, and a custom place has no route at all. Inventing one here would put a number on screen that the rail would then quietly contradict. The rail is the only place a leave-by is honest, because by then there is a finished day to compute it from.
+**No leave-by, on purpose.** The sheet shows when the stop *starts* and when it *ends*, and no departure at all. A departure is only meaningful once we know where the caregiver will be coming from, and at composition time we do not — the stop before it may not exist yet, and a custom place has no route at all. Inventing one here would put a number on screen that the rail would then quietly contradict. The rail is the only place a leave-by is honest, because by then there is a finished day to compute it from. An earlier pass explained the absence in a line of copy beneath the preview; it was answering a question nobody had asked, and it is gone.
 
 **Structure.** Five rows, each showing its value as a mark and a word, with one picker open at a time in a drawer beneath the row that owns it — the scope row's swap, applied to composing an event. The preview above updates on every tap. Typing repaints the preview and the collapsed row value only, never the field holding the caret.
 
@@ -405,7 +418,9 @@ Both ends stay on screen. Tapping one aims the stepper, the hour chips and the e
 
 | Component | Geometry |
 | --- | --- |
-| Dial card | 26px radius; 18px padding; 172px ring wrap, 12px stroke |
+| Dial card | 26px radius; 18px padding; 172px ring wrap alone, 158px beside a route |
+| Route column | `11px / flexible` rows; 46px leg; 16px times, 8.5px labels |
+| Transit glyph | 15px in the hero, 13px in the rail; 1.6px stroke |
 | Hour ticks | 12 lines between r74.5 and r79; 1.5px, every third 2px |
 | Leading bead | r8.5 core, r3.2 white centre, r21 radial glow |
 | Timing numeral | 56px, weight 650, tracking `-0.055em`; 30px when it is a word |
@@ -446,3 +461,44 @@ Go's "Live" control is unrelated to either clock. It means *follow the live stop
 When extending either concept, preserve the ivory canvas, the serif masthead, the dark tone card, the aligned rows, and the pale caregiver identities. Put additional information at the point where it helps a decision, and keep secondary operations in the details or comparison flows. Use the existing component dimensions and semantic colors before introducing new visual treatments.
 
 Before adding a module, check whether it can swap into a slot that already exists. Before writing a sentence, check whether a mark would say it. Those two questions are the standing direction, and they are why Go carries the same reach as its predecessor on noticeably less screen.
+
+
+## Plan: the weekly companion to Go
+
+Plan uses Go's ivory canvas, forest card, serif date heading, pale named caregiver marks, chart-strength colors, and bottom-sheet interactions. Its purpose is to prepare the family week. Go remains the active viewer's daily execution screen.
+
+The implementation is split into [plan.css](./plan.css), [plan.js](./plan.js), and [plan-core.js](./plan-core.js). Both HTML entry points load the same files. Open `index.html#plan`.
+
+### One overview, one panel
+
+The masthead shows the selected week with previous, date-picker, and next controls. The forest card shows seven columns of event marks. Green means ready, amber means review, and a hatched clay mark means unassigned. The ready fraction is computed from events, not a manually checked checklist. A ready event has an assignee, is not tentative, and has no detected scheduling or route risk. An empty week reads 0 / 0 with an invitation to plan, never 100% ready.
+
+Tap a column to browse that day. Swipe the card to change weeks; the visible arrows do the same thing. Date arithmetic crosses month and year boundaries. The sample data is explicitly dated August 3–9, 2026; future weeks start empty unless events have been added to them.
+
+Two compact actions below the card open Google Calendar review and family priorities. The remaining panel swaps between the daily schedule and the family's weekly driving load. Nothing else stays permanently stacked on the page. Caregiver filtering affects this schedule only and leaves Go's viewer and countdown unchanged.
+
+### Review without hiding unfinished work
+
+The review sheet groups missing caregivers, timing conflicts, unknown routes, long drives, and tentative assignments. An assignment sheet compares all four caregivers and checks the previous and next commitments. The user can save a tentative driver, keep an event unassigned, or lock an assignment against rebalancing.
+
+Saving a weekly review records that the user has looked at the week. It does not clear flags or inflate readiness. Changing schedule, ownership, priorities, or buffer invalidates that review marker.
+
+Rebalancing opens a proposed set of changes with names, dates, estimated travel, and a reason for each change. Applying is explicit. Locked, tentative, and completed events are excluded. The current suggestions use deterministic schedule rules and sample routes; no AI service is connected. Unknown routes stay unknown instead of receiving a fabricated ETA.
+
+### Creation and priorities
+
+The event sheet supports a specific date, start and end, place, caregiver, task kind, children, notes, and a calendar queue flag. Repetition is behind a disclosure, with weekly occurrences bounded to 1–52. Each occurrence has its own identity and can be edited or removed independently. Private task fields stay separate from calendar schedule fields.
+
+Family priorities live in a separate sheet: optional dinner days and a 45-minute window, one weekly priority, and meal ideas. Dinner protection detects conflicts; it does not move events or insert dinners into the calendar.
+
+### Calendar review
+
+Pull and push share a sheet with a visible two-way toggle. Incoming sample events arrive flagged as unassigned; updating a linked event preserves app-owned assignment, completion, and notes. Outgoing review contains schedule fields only. Changing a queued event's schedule puts it back in the outgoing queue.
+
+The current adapter is a labeled local preview. Success says what happened in the preview and explicitly says that nothing was sent to Google. Live OAuth, calendar selection, conflict resolution against remote versions, and a backend write adapter remain integration work.
+
+### Geometry and accessibility
+
+Plan uses 18px content gutters, 26px hero and sheet corners, and 12–15px control radii. Its date heading is 29px Georgia; the hero heading is 24px sans-serif. Schedule rows use `49px / 15px / flexible / 49px` columns. Person names remain visible below their badges.
+
+Sheets have a grip, a scrollable body, and a fixed action footer. The background becomes inert while a sheet is open. Tab stays inside the sheet, Escape moves back or closes, and closing restores focus. The focus ring is the shared 3px copper outline. Reduced-motion preferences disable the entrance animation. At 370px and below, gutters shrink to 14px and the date heading to 25px.

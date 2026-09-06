@@ -21,7 +21,8 @@
     const start=mins(event.time), finish=end(event), buffer=Number(options.buffer ?? 12);
     const others=events.filter(e=>e.date===event.date && e.id!==event.id && owned(e,name));
     const prior=others.filter(e=>end(e)<=start).sort((a,b)=>end(b)-end(a))[0];
-    const origin=prior ? prior.location : start<540 ? 'Home' : options.origins[name] || 'Home';
+    const recent=prior && start-end(prior)<=180;
+    const origin=start<540 ? 'Home' : recent ? prior.location : options.origins[name] || 'Home';
     const eta=needsTravel(event) ? route(origin,event.location,options):0;
     const leave=eta===null ? start:start-eta-(needsTravel(event)?buffer:0);
     const overlap=others.find(e=>intersects(leave,finish,mins(e.time),end(e)));
@@ -33,7 +34,7 @@
     const unknown=eta===null || (next && nextEta===null);
     const conflict=Boolean(overlap || (slack!==null && slack<0) || (onwardSlack!==null && onwardSlack<0));
     return {name,origin,eta,leave,slack,onwardSlack,unknown,conflict,
-      reason:overlap ? `Overlaps ${overlap.title}` : onwardSlack!==null && onwardSlack<0 ? `${Math.abs(onwardSlack)} min short before ${next.title}` : slack!==null && slack<0 ? `${Math.abs(slack)} min short after ${prior.title}` : unknown ? 'Route needs checking' : `${eta} min ${needsTravel(event)?'travel':'travel needed'}${prior?' from '+origin:''}`};
+      reason:overlap ? `Overlaps ${overlap.title}` : onwardSlack!==null && onwardSlack<0 ? `${Math.abs(onwardSlack)} min short before ${next.title}` : slack!==null && slack<0 ? `${Math.abs(slack)} min short after ${prior.title}` : unknown ? 'Route needs checking' : `${eta} min ${needsTravel(event)?'travel':'travel needed'}${needsTravel(event)?' from '+origin:''}`};
   }
   function analyze(events, options) {
     return events.map(event=> {

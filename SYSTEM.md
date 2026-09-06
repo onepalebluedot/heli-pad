@@ -39,6 +39,7 @@ The prototype already explores these questions; production must answer them with
 | --- | --- |
 | `index.html` / `Orbit_Family_Logistics_Rebuilt.html` | Shell + Today / Go concepts (large single-file UI) |
 | `next-concept.css` / `next-concept.js` | “Next” tab: trip card, agenda, crew, preview clock |
+| `plan.css` / `plan.js` / `plan-core.js` | Weekly Plan: readiness, assignments, recurrence, priorities, calendar review |
 | Sample in-memory events | Mock family, places, ETAs — not synced |
 | Vercel static deploy | Shareable UI demos |
 
@@ -48,7 +49,7 @@ The prototype already explores these questions; production must answer them with
 - **Go** — countdown dial, travel bar, time spine (“do I need to move?”)
 - **Next** — ivory / forest trip card + daily agenda + “who’s got what?”
 
-Home-tab choice is still open; the lab may keep more than one concept until product picks a primary home.
+The product owner has selected **Go** as the current home design and intended daily workflow. **Plan** is the weekly family planning surface. Today and Next remain reference experiments.
 
 **Prototype limits (known)**
 
@@ -67,7 +68,7 @@ Home-tab choice is still open; the lab may keep more than one concept until prod
 3. **Travel is computed** — never hardcode ETAs in production paths
 4. **Offline-tolerant** — last-known agenda and ETAs work without network for the next few hours
 5. **Mobile-only** — design and QA for phone; no desktop product commitment
-6. **Honor the contract** — lab/ports implement design’s feature contracts or escalate; never silently approximate unsupported behavior
+6. **Honor the contract** — lab/ports implement design’s feature contracts; label preview adapters and unsupported integrations explicitly
 
 ### 4.2 Logical layers
 
@@ -214,7 +215,7 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 3. Missing Place coords → geocode / prompt
 4. TravelEstimator fills travel minutes for Tasks with a travel facet
 5. Use cases recompute urgency (+ TripPlans when needed)
-6. Home UI (Today playground first) renders **active viewer**’s hottest Task hero (any kind) + that viewer’s agenda
+6. Home UI (Go) renders **active viewer**’s hottest Task hero (any kind) + that viewer’s agenda
 7. User taps navigate → MapsLauncher (travel Tasks)
 8. User marks complete / reassigns → shared backend overlay; UI advances
 
@@ -240,8 +241,8 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 | Active viewer | First-class facet: sticky in production, switchable in lab; agenda / hero / notify are per caregiver, not label-swapped household chrome |
 | Design ↔ eng contract | Today ports must honor: hottest Task hero, shared overlays/notify, per-viewer chrome, travel only when needed — escalate gaps to Software Lead; do not silently approximate |
 | Phone input | Swipe where it fits with **tap primary** for critical actions — not tap-only, not swipe-only |
-| Near-term UX priority | **Home tab first** — Today as playground; Go/Next as controls until Lena’s test wins |
-| Out of scope now | AI recommendations/automation; side surfaces; chrome freeze before Lena |
+| Near-term UX priority | **Go** is the chosen daily workflow; **Plan** prepares the family week |
+| Recommendation boundary | Plan now offers reviewed schedule-based suggestions; live AI and automatic reassignment are not implemented |
 
 ### Today gesture contract (Lena amend — Samira pressure-test)
 
@@ -260,7 +261,7 @@ Gate Avery’s Today port against this map; escalate gaps — do not approximate
 | Decision | Options | Notes |
 | --- | --- | --- |
 | Production client | Native SwiftUI vs hybrid (Capacitor) wrapping lab | Lab stays HTML either way; freeze waits on Lena + John |
-| Primary home chrome | Today playground vs winning Go/Next control | Implement against Today first; no merge of chrome until Lena |
+| Primary home chrome | **Resolved: Go selected by product owner** | Plan follows the same design language; Today and Next are reference experiments |
 | Travel provider | MapKit vs Google Directions | Product may want Google ETAs to match Maps app choice |
 | Depart-by audience | Assignee-only vs every caregiver | Avery to spike with shared push once sync shape lands |
 | Exact Task kind enum | Final set / naming beyond the confirmed list | Keep extensible; ship drive-shaped UX first while model stays broad |
@@ -272,7 +273,7 @@ Gate Avery’s Today port against this map; escalate gaps — do not approximate
 
 1. **Lab** — continue HTML for UX/feature discovery (current repo)
 2. **System doc** — this file; update when domain or integrations change
-3. **Home-tab lab** — Today playground; Go/Next as controls; no chrome freeze until Lena
+3. **Home and planning lab** — Go is the daily workflow; Plan is the weekly planning companion
 4. **Shared sync spike** — Task overlays + push; Calendar read-only
 5. **Skeleton app** — Task domain + fake CalendarProvider / TravelEstimator / SyncStore
 6. **Live adapters** — Google Calendar OAuth + real routing + shared backend
@@ -283,3 +284,38 @@ Gate Avery’s Today port against this map; escalate gaps — do not approximate
 - Software Lead maintains this document
 - Escalate to Marcus Hale (EM) on scope/timeline tradeoffs (client stack, sync scope eating home-tab week, home freeze)
 - Prototype README remains the lab feature narrative; this doc is the system of record for architecture
+
+
+## 10. Plan implementation and latest product direction
+
+The product owner has requested weekly readiness, assigning TBD drivers, pull/push calendar review, future recurring events, dinner priorities and meal ideas, risk recommendations, and reviewed rebalancing. This supersedes the older restriction on work outside the home tab. The current pass implements those flows in the HTML UX lab using Go's selected design language.
+
+### Scope and storage
+
+- Plan is an explicit **family overview**. Its week/day/caregiver controls never change the active viewer or Go's countdown.
+- The shared sample week is dated **2026-08-03 through 2026-08-09**, matching Go's sample date strip. Existing events stay in `heli-pad-events-v6`; edits and assignments in that week are immediately shared with Go.
+- Future dated occurrences, weekly priorities, review fingerprints, and calendar-preview metadata are stored in `heli-pad-plan-v1`. Browsing another week never reuses a weekday bucket as if it were a new dated event.
+- Weekly recurrence materializes 1–52 dated occurrences with unique IDs and a shared series ID. Editing/removing affects one occurrence. A production provider should use provider recurrence identities and exceptions instead.
+- Go remains a seven-day sample lab. Future Plan weeks do not automatically roll into Go as real wall-clock weeks advance. A shared dated Task store is required for production.
+
+### Use-case boundary
+
+`plan-core.js` contains pure readiness, candidate evaluation, driving-load, rebalance, recurrence, and calendar-merge functions. `plan.js` handles presentation and the local-store/sample-calendar adapters. `plan.css` owns Plan's visual treatment. Both HTML entry points use these same files.
+
+The readiness count partitions events into ready, unassigned, and review. Missing or tentative assignment, overlap, less than 10 minutes of spare time after travel and buffer, unknown route, a drive of 25 minutes or longer, and protected-dinner conflicts remain visible. Saving a review is distinct from resolving those risks.
+
+Candidate checks include the incoming and onward journey, using recorded commitments and sample route durations. The shared buffer can be adjusted through review. A previous venue supplies the origin within a three-hour window; otherwise the caregiver's usual origin is used, matching the existing lab convention. Unknown routes return no estimate.
+
+Rebalance proposals exclude completed, tentative, and locked assignments. They prefer viable routes and a more even workload, with an explicit review before application. They do not call an LLM or a live routing service. Non-travel tasks retain their assigned caregiver in the shared day calculation and reserve that caregiver's time.
+
+### Calendar direction
+
+The desired product flow is **both pull and push**, reviewed in Plan. This extends the earlier read-only product direction, but does not imply that a live write integration now exists.
+
+The current `CalendarProvider` is a **local preview adapter** with two labeled sample incoming events and an outgoing review queue. Pull uses stable external IDs and preserves task overlays on schedule updates. Push review records a fingerprint of the schedule fields; it does not transmit anything. UI success messages explicitly distinguish preview completion from Google synchronization.
+
+A live adapter still needs Google OAuth, authorized calendar selection, provider event IDs/versioning, timezone-aware date-times, recurrence mapping, incremental pull, and conflict-aware write handling. Calendar owns title/date/start/end/location. Assignment, tentative/locked state, completion, and private notes remain app-owned. Until that adapter is implemented and connected, v1 has no live Google write path.
+
+### Verification
+
+Run `node --test tests/plan-core.test.cjs` for planning rules, recurrence boundaries, and overlay-preserving calendar merge. Browser verification covers review → assignment → persistence, event creation across a year boundary, pull/push preview, priorities, and phone layouts. This is local UX-lab validation, not evidence of Google API integration.
