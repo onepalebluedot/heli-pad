@@ -207,8 +207,8 @@ struct TodayView: View {
         .padding(12)
         .background(Color.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .contextMenu {
-            Button("Complete") { }
-            Button("Snooze +10") { }
+            Button("Complete") { vm.completeTask(id: task.id) }
+            Button("Snooze +10") { vm.snoozeTask(id: task.id, by: 10) }
         }
     }
 

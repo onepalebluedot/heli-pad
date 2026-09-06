@@ -10,8 +10,7 @@ enum TodayUseCases {
     }
 
     static func tripPlan(for task: TaskItem, now: Date = .now) -> TripPlan? {
-        guard let travel = task.travel else { return nil }
-        _ = travel
+        guard task.travel != nil else { return nil }
         let travelMinutes = 18 // stub TravelEstimator
         let arriveBy = task.start
         let departBy = arriveBy.addingTimeInterval(TimeInterval(-travelMinutes * 60 - task.bufferMinutes * 60))
@@ -32,6 +31,14 @@ enum TodayUseCases {
         )
     }
 
+    /// Persist a chosen leave-by by shifting Task.start so derived TripPlan matches.
+    static func applying(leaveBy: Date, to task: TaskItem) -> TaskItem {
+        var updated = task
+        let travelMinutes = task.travel == nil ? 0 : 18
+        updated.start = leaveBy.addingTimeInterval(TimeInterval((travelMinutes + task.bufferMinutes) * 60))
+        return updated
+    }
+
     /// Rest-of-day groups preserve dual-kid separation (no merge).
     static func restGroups(in agenda: DayAgenda, excluding heroId: String?) -> [(String, [TaskItem])] {
         let order = ["go", "dinner", "home"]
@@ -45,6 +52,19 @@ enum TodayUseCases {
     /// Tell-the-crew when driver swap or leave-by Δ ≥ 10.
     static func requiresTellTheCrew(driverChanged: Bool, leaveByDeltaMinutes: Int) -> Bool {
         driverChanged || abs(leaveByDeltaMinutes) >= 10
+    }
+
+    /// Dual-kid overlap ±45 min — different children, cards stay separate.
+    static func dualKidOverlap(for task: TaskItem, in agenda: DayAgenda, windowMinutes: Int = 45) -> TaskItem? {
+        let kids = Set(task.children)
+        guard !kids.isEmpty else { return nil }
+        let window = TimeInterval(windowMinutes * 60)
+        return agenda.tasks.first { other in
+            guard other.id != task.id, !other.isDone else { return false }
+            let otherKids = Set(other.children)
+            guard !otherKids.isEmpty, kids.isDisjoint(with: otherKids) else { return false }
+            return abs(other.start.timeIntervalSince(task.start)) <= window
+        }
     }
 
     private static func urgencyScore(_ task: TaskItem, now: Date) -> TimeInterval {

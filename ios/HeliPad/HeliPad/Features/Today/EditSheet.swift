@@ -78,6 +78,28 @@ struct EditSheet: View {
                 }
             }
 
+            if let overlap = vm.overlapTask {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Overlap with \(overlap.title) (±45 min) — cards stay separate.")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(TodayTheme.terracotta)
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(TodayTheme.terracotta.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                    // Tap-only — never swipe (SWIPE-TAP-MAP).
+                    Button(vm.askConfirmSent ? "Asked \(vm.askConfirmName)" : "Ask \(vm.askConfirmName) to confirm") {
+                        vm.askToConfirm()
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(TodayTheme.creamBtn, in: Capsule())
+                    .foregroundStyle(TodayTheme.green)
+                    .disabled(vm.askConfirmSent)
+                }
+            }
+
             Button("Done") { vm.tapDone() }
                 .buttonStyle(HeroPrimaryButton())
                 .padding(.top, 8)
