@@ -360,7 +360,7 @@ Creation reuses the screen's own parts rather than inventing a form. The preview
 | What | Pickup. The preset also supplies the venue, the travel mode and the duration. |
 | Who | The child the list is filtered to, else the first child. |
 | Where | The preset's usual venue — school for a drop-off, the sports complex for practice, home for dinner. |
-| When | The day the list was showing, at the first half hour that is both ahead of you and not already spoken for. "After everything else on the day" would land every new stop at bedtime. |
+| When | The day the list was showing, at the first half hour that is both ahead of you and not already spoken for. "After everything else on the day" would land every new stop at bedtime. The end follows from the preset's usual length. |
 | Driver | You. |
 
 The title composes itself: one child puts their name on it ("Noah Practice"), several leave it as the preset ("Playdate"). A written title always wins, and it survives switching presets — editing must never quietly rename somebody's event.
@@ -371,10 +371,15 @@ The title composes itself: one child puts their name on it ("Noah Practice"), se
 | --- | --- | --- |
 | What | Eight activity tiles | A free-text name, always available under the grid |
 | Where | The saved places | "Somewhere else" → a text field |
-| When | Five common times, ± 15 stepper | "Exact" → a native time input |
-| How long | Five durations | "Exact" → minutes |
+| When | Whole hours, 7 AM to 9 PM, ± 15 stepper | "Exact" → a native time input |
 
 Those inputs are the only things on this screen that open a keyboard. Everything else is a tap.
+
+**A range, never a length.** The drawer shows a start and an end — `2:30 PM → 2:50 PM` — with the duration stated beneath as the one number derived *for* you. Asking for a length instead makes the parent do arithmetic to answer a question they already know the answer to ("it finishes at three"), and then makes them do it again to check.
+
+Both ends stay on screen. Tapping one aims the stepper, the hour chips and the exact input at it — the scope row's swap again, so there is one control set rather than two stacked ones. Moving the start carries the end along, preserving the length you already chose, which is why most stops never need the end tapped at all. An end at or before its start is not a shorter stop, it is a mistake: those hours are disabled, and the stepper floors at start + 5 minutes.
+
+**Presets are whole hours.** Seven AM to nine PM, and the ± stepper takes it from there in quarter hours. An arbitrary handful of oddly specific times — 3:15, 5:30 — reads as somebody else's schedule; a run of hours reads as a scale you find your place on. The labels drop the `:00`, because it is noise on a whole hour and fifteen chips need the width.
 
 **No leave-by, on purpose.** The sheet shows when the stop *starts* and how long it *runs*, and says in one line that the leave-by is worked out from the rest of the day once it is saved. A departure is only meaningful once we know where the caregiver will be coming from, and at composition time we do not — the stop before it may not exist yet, and a custom place has no route at all. Inventing one here would put a number on screen that the rail would then quietly contradict. The rail is the only place a leave-by is honest, because by then there is a finished day to compute it from.
 
@@ -390,6 +395,7 @@ Those inputs are the only things on this screen that open a keyboard. Everything
 | Preview card | 20px radius; 15px padding; the screen's own facepile and route bar |
 | Field row | `54px / flexible / 16px` columns; 56px minimum height |
 | Preset / place tile | 14px radius; 72px minimum height; four columns for presets, three for places |
+| Time range | Two halves plus an arrow; 58px minimum height; 17px numerals |
 | Time stepper | `46px / flexible / 46px`; 46px targets; 21px clock |
 | Primary action | Full width, forest-filled, 46px minimum height |
 | Secondary action | Full width, outlined, 44px minimum height |

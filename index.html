@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#0d1326" />
   <title>Heli-Pad — Family Logistics</title>
   <link rel="stylesheet" href="next-concept.css" />
+  <link rel="stylesheet" href="plan.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -3074,7 +3075,7 @@
     }
     .go-chip em { font-style: normal; font-size: 15px; line-height: 1; }
     .go-chip[aria-pressed='true'] { background: #e6e9db; border-color: #cbd3bd; font-weight: 750; }
-    .go-chip[disabled] { opacity: 0.38; cursor: default; }
+    .go-chip[disabled] { opacity: 0.32; cursor: default; }
 
     /* --- Panel swap: rest-of-day rail OR wheel-time, one slot --------------- */
     .go-panel-head { display: flex; align-items: center; gap: 10px; margin: 23px 2px 8px; }
@@ -3476,7 +3477,55 @@
     }
     .go-chip em { font-style: normal; font-size: 13px; line-height: 1; }
 
-    /* Time: a stepper and five chips, so the keyboard never opens for a time. */
+    /* Both ends of the range, always on screen. The parent reads a start and
+       an end - never a length they have to add to a start themselves. */
+    .go-add-range {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 11px;
+    }
+    .go-add-range button {
+      min-width: 0;
+      border: 1px solid var(--g-line);
+      background: var(--g-canvas);
+      border-radius: 14px;
+      min-height: 58px;
+      padding: 8px 6px;
+      cursor: pointer;
+      transition: background 0.16s, border-color 0.16s;
+    }
+    .go-add-range button[aria-pressed='true'] { background: #e6e9db; border-color: #9daa8c; }
+    .go-add-range strong {
+      display: block;
+      font-size: 17px;
+      font-weight: 750;
+      letter-spacing: -0.025em;
+      font-variant-numeric: tabular-nums;
+    }
+    .go-add-range em {
+      display: block;
+      font-style: normal;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--g-slate);
+      margin-top: 3px;
+    }
+    .go-add-arrow { color: var(--g-slate); font-size: 13px; }
+    /* The length is the one number derived for you, so it is stated, not asked. */
+    .go-add-len {
+      grid-column: 1 / -1;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: 0.04em;
+      color: var(--g-slate);
+    }
+
+    /* Time: a stepper and a row of whole hours, so the keyboard never opens. */
     .go-add-stepper {
       display: grid;
       grid-template-columns: 46px minmax(0, 1fr) 46px;
@@ -3550,6 +3599,8 @@
       .go-add-row { grid-template-columns: 48px minmax(0, 1fr) 14px; gap: 8px; }
       .go-add-grid { gap: 5px; }
       .go-tile { min-height: 66px; font-size: 9.5px; }
+      .go-add-range { gap: 5px; }
+      .go-add-range strong { font-size: 15.5px; }
     }
     @media (prefers-reduced-motion: reduce) {
       .go-dial-card, .go-ring-fill, .go-tb-car, .go-load-fill { transition: none; }
@@ -3559,7 +3610,7 @@
       .go-dial-card[data-tone='started'] .go-ring-bead,
       .go-bead-glow { animation: none; }
       .go-ring-bead circle { transition: none; }
-      .go-day, .go-day i { transition: none; }
+      .go-day, .go-day i, .go-add-range button { transition: none; }
       .go-sheet, .go-add-drawer { animation: none; }
     }
 
@@ -3984,88 +4035,8 @@
           <div class="timeline" id="timeline"></div>
         </div>
 
-        <!-- Screen: Plan (Sunday Reset Sprint) -->
-        <div class="screen" data-screen="plan">
-          <div class="card reset-hero">
-            <h2>Sunday Reset Sprint</h2>
-            <p>Lock in external calendars, verify commute buffers, and distribute handoffs fairly between Mom & Dad.</p>
-            <div class="progress-track"><div class="progress-fill" id="resetProgress"></div></div>
-            <div class="progress-meta"><span id="resetCount">3 of 5 complete</span><span>Readiness: <strong id="readinessVal">88%</strong></span></div>
-          </div>
-
-          <div class="card checklist" id="checklist">
-            <div class="check-row">
-              <button class="check done">✓</button>
-              <div class="check-copy">
-                <b>Sync school & sports calendars</b>
-                <span>Google calendars, school portals, team schedules</span>
-              </div>
-              <button class="check-action" id="refreshCalendars">Sync</button>
-            </div>
-            <div class="check-row">
-              <button class="check done">✓</button>
-              <div class="check-copy">
-                <b>Confirm venues & parking buffers</b>
-                <span>Check address and turnaround ease for all places</span>
-              </div>
-              <button class="check-action" data-go="map">Venues</button>
-            </div>
-            <div class="check-row">
-              <button class="check done">✓</button>
-              <div class="check-copy">
-                <b>Rebalance Mom & Dad assignments</b>
-                <span>Assign based on commute origin & driving minutes</span>
-              </div>
-              <button class="check-action" id="rebalancePlan">Rebalance</button>
-            </div>
-            <div class="check-row">
-              <button class="check"></button>
-              <div class="check-copy">
-                <b>Protect family dinner</b>
-                <span>Keep 6:30 – 7:15 PM free of conflicting pickups</span>
-              </div>
-              <button class="check-action" id="mealPlanBtn">Protect</button>
-            </div>
-            <div class="check-row">
-              <button class="check"></button>
-              <div class="check-copy">
-                <b>Designate backup caregiver</b>
-                <span>Assign Nani or Grandma for tight handoffs</span>
-              </div>
-              <button class="check-action" id="backupBtn">Assign</button>
-            </div>
-          </div>
-
-          <div class="card slider-card">
-            <div class="slider-head">
-              <b>Target Commute Buffer</b>
-              <output id="bufferOut">12 min</output>
-            </div>
-            <p class="slider-copy">Depart-by times incorporate this margin to guard against unexpected traffic spikes.</p>
-            <input id="bufferSlider" type="range" min="0" max="30" value="12" step="1" />
-            
-            <div class="switch-row">
-              <div>
-                <b>Peak Hour Traffic Mode</b>
-                <span>Adjust departure estimates automatically</span>
-              </div>
-              <button class="switch on" id="trafficSwitch" aria-label="Adaptive traffic mode"></button>
-            </div>
-            
-            <div class="switch-row">
-              <div>
-                <b>Dinner Window Alert</b>
-                <span>Flag any pickup overlapping 6:30 – 7:15 PM</span>
-              </div>
-              <button class="switch on" id="dinnerSwitch" aria-label="Protect family dinner"></button>
-            </div>
-          </div>
-
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:16px;">
-            <button class="button-secondary" id="previewBtn">Preview Schedule</button>
-            <button class="button-primary" id="publishBtn">Publish Plan</button>
-          </div>
-        </div>
+        <!-- Weekly planning: shared Go language, with focused review sheets. -->
+        <div class="screen pn-screen" id="planScreen" data-screen="plan"></div>
 
         <!-- Screen: Map -->
         <div class="screen" data-screen="map">
@@ -6239,8 +6210,17 @@
 
   // A handful of times that cover most family logistics. The stepper handles
   // everything else, so the keyboard never has to open for a time.
-  const GO_TIME_PRESETS = ['07:35', '15:15', '16:30', '17:30', '18:30'];
-  const GO_DURATIONS = [30, 45, 60, 90, 120];
+  /* Whole hours across the span a family day actually runs. An arbitrary set
+     of five oddly specific times ("3:15 PM", "5:30 PM") reads as somebody
+     else's schedule; hours read as a scale you can find your place on. The
+     stepper does the fine adjustment from whichever hour you land on. */
+  const GO_HOURS = Array.from({length: 15}, (_, i) => (i + 7) * 60);   // 7 AM - 9 PM
+  const GO_NUDGE = 15;
+  // ":00" is noise on a whole hour, and fifteen chips need every pixel.
+  function goHourLabel(mins){
+    const h = Math.floor(mins / 60);
+    return `${((h + 11) % 12) + 1} ${h < 12 ? 'AM' : 'PM'}`;
+  }
 
   /* Title composes itself: one kid gets their name on it, several do not. */
   function goDraftTitle(d){
@@ -6257,8 +6237,14 @@
      states only what the parent is actually deciding: when it starts and how
      long it runs. The rail computes the departure later, from the finished
      day, and that is the only place it is honest to show one. */
-  function goDraftEnd(d){
-    return minutesToTime(Math.min(23 * 60 + 59, timeToMinutes(d.time) + d.mins));
+  function goDraftEnd(d){ return d.end; }
+  function goDraftMins(d){
+    return Math.max(5, timeToMinutes(d.end) - timeToMinutes(d.time));
+  }
+  // Moving the start carries the end along, so the length you already chose
+  // survives and nobody has to re-do the arithmetic.
+  function goShiftEnd(d, delta){
+    d.end = minutesToTime(Math.min(23 * 60 + 59, Math.max(5, timeToMinutes(d.end) + delta)));
   }
 
   /* The first half hour that is both ahead of you and not already spoken for.
@@ -6281,6 +6267,7 @@
     const kind = goKind('pickup');
     const dayIdx = goDayIndex();
     const kid = state.goKidFilter !== 'all' ? state.goKidFilter : GO_KIDS[0];
+    const start = goNextFreeTime(dayIdx);
     return {
       id: null,
       kind: kind.id,
@@ -6288,14 +6275,13 @@
       kids: [kid],
       place: kind.place,
       dayOffset: state.goDayOffset || 0,
-      time: goNextFreeTime(dayIdx),
-      mins: kind.mins,
+      time: start,
+      end: minutesToTime(timeToMinutes(start) + kind.mins),
       owner: state.currentUser === 'All' ? 'Mom' : state.currentUser,
       mode: kind.mode,
       gcal: false,
       customPlace: false,
-      customTime: false,
-      customMins: false
+      customTime: false
     };
   }
 
@@ -6322,7 +6308,7 @@
       place: e.location || 'Home',
       dayOffset: offset,
       time: e.time,
-      mins: Math.max(5, end > start ? end - start : 60),
+      end: minutesToTime(end > start ? end : start + 60),
       owner: e.owner || e.lead || 'Mom',
       mode: e.mode || 'Drive',
       gcal: !!e.gcal
@@ -6331,6 +6317,7 @@
 
   function goSheetShow(field){
     state.goAddField = field;
+    state.goAddEdge = 'start';
     const back = $('#goAddBackdrop');
     if(!back) return;
     back.hidden = false;
@@ -6382,7 +6369,7 @@
     const d = state.goDraft;
     const prior = goKind(d.kind);
     if(d.place === prior.place) d.place = k.place;
-    if(d.mins === prior.mins) d.mins = k.mins;
+    if(goDraftMins(d) === prior.mins) d.end = minutesToTime(timeToMinutes(d.time) + k.mins);
     // A title the parent typed is theirs; a composed one follows the preset.
     if(d.title && d.title === goComposedTitle(prior, d.kids)) d.title = '';
     d.mode = k.mode;
@@ -6405,10 +6392,36 @@
     renderGoAdd();
   };
 
+  /* One stepper and one row of hours, pointed at whichever end of the range
+     is active. Both times stay on screen the whole time, so the parent never
+     has to hold a length in their head. */
+  window.goAddEdge = function(which){
+    state.goAddEdge = which;
+    renderGoAdd();
+  };
+
+  function goSetEdge(mins){
+    const d = state.goDraft;
+    const clamped = Math.max(0, Math.min(23 * 60 + 45, mins));
+    if((state.goAddEdge || 'start') === 'end'){
+      // An end before its start is not a shorter stop, it is a mistake.
+      d.end = minutesToTime(Math.max(timeToMinutes(d.time) + 5, clamped));
+    } else {
+      goShiftEnd(d, clamped - timeToMinutes(d.time));
+      d.time = minutesToTime(clamped);
+    }
+  }
+
   window.goAddNudge = function(step){
     const d = state.goDraft;
-    const next = Math.max(0, Math.min(23 * 60 + 45, timeToMinutes(d.time) + step));
-    d.time = minutesToTime(next);
+    const from = (state.goAddEdge || 'start') === 'end' ? d.end : d.time;
+    goSetEdge(timeToMinutes(from) + step);
+    renderGoAdd();
+  };
+
+  window.goAddHour = function(mins){
+    state.goDraft.customTime = false;
+    goSetEdge(mins);
     renderGoAdd();
   };
 
@@ -6428,15 +6441,10 @@
 
   window.goAddTimeInput = function(value){
     if(!/^\d{2}:\d{2}$/.test(value)) return;
-    state.goDraft.time = value;
+    goSetEdge(timeToMinutes(value));
     goAddPreviewRefresh();
     goAddValueRefresh('when');
-  };
-
-  window.goAddMinsInput = function(value){
-    const n = Math.max(5, Math.min(600, Number(value) || 0));
-    state.goDraft.mins = n;
-    goAddPreviewRefresh();
+    goAddRangeRefresh();
   };
 
   /* Typing must not re-render the field that holds the caret. Repaint the
@@ -6449,12 +6457,16 @@
     const row = document.querySelector(`.go-add-row[data-field="${id}"] .go-add-value`);
     if(row && state.goDraft) row.innerHTML = goAddValueHtml(id, state.goDraft);
   }
+  function goAddRangeRefresh(){
+    const el = document.querySelector('.go-add-range');
+    if(el && state.goDraft) el.innerHTML = goAddRangeInner(state.goDraft);
+  }
 
   function goDraftFields(d){
     const kids = d.kids.includes('All') ? ['All'] : d.kids;
     return {
       time: d.time,
-      endTime: goDraftEnd(d),
+      endTime: d.end,
       title: goDraftTitle(d),
       owner: d.owner,
       kid: kids.join(', '),
@@ -6549,7 +6561,7 @@
           </div>
           <div class="go-timebar-mid">
             <div class="go-tb-line">
-              <span class="go-tb-eta">${goDurationLabel(d.mins)}</span>
+              <span class="go-tb-eta">${goDurationLabel(goDraftMins(d))}</span>
               <span class="go-tb-dot start"></span>
               <span class="go-tb-dot end"></span>
             </div>
@@ -6561,6 +6573,22 @@
         </div>
         <p class="go-add-hint">Leave-by is worked out from the rest of the day once this is saved.</p>
       </div>`;
+  }
+
+  /* Both ends of the range, always visible. Tapping one aims the stepper, the
+     hour chips and the exact input at it - the same swap the rest of Go uses,
+     so there is one control set rather than two stacked ones. */
+  function goAddRangeInner(d){
+    const edge = state.goAddEdge || 'start';
+    const half = (id, label, value) => `
+      <button aria-pressed="${edge === id}" onclick="goAddEdge('${id}')"
+              aria-label="Adjust the ${label} time, ${formatTime(value)}">
+        <strong>${formatTime(value)}</strong><em>${label}</em>
+      </button>`;
+    return half('start', 'starts', d.time) +
+      `<span class="go-add-arrow" aria-hidden="true">→</span>` +
+      half('end', 'ends', d.end) +
+      `<span class="go-add-len">${goDurationLabel(goDraftMins(d))}</span>`;
   }
 
   function goAddRow(id, label, valueHtml, drawerHtml){
@@ -6590,7 +6618,7 @@
     }
     if(id === 'when'){
       return `<span class="go-scope-date" aria-hidden="true">${goDateOf(d.dayOffset)}</span>` +
-        `${d.dayOffset === 0 ? 'Today' : dayAbbrs[dayIdx]} · ${formatTime(d.time)} · ${goDurationLabel(d.mins)}`;
+        `${d.dayOffset === 0 ? 'Today' : dayAbbrs[dayIdx]} · ${formatTime(d.time)} – ${formatTime(d.end)}`;
     }
     return d.owner === 'TBD'
       ? `<span class="go-mark tbd" aria-hidden="true">?</span>Find one later`
@@ -6599,8 +6627,6 @@
 
   function goAddFieldsHtml(d){
     const customPlace = goIsCustomPlace(d);
-    const customTime = d.customTime || !GO_TIME_PRESETS.includes(d.time);
-    const customMins = d.customMins || !GO_DURATIONS.includes(d.mins);
 
     const kindDrawer = `
       <div class="go-add-grid">` +
@@ -6640,38 +6666,37 @@
 
     // Same button as the scope drawer, so you can see which day is already
     // heavy before you schedule another stop into it.
+    const edge = state.goAddEdge || 'start';
+    const active = edge === 'end' ? d.end : d.time;
+    const activeMins = timeToMinutes(active);
+    const startMins = timeToMinutes(d.time);
+    const customTime = d.customTime || !GO_HOURS.includes(activeMins);
+
     const loads = goWeekLoads();
     const whenDrawer = `
       <div class="go-days">` +
       [0,1,2,3,4,5,6].map(off =>
         goDayButton(off, off === d.dayOffset, `goAddSet({dayOffset:${off}})`, loads[off])).join('') + `</div>
+      <div class="go-add-range">${goAddRangeInner(d)}</div>
       <div class="go-add-stepper">
-        <button onclick="goAddNudge(-15)" aria-label="15 minutes earlier">−</button>
-        <span class="go-add-clock">${formatTime(d.time)}<em>starts</em></span>
-        <button onclick="goAddNudge(15)" aria-label="15 minutes later">+</button>
+        <button onclick="goAddNudge(-${GO_NUDGE})" aria-label="${GO_NUDGE} minutes earlier">−</button>
+        <span class="go-add-clock">${formatTime(active)}<em>${edge === 'end' ? 'ends' : 'starts'}</em></span>
+        <button onclick="goAddNudge(${GO_NUDGE})" aria-label="${GO_NUDGE} minutes later">+</button>
       </div>
       <div class="go-kids">` +
-      GO_TIME_PRESETS.map(t => `
-        <button class="go-chip" aria-pressed="${!customTime && t === d.time}"
-                onclick="goAddSet({time:'${t}', customTime:false})">${formatTime(t)}</button>`).join('') +
+      GO_HOURS.map(m => {
+        // An end on or before its start is not offerable.
+        const off = edge === 'end' && m <= startMins;
+        return `<button class="go-chip" aria-pressed="${!customTime && m === activeMins}"
+                   ${off ? 'disabled' : ''} onclick="goAddHour(${m})">${goHourLabel(m)}</button>`;
+      }).join('') +
       `<button class="go-chip" aria-pressed="${customTime}" onclick="goAddCustom('customTime', true)">
          <em>✎</em>Exact
        </button></div>` +
       (customTime ? `
-        <input class="go-add-input narrow" type="time" value="${d.time}"
-               aria-label="Exact start time" oninput="goAddTimeInput(this.value)">` : '') +
-      `<p class="go-add-note">How long</p>
-      <div class="go-kids">` +
-      GO_DURATIONS.map(m => `
-        <button class="go-chip" aria-pressed="${!customMins && m === d.mins}"
-                onclick="goAddSet({mins:${m}, customMins:false})">${goDurationLabel(m)}</button>`).join('') +
-      `<button class="go-chip" aria-pressed="${customMins}" onclick="goAddCustom('customMins', true)">
-         <em>✎</em>Exact
-       </button></div>` +
-      (customMins ? `
-        <input class="go-add-input narrow" type="number" min="5" max="600" step="5" value="${d.mins}"
-               aria-label="Length in minutes" oninput="goAddMinsInput(this.value)">
-        <span class="go-add-suffix">minutes</span>` : '');
+        <input class="go-add-input narrow" type="time" value="${active}"
+               aria-label="Exact ${edge === 'end' ? 'end' : 'start'} time"
+               oninput="goAddTimeInput(this.value)">` : '');
 
     const driverDrawer = `<div class="go-crew">` +
       GO_CREW.map(name => `
@@ -6876,8 +6901,7 @@
     renderLocations();
     renderParentLocationControls();
     renderFamily();
-    const {plan}=calculateDayPlan();
-    $('#readinessVal').textContent=`${calculateReadiness(plan)}%`;
+    if (window.renderPlanConcept) window.renderPlanConcept();
   }
 
   function setupFilters(){
@@ -7035,6 +7059,8 @@
     app.classList.toggle('next-mode', screen === 'next');
     // Go borrows Next's ivory chrome; both live in the same warm design language.
     app.classList.toggle('go-mode', screen === 'go');
+    app.classList.toggle('plan-mode', screen === 'plan');
+    if (screen === 'plan' && window.renderPlanConcept) window.renderPlanConcept();
     if (screen === 'next' && window.renderNextConcept) window.renderNextConcept();
     $$('.screen').forEach(s=>s.classList.toggle('active',s.dataset.screen===screen));
     $$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.nav===screen));
@@ -7468,31 +7494,7 @@
     };
   }
 
-  // Buffer and switches
-  $('#bufferSlider').value=state.buffer;
-  $('#bufferOut').textContent=`${state.buffer} min`;
-  $('#bufferSlider').oninput=e=>{
-    state.buffer=Number(e.target.value);
-    $('#bufferOut').textContent=`${state.buffer} min`;
-    saveState();
-    renderAll();
-  };
   $('#confidenceSlider').oninput=e=>$('#confidenceOut').textContent=`${e.target.value}%`;
-  $('#trafficSwitch').classList.toggle('on',state.trafficMode);
-  $('#dinnerSwitch').classList.toggle('on',state.dinnerProtection);
-  $('#trafficSwitch').onclick=()=>{
-    state.trafficMode=!state.trafficMode;
-    $('#trafficSwitch').classList.toggle('on',state.trafficMode);
-    saveState();
-    toast(state.trafficMode?'Adaptive traffic enabled':'Adaptive traffic paused');
-  };
-  $('#dinnerSwitch').onclick=()=>{
-    state.dinnerProtection=!state.dinnerProtection;
-    $('#dinnerSwitch').classList.toggle('on',state.dinnerProtection);
-    saveState();
-    renderAll();
-    toast(state.dinnerProtection?'Dinner protection active':'Dinner protection paused');
-  };
 
   const syncBtn = $('#syncBtn');
   if(syncBtn){
@@ -7592,23 +7594,6 @@
     toast('Venue saved');
   };
 
-  function updateResetProgress(){
-    const checks=$$('#checklist .check');
-    const done=checks.filter(c=>c.classList.contains('done')).length;
-    $('#resetProgress').style.width=`${done/checks.length*100}%`;
-    $('#resetCount').textContent=`${done} of ${checks.length} complete`;
-  }
-  $$('#checklist .check').forEach(c=>c.onclick=()=>{
-    c.classList.toggle('done');
-    c.textContent=c.classList.contains('done')?'✓':'';
-    updateResetProgress();
-  });
-
-  $('#refreshCalendars').onclick=()=>toast('Connected calendars are up to date');
-  $('#mealPlanBtn').onclick=()=>toast('Dinner window protected against late handoffs');
-  $('#backupBtn').onclick=()=>toast('Nani and Grandma designated on backup roster');
-  $('#previewBtn').onclick=()=>{go('today');toast('Previewing Monday relay')};
-  $('#publishBtn').onclick=()=>toast('Weekly plan published to family calendar');
   $('#openMapsBtn').onclick=()=>toast('Opening navigation...');
   $('#familyBalanceBtn').onclick=()=>{
     for(let day=0;day<7;day++)optimizeDay(day);
@@ -7642,8 +7627,10 @@
   setupTimeSelectionControls();
   renderAll();
   setupFilters();
-  updateResetProgress();
+
 </script>
 <script src="next-concept.js"></script>
+<script src="plan-core.js"></script>
+<script src="plan.js"></script>
 </body>
 </html>
