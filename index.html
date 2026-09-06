@@ -2546,192 +2546,125 @@
     }
 
     /* ==========================================================================
-       "GO" SCREEN — redesigned at-a-glance departure view.
-       Self-contained palette and type scale; shares no tokens with the legacy
-       Today screen so the two can be compared side by side.
-       Design rules: one decision on screen at a time, everything legible at
-       arm's length, graphics carry the state instead of sentences.
-       ========================================================================== */
-    .go-screen {
-      --g-ink: #0A1020;
-      --g-slate: #6B7A90;
-      --g-line: #E3E8F0;
-      --g-canvas: #F5F7FB;
-      --g-go: #16C172;
-      --g-soon: #F5A524;
-      --g-late: #FF5A6E;
-      --g-cool: #6366F1;
-      margin: -2px 0 0;
-    }
+       "GO" SCREEN — the at-a-glance departure view, drawn in the Next language.
+       Ivory canvas, forest / olive / clay tone card, serif masthead. Operational
+       information stays compact sans-serif; the serif is reserved for the date.
 
-    /* --- Crew strip: the ONLY caregiver control on this screen -------------- */
-    .go-crew {
+       Design rules for this screen:
+         1. One decision on screen at a time. The dial is the top of the page and
+            nothing — no week strip, no filter — sits above it.
+         2. State is carried by colour and shape first, words second. The card
+            tone says how urgent; the ring says how much run-up is left.
+         3. Every secondary fact is a mark — ring, spine, avatar, dot, bar — not
+            a sentence. Names live in labels and tooltips, not on the canvas.
+         4. Surfaces SWAP instead of stacking. One scope row stands in for three
+            pickers, one panel slot holds either the rail or the wheel-time
+            chart, and one hero cycles through the day's stops.
+       ========================================================================== */
+
+    /* Shell: Go borrows Next's ivory chrome so the two read as one family. */
+    .app.go-mode { background: #f6f4ed; --primary: #235746; --primary-light: #e5ede5; }
+    .app.go-mode .topbar { background: #f6f4ed; color: #233d33; border-radius: 0; box-shadow: none; }
+    .app.go-mode .topbar::after { display: none; }
+    .app.go-mode .brand-title, .app.go-mode .brand-title span.heli { color: #233d33; }
+    .app.go-mode .eyebrow-date { display: none; }
+    .app.go-mode .topbar-profile-btn { background: #ebece3; border-color: #d9ddd0; color: #233d33; }
+    .app.go-mode .profile-switch-indicator { color: #526555; }
+    .app.go-mode .icon-btn { color: #233d33; background: transparent; border-color: #d9ddd0; filter: grayscale(1); }
+    .app.go-mode .bottom-nav { background: #fffef8; border-color: #e3e3d7; box-shadow: 0 4px 24px #253e3310; }
+    .app.go-mode .nav-btn.active { background: #e7eedf; color: #235746; }
+    /* Go carries no create flow of its own; the floating button is one more
+       asset competing with the dial, so it steps aside here as it does in Next. */
+    .app.go-mode .fab { display: none; }
+    .app.go-mode .content { padding-bottom: 104px; }
+    .app.go-mode .modal { background: #fffef8; }
+
+    .go-screen,
+    .go-sheet-backdrop {
+      --g-canvas: #f6f4ed;   /* page ivory */
+      --g-paper:  #fffef8;   /* warm white */
+      --g-ink:    #233d33;   /* green ink */
+      --g-slate:  #687469;   /* muted green-grey */
+      --g-line:   #dfe2d6;   /* sage rule */
+      --g-forest: #235746;   /* calm / on track */
+      --g-olive:  #55532e;   /* get ready */
+      --g-clay:   #814d3c;   /* go now / late */
+      --g-butter: #e9e7bc;   /* primary action on a dark card */
+      --g-ochre:  #ad722d;   /* sun, needs-attention marks */
+      --g-warn:   #9a482c;   /* unassigned / overdue text */
+      color: var(--g-ink);
+    }
+    .go-screen { margin: -2px 0 0; padding-bottom: 10px; }
+    .go-screen button, .go-sheet button, .go-sheet input { color: inherit; font-family: inherit; }
+    .go-screen button:focus-visible,
+    .go-sheet button:focus-visible,
+    .go-sheet input:focus-visible { outline: 3px solid #af612d; outline-offset: 3px; }
+
+    /* --- Masthead: the date, in Next's editorial voice --------------------- */
+    .go-masthead {
       display: flex;
       align-items: center;
-      gap: 7px;
-      padding: 2px 0 14px;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 7px 0 14px;
     }
-    .go-crew-day {
-      font-size: 11px;
-      font-weight: 900;
-      letter-spacing: 0.09em;
-      color: var(--g-slate);
-      text-transform: uppercase;
-      margin-right: auto;
+    .go-masthead > div { min-width: 0; }
+    .go-masthead h1 {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-weight: 400;
+      letter-spacing: -0.045em;
+      font-size: 27px;
+      line-height: 1.08;
+      margin: 5px 0 0;
     }
-    .go-avatar {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      border: 0;
-      color: white;
-      font-size: 13px;
-      font-weight: 900;
-      display: grid;
-      place-items: center;
-      cursor: pointer;
-      opacity: 0.62;
-      transform: scale(0.92);
-      transition: opacity 0.18s, transform 0.18s, box-shadow 0.18s;
-      position: relative;
-    }
-    .go-avatar.on {
-      opacity: 1;
-      transform: scale(1);
-      /* --ring is set per-avatar so the initial can stay white and legible. */
-      box-shadow: 0 0 0 2.5px white, 0 0 0 4.5px var(--ring, currentColor);
-    }
-
-    /* --- Day strip: look ahead across the next seven days ------------------ */
-    .go-days {
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-      padding: 2px 0 12px;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
-    }
-    .go-days::-webkit-scrollbar { display: none; }
-    .go-day {
-      flex: 1 0 auto;
-      min-width: 42px;
-      border: 1.5px solid var(--g-line);
-      background: white;
-      border-radius: 14px;
-      padding: 7px 5px 6px;
-      display: grid;
-      justify-items: center;
-      gap: 1px;
-      cursor: pointer;
-      transition: background 0.18s, border-color 0.18s;
-    }
-    .go-day-dow {
-      font-size: 9.5px;
-      font-weight: 900;
-      letter-spacing: 0.06em;
+    .go-eyebrow {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
       color: var(--g-slate);
+      margin: 0;
     }
-    .go-day-num {
-      font-size: 15px;
-      font-weight: 900;
-      color: var(--g-ink);
-      line-height: 1.1;
-      font-variant-numeric: tabular-nums;
-    }
-    /* Dot = this day has at least one stop in the current scope. */
-    .go-day-dot {
-      width: 4px;
-      height: 4px;
-      border-radius: 50%;
-      background: var(--g-cool);
-      margin-top: 2px;
-    }
-    .go-day-dot.empty { background: transparent; }
-    .go-day.on {
-      background: var(--g-ink);
-      border-color: var(--g-ink);
-    }
-    .go-day.on .go-day-dow { color: rgba(255, 255, 255, 0.62); }
-    .go-day.on .go-day-num { color: white; }
-    .go-day.on .go-day-dot:not(.empty) { background: var(--g-go); }
-    .go-day.today:not(.on) { border-color: var(--g-cool); }
+    /* One ambient icon, drawn in the same ochre line style as the old sun. */
+    .go-sun { display: block; width: 38px; height: 38px; color: var(--g-ochre); flex: 0 0 auto; transform: rotate(-12deg); }
+    .go-sun svg { display: block; width: 100%; height: 100%; }
 
-    /* --- Kid facet: scopes the dial and the rest of the day ---------------- */
-    .go-filter {
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-      padding: 0 0 12px;
-      scrollbar-width: none;
-    }
-    .go-filter::-webkit-scrollbar { display: none; }
-    .go-chip {
-      flex: 0 0 auto;
-      border: 1.5px solid var(--g-line);
-      background: white;
-      border-radius: 999px;
-      padding: 6px 12px;
-      font-size: 12px;
-      font-weight: 800;
-      color: var(--g-slate);
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background 0.18s, border-color 0.18s, color 0.18s;
-    }
-    .go-chip.on {
-      background: var(--g-ink);
-      border-color: var(--g-ink);
-      color: white;
-    }
-    .go-chip[disabled] { opacity: 0.36; cursor: default; }
-
-    /* Stops hidden by the active facets - never silently disappear, and the
-       way back to the whole day is one tap. */
-    .go-rail-hidden {
-      display: block;
-      margin: 8px 0 0 82px;
-      padding: 0;
-      border: 0;
-      background: none;
-      font-size: 11.5px;
-      font-weight: 800;
-      color: var(--g-cool);
-      text-align: left;
-    }
-
-    /* --- The dial: hero countdown ------------------------------------------ */
+    /* --- The dial: the one decision ---------------------------------------- */
+    .go-hero { position: relative; }
     .go-dial-card {
-      background: var(--g-ink);
-      border-radius: 30px;
-      padding: 22px 20px 20px;
-      color: white;
       position: relative;
       overflow: hidden;
-      box-shadow: 0 22px 44px -18px rgba(10, 16, 32, 0.55);
+      border-radius: 26px;
+      padding: 18px 18px 16px;
+      background: var(--g-forest);
+      color: var(--g-paper);
+      box-shadow: 0 10px 18px -12px #203f3366;
+      transition: background 0.4s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      touch-action: pan-y;
+      user-select: none;
+      -webkit-user-select: none;
     }
+    .go-dial-card[data-tone='soon'] { background: var(--g-olive); }
+    .go-dial-card[data-tone='now'],
+    .go-dial-card[data-tone='started'] { background: var(--g-clay); }
+    .go-dial-card.is-dragging { transition: background 0.4s ease; }
+    /* Concentric rings, borrowed from Next's trip card. Decoration only. */
     .go-dial-card::after {
       content: '';
       position: absolute;
-      inset: -60% -30% auto auto;
-      width: 260px;
-      height: 260px;
+      width: 190px;
+      height: 190px;
+      right: -124px;
+      top: 30px;
+      border: 1px solid #ffffff17;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(99, 102, 241, 0.35), transparent 68%);
+      box-shadow: 0 0 0 26px #ffffff08, 0 0 0 52px #ffffff04;
       pointer-events: none;
     }
-    .go-dial-wrap {
-      position: relative;
-      width: 186px;
-      height: 186px;
-      margin: 0 auto 4px;
-    }
-    .go-dial-wrap svg {
-      width: 100%;
-      height: 100%;
-      transform: rotate(-90deg);
-    }
-    .go-ring-track { stroke: rgba(255, 255, 255, 0.1); }
+
+    .go-dial-wrap { position: relative; width: 172px; height: 172px; margin: 2px auto 0; }
+    .go-dial-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
+    .go-ring-track { stroke: #ffffff1f; }
     .go-ring-fill {
       stroke-linecap: round;
       transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.4s;
@@ -2743,116 +2676,142 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 1px;
+      gap: 3px;
     }
     .go-dial-num {
-      font-size: 58px;
-      font-weight: 900;
-      letter-spacing: -0.05em;
+      font-size: 56px;
+      font-weight: 650;
+      letter-spacing: -0.055em;
       line-height: 0.92;
       font-variant-numeric: tabular-nums;
     }
-    .go-dial-num.is-word {
-      font-size: 33px;
-      letter-spacing: -0.02em;
-    }
+    .go-dial-num.is-word { font-size: 30px; letter-spacing: -0.03em; }
+    .go-dial-num.is-long { font-size: 46px; }   /* three-digit minute counts */
+    /* Past an hour the count reads in hours; the units ride small and light. */
+    .go-dial-num.is-hours { font-size: 44px; letter-spacing: -0.04em; }
+    .go-dial-num.is-hours small { font-size: 24px; font-weight: 500; letter-spacing: -0.02em; margin-left: 1px; }
+    .go-dial-card[data-tone='now'] .go-ring-fill,
+    .go-dial-card[data-tone='started'] .go-ring-fill { animation: go-ring-pulse 1.6s ease-in-out infinite; }
+    @keyframes go-ring-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
     .go-dial-unit {
-      font-size: 10.5px;
-      font-weight: 900;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.5);
-    }
-    .go-dial-icon { font-size: 46px; line-height: 1; }
-
-    .go-dest {
-      text-align: center;
-      margin-top: 6px;
-    }
-    .go-dest-title {
-      font-size: 22px;
+      font-size: 9px;
       font-weight: 800;
-      letter-spacing: -0.02em;
-      line-height: 1.15;
-      margin: 0 0 5px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #ffffff8a;
     }
-    .go-dest-where {
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.62);
-      font-weight: 600;
-    }
+    .go-dial-icon { font-size: 42px; line-height: 1; }
 
-    /* Who + what, entirely as marks */
+    /* The destination block is the edit path. The rail row pins the dial, so
+       details need a target of their own — one that costs no extra chrome. */
+    .go-dest {
+      display: block;
+      width: 100%;
+      text-align: center;
+      margin-top: 8px;
+      border: 0;
+      background: transparent;
+      padding: 2px 0;
+      cursor: pointer;
+      color: inherit;
+      font: inherit;
+    }
+    div.go-dest { cursor: default; }   /* empty states have nothing to open */
+    .go-dest-title {
+      font-size: 21px;
+      font-weight: 650;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin: 0 0 4px;
+    }
+    .go-dest-where { font-size: 11.5px; color: #cde0cf; font-weight: 600; }
+    .go-dest-where b { font-weight: 700; opacity: 0.7; margin-left: 3px; }
+    .go-dial-card[data-tone='now'] .go-dest-where,
+    .go-dial-card[data-tone='started'] .go-dest-where { color: #f4dbcf; }
+
+    /* Who and which kids. The disc carries the colour, the word carries the
+       identity — an initial or an emoji on its own is a memory test. */
     .go-facepile {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      margin: 15px 0 3px;
+      gap: 7px;
+      margin: 12px 0 2px;
       flex-wrap: wrap;
     }
-    .go-face {
+    .go-chip-face {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      background: rgba(255, 255, 255, 0.09);
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      gap: 7px;
+      background: #ffffff14;
+      border: 1px solid #ffffff26;
       border-radius: 999px;
-      padding: 4px 12px 4px 4px;
+      padding: 3px 13px 3px 3px;
       font-size: 12.5px;
-      font-weight: 800;
+      font-weight: 700;
+      white-space: nowrap;
     }
-    .go-face .go-face-dot {
-      width: 25px;
-      height: 25px;
+    .go-chip-face .go-mark { width: 26px; height: 26px; font-size: 11px; border: 0; }
+    .go-chip-face .go-mark.kid { font-size: 13px; }
+    .go-mark {
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       display: grid;
       place-items: center;
       font-size: 12px;
-      color: white;
-      font-weight: 900;
+      font-weight: 800;
+      color: #314b37;
+      border: 1.5px solid #ffffff33;
+      flex: 0 0 auto;
     }
-    .go-face.kid .go-face-dot { background: rgba(255, 255, 255, 0.16); font-size: 13px; }
+    .go-mark.kid { background: #e8e5b2; font-size: 15px; }
+    .go-mark.tbd {
+      background: repeating-linear-gradient(45deg, #f0dcc6, #f0dcc6 4px, #e0c1a1 4px, #e0c1a1 8px);
+      color: var(--g-warn);
+    }
+    .go-mark-split { width: 1px; height: 17px; background: #ffffff30; margin: 0 2px; }
 
-    /* Time arc: departure vs arrival shown as a track, not two labels */
+    /* Route, not prose: hollow origin, filled square destination, car between. */
     .go-timebar {
-      margin: 16px 0 2px;
-      background: rgba(255, 255, 255, 0.07);
+      margin: 13px 0 2px;
+      background: #ffffff12;
       border-radius: 14px;
-      padding: 11px 14px 9px;
+      padding: 12px 15px 10px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
+    /* No-travel stops have no route to draw, so the bar collapses to one mark. */
+    .go-timebar.is-home { justify-content: center; gap: 11px; }
     .go-timebar-end { text-align: center; flex-shrink: 0; }
     .go-tb-time {
-      font-size: 15px;
-      font-weight: 900;
+      font-size: 14.5px;
+      font-weight: 800;
       font-variant-numeric: tabular-nums;
       line-height: 1.1;
     }
     .go-tb-label {
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 800;
       letter-spacing: 0.13em;
       text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.45);
-      margin-top: 2px;
+      color: #ffffff70;
+      margin-top: 3px;
     }
-    .go-timebar-mid {
-      flex: 1;
-      position: relative;
-      height: 22px;
-      display: flex;
-      align-items: center;
+    .go-timebar-mid { flex: 1; position: relative; height: 20px; display: flex; align-items: center; }
+    .go-tb-line { width: 100%; height: 0; border-top: 1px dashed #d5e4d68c; position: relative; }
+    .go-tb-dot {
+      position: absolute;
+      top: 50%;
+      width: 9px;
+      height: 9px;
+      border: 2px solid #bdcdb8;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
     }
-    .go-tb-line {
-      height: 2.5px;
-      width: 100%;
-      background: rgba(255, 255, 255, 0.16);
-      border-radius: 2px;
-      position: relative;
-    }
+    .go-tb-dot.start { left: 0; }
+    .go-tb-dot.end { left: 100%; background: #e5e5b2; border-color: #e5e5b2; border-radius: 3px; }
     .go-tb-car {
       position: absolute;
       top: 50%;
@@ -2862,239 +2821,680 @@
     }
     .go-tb-eta {
       position: absolute;
-      top: -2px;
+      top: -14px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 9.5px;
+      font-size: 9px;
       font-weight: 800;
-      color: rgba(255, 255, 255, 0.55);
+      color: #ffffff8a;
       letter-spacing: 0.04em;
     }
 
-    /* --- Primary action: one thumb target ---------------------------------- */
-    .go-actions {
-      display: flex;
-      gap: 9px;
-      margin: 13px 0 0;
-    }
+    /* One wide action, one icon action. */
+    .go-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 12px 0 0; }
     .go-btn {
-      flex: 1;
       border: 0;
-      border-radius: 17px;
-      padding: 16px 12px;
-      font-size: 15px;
-      font-weight: 900;
+      border-radius: 12px;
+      min-height: 46px;
+      padding: 12px 14px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 7px;
       transition: transform 0.12s, filter 0.15s;
-      letter-spacing: -0.01em;
     }
-    .go-btn:active { transform: scale(0.975); }
-    .go-btn.primary { background: white; color: var(--g-ink); }
+    .go-btn:active { transform: scale(0.978); }
+    .go-btn.primary { background: var(--g-butter); color: #283e2d; }
     .go-btn.ghost {
-      background: rgba(255, 255, 255, 0.11);
-      color: white;
-      border: 1.4px solid rgba(255, 255, 255, 0.18);
-      flex: 0 0 34%;
+      background: transparent;
+      color: var(--g-paper);
+      border: 1px solid #ffffff40;
+      min-width: 54px;
+      font-size: 17px;
+      padding: 12px 16px;
     }
 
-    /* --- Rail: the rest of the day ----------------------------------------- */
-    .go-rail-head {
+    /* Hero swap: the dial cycles through the day's remaining stops. The dots
+       are the tap path; a horizontal drag on the card is the accelerator. */
+    .go-hero-dots {
       display: flex;
-      align-items: baseline;
-      gap: 9px;
-      margin: 26px 2px 10px;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      margin: 11px 0 0;
+      min-height: 22px;
     }
-    .go-rail-title {
-      font-size: 13px;
-      font-weight: 900;
-      letter-spacing: 0.09em;
+    .go-hero-dot {
+      width: 22px;
+      height: 22px;
+      border: 0;
+      background: none;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+    .go-hero-dot::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 3px;
+      background: #b7bfae;
+      transition: width 0.2s, background 0.2s;
+    }
+    .go-hero-dot[aria-pressed='true']::before { width: 17px; background: var(--g-forest); }
+    .go-hero-dot.is-done::before { background: #cbd3bd; }
+    .go-hero-live {
+      border: 0;
+      background: none;
+      padding: 4px 2px 4px 8px;
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: var(--g-slate);
+      color: var(--g-ochre);
+      cursor: pointer;
     }
-    .go-rail-progress {
-      margin-left: auto;
+
+    /* --- Scope swap: one row stands in for three pickers -------------------
+       Each segment shows the current selection as a mark. Tapping a segment
+       swaps that picker into the drawer beneath it; tapping again closes it.
+       This sits BELOW the dial on purpose — a filter never outranks leave-in. */
+    .go-scope {
       display: flex;
       align-items: center;
       gap: 4px;
+      margin: 20px 0 0;
+      padding: 5px;
+      background: var(--g-paper);
+      border: 1px solid var(--g-line);
+      border-radius: 16px;
     }
-    .go-pip {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--g-line);
+    .go-scope-seg {
+      flex: 1;
+      min-width: 0;
+      border: 0;
+      background: transparent;
+      border-radius: 12px;
+      min-height: 44px;
+      padding: 5px 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: background 0.18s;
     }
-    .go-pip.filled { background: var(--g-go); }
+    .go-scope-seg[aria-expanded='true'] { background: #e6e9db; }
+    .go-scope-seg strong { font-size: 12.5px; font-weight: 750; }
+    .go-scope-seg .go-mark { width: 27px; height: 27px; font-size: 11px; border-color: #23574618; }
+    .go-scope-seg .go-mark.kid { font-size: 14px; }
+    .go-scope-date {
+      display: grid;
+      place-items: center;
+      width: 27px;
+      height: 27px;
+      border-radius: 9px;
+      background: var(--g-forest);
+      color: var(--g-paper);
+      font-size: 11.5px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+    .go-scope-drawer:not(:empty) { padding: 13px 0 0; }
+
+    .go-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+    .go-day {
+      min-width: 0;
+      min-height: 52px;
+      border: 0;
+      border-radius: 13px;
+      background: transparent;
+      padding: 6px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      cursor: pointer;
+    }
+    .go-day span { font-size: 10px; font-weight: 600; color: var(--g-slate); }
+    .go-day strong { font-size: 17px; line-height: 1.3; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .go-day i { width: 4px; height: 4px; border-radius: 50%; background: #9ca58e; }
+    .go-day i.empty { background: transparent; }
+    .go-day[aria-pressed='true'] { background: var(--g-forest); color: var(--g-paper); }
+    .go-day[aria-pressed='true'] span { color: #c5d8c8; }
+    .go-day[aria-pressed='true'] i { background: #e7df93; }
+
+    .go-crew { display: flex; align-items: flex-start; justify-content: space-between; gap: 4px; }
+    .go-person {
+      flex: 1;
+      min-width: 0;
+      border: 0;
+      background: transparent;
+      border-radius: 13px;
+      padding: 6px 2px 7px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      opacity: 0.62;
+      transition: opacity 0.18s, background 0.18s;
+    }
+    .go-person .go-mark { width: 40px; height: 40px; font-size: 14px; border-color: #23574618; }
+    .go-person em {
+      font-style: normal;
+      font-size: 10.5px;
+      font-weight: 750;
+      color: var(--g-slate);
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .go-person[aria-pressed='true'] { opacity: 1; background: #e6e9db; }
+    .go-person[aria-pressed='true'] em { color: var(--g-ink); }
+    .go-person[aria-pressed='true'] .go-mark { box-shadow: 0 0 0 2px var(--g-canvas), 0 0 0 3.5px var(--g-forest); }
+
+    .go-kids { display: flex; flex-wrap: wrap; gap: 5px; }
+    .go-chip {
+      background: transparent;
+      border: 1px solid var(--g-line);
+      padding: 7px 12px 7px 8px;
+      border-radius: 30px;
+      min-height: 40px;
+      font-size: 11px;
+      font-weight: 650;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .go-chip em { font-style: normal; font-size: 15px; line-height: 1; }
+    .go-chip[aria-pressed='true'] { background: #e6e9db; border-color: #cbd3bd; font-weight: 750; }
+    .go-chip[disabled] { opacity: 0.38; cursor: default; }
+
+    /* --- Panel swap: rest-of-day rail OR wheel-time, one slot --------------- */
+    .go-panel-head { display: flex; align-items: center; gap: 10px; margin: 23px 2px 8px; }
+    .go-panel-head h2 { font-size: 17px; font-weight: 700; letter-spacing: -0.04em; margin: 0; }
+    .go-pips { display: flex; align-items: center; gap: 4px; }
+    .go-pip { width: 7px; height: 7px; border-radius: 50%; background: var(--g-line); }
+    .go-pip.filled { background: var(--g-forest); }
+    .go-swap {
+      margin-left: auto;
+      display: flex;
+      gap: 2px;
+      padding: 3px;
+      background: var(--g-paper);
+      border: 1px solid var(--g-line);
+      border-radius: 12px;
+    }
+    .go-swap button {
+      border: 0;
+      background: transparent;
+      border-radius: 9px;
+      width: 36px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      opacity: 0.45;
+      transition: opacity 0.18s, background 0.18s;
+    }
+    .go-swap button svg { width: 17px; height: 17px; }
+    .go-swap button[aria-pressed='true'] { background: #e6e9db; opacity: 1; }
 
     .go-rail { position: relative; }
     /* An empty rail has nothing to thread together. */
     .go-rail:not(:has(.go-stop))::before { display: none; }
-    /* Continuous spine behind the stop markers */
     .go-rail::before {
       content: '';
       position: absolute;
-      left: 69px;
-      top: 14px;
-      bottom: 22px;
-      width: 2px;
+      left: 72px;
+      top: 18px;
+      bottom: 26px;
+      width: 1px;
       background: var(--g-line);
-      border-radius: 2px;
     }
     .go-stop {
       display: grid;
-      grid-template-columns: 48px 24px 1fr auto;
+      grid-template-columns: 52px 22px minmax(0, 1fr) 46px;
       align-items: center;
-      gap: 0 10px;
-      padding: 9px 0;
+      gap: 0 9px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--g-line);
       cursor: pointer;
       position: relative;
     }
     .go-stop-time {
-      font-size: 12.5px;
-      font-weight: 900;
-      color: var(--g-slate);
+      font-size: 14px;
+      font-weight: 750;
       text-align: right;
+      line-height: 1.25;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
     .go-stop-marker {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       border-radius: 50%;
-      border: 2.5px solid var(--g-line);
-      background: white;
+      border: 1.5px solid #bdcdb8;
+      background: var(--g-canvas);
       display: grid;
       place-items: center;
       justify-self: center;
       z-index: 1;
-      color: white;
-      font-size: 11px;
-      font-weight: 900;
+      color: var(--g-paper);
+      font-size: 10px;
+      font-weight: 800;
+      cursor: pointer;
       transition: all 0.18s;
     }
-    .go-stop.done .go-stop-marker {
-      background: var(--g-go);
-      border-color: var(--g-go);
-    }
-    .go-stop.now .go-stop-marker {
-      border-color: var(--g-cool);
-      border-width: 6px;
-      width: 22px;
-      height: 22px;
-    }
-    .go-stop.alert .go-stop-marker { border-color: var(--g-soon); }
-    /* Title gets the whole flexible column; nothing fixed-width competes with it */
+    .go-stop.done .go-stop-marker { background: var(--g-forest); border-color: var(--g-forest); }
+    .go-stop.now .go-stop-marker { width: 20px; height: 20px; border-width: 5px; border-color: var(--g-forest); }
+    .go-stop.alert .go-stop-marker { border-width: 3px; border-color: var(--g-ochre); }
+    /* The title owns the whole flexible column; only the venue may truncate. */
     .go-stop-body { min-width: 0; }
-    .go-stop-title {
-      font-size: 14.5px;
-      font-weight: 800;
-      color: var(--g-ink);
-      letter-spacing: -0.012em;
-      line-height: 1.25;
-      margin: 0;
-    }
-    .go-stop.done .go-stop-title {
-      color: var(--g-slate);
-      text-decoration: line-through;
-    }
+    .go-stop-title { font-size: 12.5px; font-weight: 750; line-height: 1.45; margin: 0; }
+    .go-stop.done { opacity: 0.57; }
+    .go-stop.done .go-stop-title { text-decoration: line-through; }
     .go-stop-meta {
       display: flex;
       align-items: center;
-      gap: 5px;
-      margin-top: 3px;
-      font-size: 11.5px;
-      color: var(--g-slate);
+      gap: 6px;
+      margin-top: 2px;
+      font-size: 10px;
       font-weight: 600;
+      color: var(--g-slate);
       min-width: 0;
     }
-    /* Only the venue may truncate; the title never does. */
-    .go-stop-venue {
+    .go-stop-venue { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .go-stop-driver {
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      border: 1px solid #23574615;
+      color: #314b37;
+      font-size: 11px;
+      font-weight: 800;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+    .go-stop-driver.tbd {
+      background: repeating-linear-gradient(45deg, #f0dcc6, #f0dcc6 4px, #e0c1a1 4px, #e0c1a1 8px);
+      color: var(--g-warn);
+    }
+    /* Who is leading, in words. A pale disc with one letter is not a memory aid. */
+    .go-stop-lead { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+    .go-stop-lead-name {
+      font-size: 9.5px;
+      font-weight: 750;
+      color: var(--g-slate);
+      line-height: 1.15;
+      text-align: center;
+      max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      min-width: 0;
     }
-    /* Who the stop is for, readable without opening the detail sheet. */
-    .go-stop-kids {
-      display: inline-flex;
-      gap: 4px;
-      flex-shrink: 0;
-    }
+    .go-stop-lead-name.tbd { color: var(--g-warn); }
+    /* Children by name; the emoji stays as a colour cue in front of it. */
     .go-stop-kid {
       display: inline-flex;
       align-items: center;
       gap: 3px;
-      background: var(--g-canvas);
-      border: 1px solid var(--g-line);
-      border-radius: 999px;
-      padding: 1px 7px 1px 5px;
-      font-size: 10.5px;
-      font-weight: 800;
-      color: var(--g-ink);
-      white-space: nowrap;
-    }
-    .go-stop.done .go-stop-kid { opacity: 0.55; }
-    .go-stop-driver {
-      width: 27px;
-      height: 27px;
-      border-radius: 50%;
-      display: grid;
-      place-items: center;
-      color: white;
-      font-size: 11.5px;
-      font-weight: 900;
       flex-shrink: 0;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--g-ink);
     }
-    .go-stop-driver.tbd {
-      background: repeating-linear-gradient(45deg, #F5A524, #F5A524 4px, #E5951B 4px, #E5951B 8px);
+    /* The calendar flag has to be visible, or the button that set it was a lie. */
+    .go-stop-gcal { font-size: 10px; flex-shrink: 0; opacity: 0.75; }
+    /* Derived, so it sits with the detail rather than in the schedule column. */
+    .go-stop-leave {
+      margin-top: 3px;
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: 0.01em;
+      color: var(--g-forest);
+    }
+    .go-stop.done .go-stop-leave { color: var(--g-slate); }
+    /* Stops hidden by the active scope never silently disappear. */
+    .go-rail-more {
+      display: block;
+      margin: 10px 0 0;
+      padding: 8px 0;
+      border: 0;
+      background: none;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--g-ink);
+      text-decoration: underline;
+      text-underline-offset: 4px;
+      text-align: left;
+      cursor: pointer;
     }
 
-    /* --- Load balance: one bar, no numbers to parse ------------------------- */
-    .go-load {
-      margin: 22px 0 6px;
-      background: white;
-      border: 1.5px solid var(--g-line);
-      border-radius: 18px;
-      padding: 13px 15px 15px;
+    /* Wheel time: one bar per caregiver, no table of minutes to parse. */
+    .go-load-row {
+      display: grid;
+      grid-template-columns: 46px minmax(0, 1fr) 46px;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--g-line);
     }
-    .go-load-head {
+    .go-load-track { display: block; height: 10px; border-radius: 5px; background: #ecebe0; overflow: hidden; }
+    .go-load-fill { display: block; height: 100%; border-radius: 5px; transition: width 0.5s ease; }
+    .go-load-min { text-align: right; font-size: 12.5px; font-weight: 750; font-variant-numeric: tabular-nums; }
+    .go-load-min span { font-size: 9px; font-weight: 700; color: var(--g-slate); }
+
+    /* Empty / all-clear states: a mark and a few words, never a paragraph. */
+    .go-empty { text-align: center; padding: 30px 16px; color: var(--g-slate); font-size: 12px; font-weight: 650; }
+    .go-empty i { display: block; font-style: normal; font-size: 28px; margin-bottom: 9px; opacity: 0.75; }
+
+
+    /* --- New stop -----------------------------------------------------------
+       A bottom sheet built from the same parts as the screen behind it: the
+       preview is a small tone card, the fields are the scope row turned
+       vertical, and the pickers are the same chips and day buttons. Nothing
+       here is a new visual language, which is why it needs no explaining. */
+    .go-sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 60;
+      background: #15362966;
+      backdrop-filter: blur(3px);
+      display: none;
+      align-items: flex-end;
+    }
+    .go-sheet-backdrop:not([hidden]) { display: flex; }
+    .go-sheet {
+      width: 100%;
+      max-height: 92%;
+      display: flex;
+      flex-direction: column;
+      background: var(--g-paper);
+      border-radius: 26px 26px 0 0;
+      box-shadow: 0 -18px 44px #15362930;
+      animation: go-sheet-in 0.22s ease-out;
+    }
+    @keyframes go-sheet-in { from { transform: translateY(24px); opacity: 0; } }
+    .go-sheet-grip {
+      width: 38px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--g-line);
+      margin: 9px auto 0;
+      flex: 0 0 auto;
+    }
+    .go-sheet-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 11px;
-      font-weight: 900;
-      letter-spacing: 0.09em;
-      text-transform: uppercase;
-      color: var(--g-slate);
-      margin-bottom: 10px;
+      gap: 10px;
+      padding: 12px 20px 6px;
+      flex: 0 0 auto;
     }
-    .go-load-bar {
-      display: flex;
-      height: 30px;
-      border-radius: 9px;
-      overflow: hidden;
-      gap: 2px;
+    .go-sheet-head h2 {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-weight: 400;
+      letter-spacing: -0.04em;
+      font-size: 23px;
+      margin: 0;
     }
-    .go-load-seg {
-      display: grid;
-      place-items: center;
-      color: white;
-      font-size: 11px;
-      font-weight: 900;
-      min-width: 26px;
-      transition: flex-grow 0.5s ease;
+    .go-sheet-close {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid var(--g-line);
+      background: var(--g-canvas);
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .go-sheet-body { overflow-y: auto; padding: 6px 20px 4px; -webkit-overflow-scrolling: touch; }
+    .go-sheet-foot {
+      flex: 0 0 auto;
+      padding: 12px 20px calc(16px + env(safe-area-inset-bottom));
+      border-top: 1px solid var(--g-line);
+      background: var(--g-paper);
+      border-radius: 0 0 26px 26px;
+    }
+    .go-sheet-foot { display: grid; gap: 8px; }
+    .go-sheet-foot .go-btn { width: 100%; }
+    /* On ivory the butter action loses its contrast, so the sheet's primary is
+       forest-filled - the same rule Next's details sheet follows. */
+    .go-sheet .go-btn.primary { background: var(--g-forest); color: var(--g-paper); }
+    /* A second outcome, not a second form: it saves and marks for calendar. */
+    .go-sheet .go-btn.outline {
+      background: transparent;
+      color: var(--g-ink);
+      border: 1.5px solid var(--g-line);
+      font-size: 12.5px;
+      min-height: 44px;
+    }
+    .go-sheet .go-btn.quiet {
+      background: transparent;
+      color: var(--g-warn);
+      font-size: 12px;
+      font-weight: 750;
+      min-height: 40px;
+      text-decoration: underline;
+      text-underline-offset: 4px;
     }
 
-    /* Empty / all-clear rail state */
-    .go-empty {
+    /* The stop as it will look, updating on every tap. */
+    .go-add-preview {
+      position: relative;
+      overflow: hidden;
+      background: var(--g-forest);
+      color: var(--g-paper);
+      border-radius: 20px;
+      padding: 15px 16px 14px;
       text-align: center;
-      padding: 26px 16px;
-      color: var(--g-slate);
-      font-size: 13px;
+      box-shadow: 0 8px 16px -12px #203f3366;
+    }
+    .go-add-preview h3 {
+      margin: 0 0 3px;
+      font-size: 18px;
+      font-weight: 650;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+    }
+    .go-add-where { font-size: 11.5px; font-weight: 600; color: #cde0cf; }
+    .go-add-preview .go-facepile { margin: 11px 0 0; }
+    .go-add-preview .go-timebar { margin: 11px 0 0; }
+    /* Say plainly why there is no leave-by here, rather than inventing one. */
+    .go-add-hint {
+      margin: 9px 2px 0;
+      font-size: 10px;
+      line-height: 1.5;
       font-weight: 600;
+      color: #b9cfbc;
+    }
+
+    /* Field rows: the scope row, stacked. */
+    .go-add-row {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 54px minmax(0, 1fr) 16px;
+      align-items: center;
+      gap: 10px;
+      border: 0;
+      background: transparent;
+      border-bottom: 1px solid var(--g-line);
+      padding: 13px 2px;
+      min-height: 56px;
+      text-align: left;
+      cursor: pointer;
+    }
+    .go-add-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--g-slate);
+    }
+    .go-add-value {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-wrap: wrap;
+      font-size: 13.5px;
+      font-weight: 750;
+      min-width: 0;
+    }
+    .go-add-value .go-mark { width: 27px; height: 27px; font-size: 11px; border-color: #23574618; }
+    .go-add-value .go-mark.kid { font-size: 14px; }
+    .go-add-value .go-scope-date { width: 27px; height: 27px; }
+    .go-add-caret { font-size: 12px; color: var(--g-slate); justify-self: end; }
+    .go-add-row[aria-expanded='true'] { border-bottom-color: transparent; }
+    .go-add-drawer {
+      padding: 2px 0 15px;
+      border-bottom: 1px solid var(--g-line);
+      animation: go-drawer-in 0.18s ease-out;
+    }
+    @keyframes go-drawer-in { from { opacity: 0; transform: translateY(-4px); } }
+    .go-add-drawer .go-days { margin-bottom: 10px; }
+    .go-add-drawer .go-kids { margin-bottom: 2px; }
+    .go-add-drawer .go-crew { padding-top: 2px; }
+
+    /* Presets and places: one tap, no typing. */
+    .go-add-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .go-add-grid.places { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .go-tile {
+      min-width: 0;
+      min-height: 72px;
+      border: 1px solid var(--g-line);
+      background: var(--g-canvas);
+      border-radius: 14px;
+      padding: 9px 5px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.2;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.16s, border-color 0.16s;
+    }
+    .go-tile em { font-style: normal; font-size: 19px; line-height: 1; }
+    .go-tile[aria-pressed='true'] {
+      background: #e6e9db;
+      border-color: #9daa8c;
+      font-weight: 800;
+    }
+    /* Every custom value in this sheet uses the same escape hatch: a tile or a
+       chip marked ✎ reveals one input. That input is the only thing on the
+       screen that opens a keyboard. */
+    .go-add-input {
+      width: 100%;
+      margin-top: 8px;
+      border: 1px solid var(--g-line);
+      background: var(--g-canvas);
+      border-radius: 12px;
+      min-height: 44px;
+      padding: 10px 13px;
+      font-size: 14px;
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+    }
+    .go-add-input.narrow { width: auto; min-width: 132px; }
+    .go-add-suffix {
+      margin-left: 8px;
+      font-size: 11px;
+      font-weight: 750;
+      color: var(--g-slate);
+    }
+    .go-chip em { font-style: normal; font-size: 13px; line-height: 1; }
+
+    /* Time: a stepper and five chips, so the keyboard never opens for a time. */
+    .go-add-stepper {
+      display: grid;
+      grid-template-columns: 46px minmax(0, 1fr) 46px;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .go-add-stepper button {
+      height: 46px;
+      border: 1px solid var(--g-line);
+      background: var(--g-canvas);
+      border-radius: 13px;
+      font-size: 19px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .go-add-clock {
+      text-align: center;
+      font-size: 21px;
+      font-weight: 750;
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+    }
+    .go-add-clock em {
+      display: block;
+      font-style: normal;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--g-slate);
+      margin-top: 2px;
+    }
+    .go-add-note {
+      margin: 12px 0 6px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--g-slate);
+    }
+
+    /* Creation sits at the end of the day it affects. */
+    .go-add {
+      display: block;
+      width: 100%;
+      margin: 12px 0 2px;
+      min-height: 46px;
+      border: 1px dashed #c3ccb8;
+      background: transparent;
+      border-radius: 12px;
+      font-size: 12.5px;
+      font-weight: 750;
+      color: var(--g-ink);
+      cursor: pointer;
+    }
+    .go-add span { font-size: 15px; font-weight: 700; margin-right: 3px; }
+
+    @media (max-width: 370px) {
+      .go-masthead h1 { font-size: 24px; }
+      .go-dial-wrap { width: 156px; height: 156px; }
+      .go-dial-num { font-size: 50px; }
+      .go-stop { grid-template-columns: 48px 20px minmax(0, 1fr) 42px; gap: 0 6px; }
+      .go-stop-time { font-size: 12.5px; letter-spacing: -0.02em; }
+      .go-rail::before { left: 64px; }
+      .go-sheet-body { padding-left: 15px; padding-right: 15px; }
+      .go-sheet-foot { padding-left: 15px; padding-right: 15px; }
+      .go-add-row { grid-template-columns: 48px minmax(0, 1fr) 14px; gap: 8px; }
+      .go-add-grid { gap: 5px; }
+      .go-tile { min-height: 66px; font-size: 9.5px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .go-dial-card, .go-ring-fill, .go-tb-car, .go-load-fill { transition: none; }
+      .go-dial-card[data-tone='now'] .go-ring-fill,
+      .go-dial-card[data-tone='started'] .go-ring-fill { animation: none; }
+      .go-sheet, .go-add-drawer { animation: none; }
     }
 
     /* Bottom Navigation */
@@ -3315,24 +3715,48 @@
       <!-- Scrollable Content -->
       <section class="content">
         <!-- ======================================================================
-             Screen: GO — redesigned at-a-glance departure view.
+             Screen: GO — at-a-glance departure view in the Next language.
              Renders entirely from renderGo(); see the "GO SCREEN" CSS block.
-             Scope is three controls: the day strip (today + six days ahead),
-             the crew strip (which caregiver), and the kid facet. All three
-             narrow the dial AND the rest-of-day rail together.
+
+             Three surfaces SWAP rather than stack, so the screen carries the
+             same reach with far fewer assets on it:
+               1. Hero swap  — the dial cycles through the day's stops
+                               (dots = tap, horizontal drag = accelerator).
+               2. Scope swap — one row shows day / caregiver / kid as marks and
+                               swaps the matching picker into a single drawer.
+               3. Panel swap — the rest-of-day rail and the wheel-time chart
+                               share one slot behind a two-icon toggle.
+             Scope is still three facets — day, caregiver, kid — and all three
+             narrow the dial AND the rail together.
              ====================================================================== -->
         <div class="screen go-screen" data-screen="go">
-          <div class="go-days" id="goDays"></div>
-          <div class="go-crew" id="goCrew"></div>
-          <div id="goDial"></div>
-          <div class="go-rail-head">
-            <span class="go-rail-title" id="goRailTitle">Rest of day</span>
-            <div class="go-rail-progress" id="goRailPips"></div>
+          <!-- Masthead: the date in Next's serif voice, and nothing else. -->
+          <div class="go-masthead">
+            <div>
+              <p class="go-eyebrow" id="goEyebrow">Today</p>
+              <h1 id="goDateLine">Monday, Aug 3</h1>
+            </div>
+            <!-- Weather for today. Placeholder data; see goWeather(). -->
+            <span class="go-sun" id="goWeather" role="img"></span>
           </div>
-          <div class="go-filter" id="goFilter"></div>
-          <div class="go-rail" id="goRail"></div>
-          <div id="goRailMore"></div>
-          <div class="go-load" id="goLoad"></div>
+
+          <!-- Hero. Nothing sits above it: no week strip, no filter. -->
+          <div class="go-hero" id="goHero">
+            <div id="goDial"></div>
+            <div class="go-hero-dots" id="goHeroDots"></div>
+          </div>
+
+          <!-- Scope swap: one row in place of day + crew + kid strips. -->
+          <div class="go-scope" id="goScope"></div>
+          <div class="go-scope-drawer" id="goScopeDrawer"></div>
+
+          <!-- Panel swap: rest-of-day rail OR wheel-time chart, one slot. -->
+          <div class="go-panel-head">
+            <h2 id="goPanelTitle">Rest of day</h2>
+            <div class="go-pips" id="goPips"></div>
+            <div class="go-swap" id="goPanelSwap"></div>
+          </div>
+          <div id="goPanel"></div>
         </div>
 
         <div class="screen next-screen" data-screen="next" id="nextScreen"></div>
@@ -3924,6 +4348,30 @@
         </div>
       </div>
 
+      <!-- ======================================================================
+           Go: New stop.
+           The scope row's swap pattern applied to composing an event. Every
+           field shows its current value as a mark plus a word; tapping one
+           swaps its picker into the drawer beneath it, one at a time. Nothing
+           is required, because everything is pre-filled from the preset, the
+           day you were looking at, and the profile you are signed in as - the
+           happy path is "tap what, tap add".
+           ====================================================================== -->
+      <div class="go-sheet-backdrop" id="goAddBackdrop" hidden>
+        <div class="go-sheet" role="dialog" aria-modal="true" aria-labelledby="goAddTitle">
+          <div class="go-sheet-grip" aria-hidden="true"></div>
+          <div class="go-sheet-head">
+            <h2 id="goAddTitle">New stop</h2>
+            <button class="go-sheet-close" id="goAddCloseBtn" aria-label="Close">✕</button>
+          </div>
+          <div class="go-sheet-body">
+            <div id="goAddPreview"></div>
+            <div id="goAddFields"></div>
+          </div>
+          <div class="go-sheet-foot" id="goAddFoot"></div>
+        </div>
+      </div>
+
       <!-- Toast Feedback -->
       <div class="toast" id="toast">Updated</div>
     </div>
@@ -4009,6 +4457,12 @@
     activeKidFilter:'all',
     goDayOffset:0,      // Go screen: 0 = today .. 6 = six days ahead
     goKidFilter:'all',  // Go screen: 'all' or a kid name
+    goCrewFilter:null,  // Go list scope: null = my profile, else a name or 'All'
+    goHeroIdx:null,     // Go hero swap: null = follow the live stop, else an index
+    goScopeOpen:null,   // Go scope swap: null | 'day' | 'crew' | 'kid'
+    goPanel:'rail',     // Go panel swap: 'rail' | 'load'
+    goDraft:null,       // Go new-stop sheet: the event being composed
+    goAddField:null,    // Go new-stop sheet: which field's picker is open
     expandedEventIds:new Set(),
     selectedEventId:null,
     eventsByDay:JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || structuredClone(defaultEvents),
@@ -4972,15 +5426,14 @@
   const GO_KIDS = ['Soni', 'Maya', 'Noah'];
 
   /* --- Scope: which day, which caregiver, which kid -------------------------
-     The Go screen used to be pinned to today. It now spans a rolling week so a
-     parent can plan ahead; state.goDayOffset is the only thing that moves. */
+     Every one of these is a control for the LIST. None of them moves the dial.
+     The dial is "when do I leave next", which is a fact about right now and my
+     own profile - looking ahead at Thursday must not overwrite it. */
   function goDayIndex(){ return (getTodayIndex() + (state.goDayOffset || 0)) % 7; }
   function goIsToday(){ return (state.goDayOffset || 0) === 0; }
 
-  // A future day has no clock to count down from. -1 puts every stop ahead of
-  // "now", so the dial reads "leave at 3:02 PM" instead of a bogus countdown,
-  // and nothing on a future day can go stale or late.
-  function goNow(){ return goIsToday() ? getNowMinutes() : -1; }
+  // The dial always runs on the real clock, because it always shows today.
+  function goNow(){ return getNowMinutes(); }
 
   // Prototype dates run Aug 3 (Mon) forward. Planning ahead can spill past the
   // seeded week, so derive the date rather than indexing dayDates.
@@ -4992,15 +5445,14 @@
     return kids.includes(state.goKidFilter) || kids.includes('All');
   }
 
-  // Both facets at once - the dial and the rail always agree on scope.
-  function goInScope(e){ return goIsMine(e) && goMatchesKid(e); }
-
-  function goScopeLabel(){
-    const bits = [];
-    if(state.currentUser !== 'All') bits.push(state.currentUser);
-    if(state.goKidFilter !== 'all') bits.push(state.goKidFilter);
-    return bits.join(' · ');
-  }
+  /* --- Two scopes, deliberately different -----------------------------------
+     The hero belongs to the profile you are signed in as. It answers "when do
+     *I* leave?", so the caregiver picker must never move it - only the topbar
+     profile switcher does. The list below is a browsing surface and may show
+     anyone's day. Both still obey the day and the child filter. */
+  function goHeroScope(e){ return goOwnedBy(e, state.currentUser); }
+  function goListWho(){ return state.goCrewFilter || state.currentUser; }
+  function goListScope(e){ return goOwnedBy(e, goListWho()) && goMatchesKid(e); }
 
   // calculateDayPlan can return a negative departBy (early event, long ETA);
   // minutesToTime would wrap that into a late-night time. Floor it at midnight.
@@ -5009,17 +5461,21 @@
     return e.departBy < 0 ? 0 : e.departBy;
   }
 
-  function goDepartLabel(e){
+  // The rail's time column is the ARRIVAL - when the thing actually starts.
+  // The departure is derived, so it belongs with the other derived detail in
+  // the row body rather than competing with the schedule down the left edge.
+  function goLeaveLabel(e){
+    if(goNoTravel(e)) return '';
     const d = goSafeDepart(e);
-    return d === null ? 'at venue' : formatTime(minutesToTime(d));
+    return d === null ? '' : `Leave ${formatTime(minutesToTime(d))}`;
   }
 
   // Accepts a planned stop (which carries `lead`) or a raw calendar entry
   // (which only carries `owner`) - the day strip scopes raw entries.
-  function goIsMine(e){
-    if(state.currentUser === 'All') return true;
+  function goOwnedBy(e, who){
+    if(who === 'All') return true;
     const lead = e.lead || e.owner;
-    return lead === state.currentUser || lead === 'Family'
+    return lead === who || lead === 'Family'
         || lead === 'TBD' || lead === 'Unassigned';
   }
 
@@ -5040,77 +5496,182 @@
     return {kind: mins <= 15 ? 'soon' : 'ontrack', mins};
   }
 
-  const GO_TONE = {
-    ontrack:'#16C172', soon:'#F5A524', now:'#FF5A6E',
-    started:'#FF5A6E', later:'#6366F1', clear:'#16C172'
+  /* --- Palette bridge ------------------------------------------------------
+     The card background carries urgency (forest / olive / clay, exactly the
+     three tones Next uses on its trip card) and the ring carries how much
+     run-up is left. Two different jobs, two different channels, no sentence
+     needed to tell them apart. */
+  const GO_CARD_TONE = {
+    later:'calm', ontrack:'calm', soon:'soon',
+    now:'now', started:'started', clear:'calm'
+  };
+  /* Ring accents. `now` and `started` share the highlight - the one colour on
+     this screen that means act, not wait - and the ring goes full so it reads
+     as an alarm rather than an empty gauge. */
+  const GO_RING_HIGHLIGHT = '#ffd36b';
+  const GO_RING = {
+    later:'#caeaa4', ontrack:'#caeaa4', soon:'#f5cf7d',
+    now:GO_RING_HIGHLIGHT, started:GO_RING_HIGHLIGHT, clear:'#caeaa4'
   };
 
-  function renderGoDays(){
-    const el = $('#goDays');
-    if(!el) return;
+  /* Caregiver identity, Next's rule: pale ground, dark initial, name in the
+     accessible label rather than printed beside every mark. */
+  const GO_PERSON = {
+    Mom:'#e7ddc9', Dad:'#dce7d4', Nani:'#eadce5', Grandma:'#dde6ea',
+    Family:'#eae7c5', TBD:'#f0dcc6', Unassigned:'#f0dcc6'
+  };
+  function goPersonBg(name){ return GO_PERSON[name] || '#e5eadb'; }
+
+  /* The pale identity grounds are deliberately quiet behind a dark initial, so
+     they cannot also carry a bar on an ivory track. These are the same hues at
+     chart strength - identity stays recognisable, the bar stays readable. */
+  const GO_PERSON_INK = {
+    Mom:'#bda170', Dad:'#7fa375', Nani:'#bc86a5', Grandma:'#7f9fad',
+    Family:'#c2ba6b', TBD:'#cf9a63', Unassigned:'#cf9a63'
+  };
+  function goPersonInk(name){ return GO_PERSON_INK[name] || '#93a58f'; }
+
+  /* Cook / lead / at-home stops have no route. Their reference time is the
+     start, not a departure, and the route bar collapses to a single mark. */
+  function goNoTravel(e){ return e.mode === 'Home' || !e.eta; }
+
+  /* --- Weather -------------------------------------------------------------
+     One icon, in the masthead, for the day the dial is about. It is the only
+     ambient fact on this screen: it changes nothing about the plan, but it
+     changes what you put on the kid before you leave.
+
+     ARCHITECTURAL NOTE FOR NATIVE IOS PORT / SYSTEM.md:
+     goWeather() is a stub over sample data. Production reads a WeatherProvider
+     port keyed by date + the family's home coordinates (WeatherKit on iOS),
+     cached with a TTL like TravelEstimator. Keep the return shape - one `sky`
+     token that maps to an icon, one human `label` for the tooltip - so the
+     view never has to know about a forecast payload. */
+  const GO_SKY = {
+    sun: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="32" cy="32" r="14"/><path d="M32 4v7m0 42v7M4 32h7m42 0h7M12 12l5 5m30 30 5 5M12 52l5-5m30-30 5-5M20 6l3 7m18 38 3 7M6 44l7-3m38-18 7-3M6 20l7 3m38 18 7 3M20 58l3-7m18-38 3-7"/></svg>`,
+    partly: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="24" cy="22" r="9"/><path d="M24 5v5M7 22h5m29 0h5M12 10l3.5 3.5M36 10l-3.5 3.5M12 34l3.5-3.5"/><path d="M27 52a9 9 0 0 1 .6-17.9 13 13 0 0 1 24.6 4A8 8 0 0 1 51 52z"/></svg>`,
+    cloud: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 48a11 11 0 0 1 .8-22 15 15 0 0 1 28.4 4.6A9.5 9.5 0 0 1 47 48z"/></svg>`,
+    rain: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 40a11 11 0 0 1 .8-22 15 15 0 0 1 28.4 4.6A9.5 9.5 0 0 1 47 40z"/><path d="M22 47l-3 8m13-8l-3 8m13-8l-3 8"/></svg>`,
+    storm: `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 40a11 11 0 0 1 .8-22 15 15 0 0 1 28.4 4.6A9.5 9.5 0 0 1 47 40z"/><path d="M34 44l-8 11h9l-4 9"/></svg>`
+  };
+
+  // Sample forecast, one entry per prototype day. Replace with the port above.
+  const GO_WEATHER = [
+    {sky:'sun',    label:'Sunny · 82\u00b0'},
+    {sky:'partly', label:'Partly cloudy · 78\u00b0'},
+    {sky:'rain',   label:'Rain · 68\u00b0'},
+    {sky:'cloud',  label:'Overcast · 71\u00b0'},
+    {sky:'sun',    label:'Sunny · 85\u00b0'},
+    {sky:'storm',  label:'Thunderstorms · 74\u00b0'},
+    {sky:'partly', label:'Partly cloudy · 79\u00b0'}
+  ];
+  function goWeather(dayIdx){ return GO_WEATHER[dayIdx % 7] || GO_WEATHER[0]; }
+
+  const GO_ICON_RAIL = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="6" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="5" cy="18" r="1.5"/><path d="M10 6h9M10 12h9M10 18h9"/></svg>`;
+  const GO_ICON_LOAD = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h11M4 12h16M4 17h7"/></svg>`;
+
+  /* --- Scope of the current render ------------------------------------------
+     Computed once per render and shared by the hero, the scope row and the
+     panel, so the three can never disagree about what is on screen. */
+  function goView(){
     const todayIdx = getTodayIndex();
-    const offset = state.goDayOffset || 0;
-    el.innerHTML = [0, 1, 2, 3, 4, 5, 6].map(off => {
-      const idx = (todayIdx + off) % 7;
-      const on = off === offset;
-      // Dot marks a day that actually has something in the current scope, so
-      // an empty Thursday is obvious before you tap it.
-      const busy = (state.eventsByDay[idx] || []).some(goInScope);
-      return `<button class="go-day ${on ? 'on' : ''} ${off === 0 ? 'today' : ''}"
-                 onclick="goSetDay(${off})" aria-pressed="${on}"
-                 aria-label="${dayNames[idx]}, August ${goDateOf(off)}">
-                <span class="go-day-dow">${off === 0 ? 'Today' : dayAbbrs[idx]}</span>
-                <span class="go-day-num">${goDateOf(off)}</span>
-                <span class="go-day-dot ${busy ? '' : 'empty'}"></span>
-              </button>`;
-    }).join('');
+    const listIdx = goDayIndex();
+    const listIsToday = goIsToday();
+    const now = goNow();
+
+    // Two plans, because the two surfaces answer questions about two days.
+    const today = calculateDayPlan(todayIdx);
+    const list = listIsToday ? today : calculateDayPlan(listIdx);
+
+    // `mine` drives the dial: today, my profile, whatever the pickers say.
+    const mine = today.plan.filter(goHeroScope);
+    // `listed` drives the panel: the chosen day and the chosen caregiver.
+    const listed = list.plan.filter(goListScope);
+    const hidden = list.plan.length - listed.length;
+
+    // "Live" = mine, unfinished, and not so far past its start that it is
+    // really a missed stop. Missed stops roll off the dial and stay flagged on
+    // the rail instead of pinning a huge red number to the screen.
+    const live = mine.findIndex(e => !e.done && now < timeToMinutes(e.time) + GO_STALE_AFTER);
+    const looseEnds = mine.filter(e => !e.done && now >= timeToMinutes(e.time) + GO_STALE_AFTER).length;
+
+    return {todayIdx, listIdx, listIsToday, now,
+            plan: list.plan, drivers: list.drivers,
+            mine, listed, hidden, live, looseEnds};
   }
 
-  function renderGoFilter(plan){
-    const el = $('#goFilter');
-    if(!el) return;
-    const chip = (val, label) => {
-      const on = state.goKidFilter === val;
-      // Grey out kids with nothing on this day, but never the active chip -
-      // it has to stay tappable to get back out of the filter.
-      const present = val === 'all' || plan.some(e => {
-        const kids = goKidsOf(e);
-        return kids.includes(val) || kids.includes('All');
-      });
-      return `<button class="go-chip ${on ? 'on' : ''}" onclick="goSetKid('${val}')"
-                 aria-pressed="${on}" ${(present || on) ? '' : 'disabled'}>${label}</button>`;
+  /* SWAP 1 — the hero cycles through my stops. null follows the live one; any
+     other value pins the dial to a specific stop the parent chose. */
+  function goHeroIndex(v){
+    if(!v.mine.length) return -1;
+    if(state.goHeroIdx === null || state.goHeroIdx === undefined) return v.live;
+    return Math.max(0, Math.min(v.mine.length - 1, state.goHeroIdx));
+  }
+
+  /* --- The ring is a real countdown ----------------------------------------
+     One linear window cannot serve both "four hours out" and "eleven minutes
+     out": stretch it wide and the last hour is an invisible sliver, keep it
+     narrow and it sits pinned full all morning. So the ring is piecewise.
+
+     The final hour owns 60% of the circle, which is where the decision
+     actually lives. Everything earlier shares the remaining 40%, measured
+     across the gap you really have — from the end of your previous stop, or
+     from the start of the family day when there is no earlier stop. The ring
+     is therefore always moving, and it moves fastest when it matters.
+
+     It reads full only when you have swapped the dial forward to a stop whose
+     gap has not begun yet, which is the honest answer for that case. */
+  const GO_DAY_START = 6 * 60;   // 6:00 AM — when the family day starts counting
+
+  /* Past an hour, minutes stop being readable at a glance. Hand the reader the
+     unit they actually think in and keep the remainder, so "285" becomes
+     "4h 45m" and a round two hours becomes "2h". */
+  function goCountHtml(mins){
+    if(mins <= GO_LEAD_IN) return {html: String(mins), unit: 'min', cls: mins >= 100 ? 'is-long' : ''};
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return {
+      html: `${h}<small>h</small>${m ? ` ${m}<small>m</small>` : ''}`,
+      unit: '',
+      cls: 'is-hours'
     };
-    el.innerHTML = chip('all', 'All kids') +
-      GO_KIDS.map(k => chip(k, `${kidIcons[k] || '🎒'} ${k}`)).join('');
   }
 
-  function renderGoCrew(){
-    const el = $('#goCrew');
-    if(!el) return;
-    const chips = GO_CREW.map(name => {
-      const on = state.currentUser === name;
-      return `<button class="go-avatar ${on ? 'on' : ''}" style="background:${ownerColor(name)};--ring:${ownerColor(name)}"
-                 onclick="goSetUser('${name}')" title="${name}" aria-label="Show ${name}'s day">${name[0]}</button>`;
-    }).join('');
-    const allOn = state.currentUser === 'All';
-    // The date lives in the day strip now; this slot names the active scope.
-    const scope = allOn ? 'Whole family' : `${state.currentUser}\u2019s day`;
-    el.innerHTML = `
-      <span class="go-crew-day">${scope}</span>
-      ${chips}
-      <button class="go-avatar ${allOn ? 'on' : ''}" style="background:#334155;--ring:#334155"
-              onclick="goSetUser('All')" title="Whole family" aria-label="Show the whole family">👪</button>`;
+  function goRingFraction(list, i, target, now){
+    const mins = target - now;
+    if(mins <= 0) return 1;
+    if(mins <= GO_LEAD_IN) return (mins / GO_LEAD_IN) * 0.6;
+    const prev = i > 0 ? list[i - 1] : null;
+    const from = prev ? timeToMinutes(prev.endTime || prev.time) : GO_DAY_START;
+    const early = Math.max(GO_LEAD_IN + 1, target - from) - GO_LEAD_IN;
+    return 0.6 + 0.4 * Math.min(1, (mins - GO_LEAD_IN) / early);
+  }
+
+  /* The masthead belongs to the dial, so it always names today - the day strip
+     below moves the list, not this. */
+  function renderGoMasthead(v){
+    const eyebrow = $('#goEyebrow');
+    const line = $('#goDateLine');
+    const sky = $('#goWeather');
+    if(eyebrow) eyebrow.textContent = 'Today';
+    if(line) line.textContent = `${dayNames[v.todayIdx]}, Aug ${goDateOf(0)}`;
+    if(sky){
+      const w = goWeather(v.todayIdx);
+      sky.innerHTML = GO_SKY[w.sky] || GO_SKY.sun;
+      sky.title = w.label;
+      sky.setAttribute('aria-label', `Today: ${w.label}`);
+    }
   }
 
   function goDialShell(tone, ringFraction, centerHtml, bodyHtml, actionsHtml){
     const offset = GO_RING_C * (1 - Math.max(0, Math.min(1, ringFraction)));
     return `
-      <div class="go-dial-card">
+      <div class="go-dial-card" data-tone="${GO_CARD_TONE[tone] || 'calm'}">
         <div class="go-dial-wrap">
           <svg viewBox="0 0 200 200" aria-hidden="true">
-            <circle class="go-ring-track" cx="100" cy="100" r="86" fill="none" stroke-width="13"/>
-            <circle class="go-ring-fill" cx="100" cy="100" r="86" fill="none" stroke-width="13"
-                    stroke="${tone}" stroke-dasharray="${GO_RING_C.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"/>
+            <circle class="go-ring-track" cx="100" cy="100" r="86" fill="none" stroke-width="12"/>
+            <circle class="go-ring-fill" cx="100" cy="100" r="86" fill="none" stroke-width="12"
+                    stroke="${GO_RING[tone] || GO_RING.clear}" stroke-dasharray="${GO_RING_C.toFixed(1)}"
+                    stroke-dashoffset="${offset.toFixed(1)}"/>
           </svg>
           <div class="go-dial-center">${centerHtml}</div>
         </div>
@@ -5119,83 +5680,115 @@
       </div>`;
   }
 
-  function renderGoDial(e, now, looseEnds, isToday, dayIdx){
+  /* Mark AND name. An initial or an emoji alone is a memory test - the disc
+     carries the colour, the word carries the identity. */
+  function goDriverChip(lead){
+    const tbd = lead === 'TBD' || lead === 'Unassigned';
+    const name = tbd ? 'Needs driver' : (lead === state.currentUser ? `${lead} (you)` : lead);
+    return `<span class="go-chip-face">
+              <span class="go-mark ${tbd ? 'tbd' : ''}" ${tbd ? '' : `style="background:${goPersonBg(lead)}"`}
+                    aria-hidden="true">${tbd ? '?' : lead[0]}</span>${name}
+            </span>`;
+  }
+  function goKidChips(e){
+    return goKidsOf(e).map(k =>
+      `<span class="go-chip-face kid">
+         <span class="go-mark kid" aria-hidden="true">${kidIcons[k] || '🎒'}</span>${k === 'All' ? 'All kids' : k}
+       </span>`).join('');
+  }
+
+  function renderGoDial(v){
     const el = $('#goDial');
     if(!el) return;
+    const idx = goHeroIndex(v);
+    const e = idx >= 0 ? v.mine[idx] : null;
+    const scope = state.currentUser === 'All' ? '' : state.currentUser;
 
-    const scope = goScopeLabel();
-
-    // ---- Nothing left to drive -------------------------------------------
+    // ---- Nothing the dial can point at ------------------------------------
     if(!e){
-      // A future day has no "done" to measure against, so it is never "all
-      // clear" - it is simply empty for whoever is currently in scope.
-      if(!isToday){
-        el.innerHTML = goDialShell(GO_TONE.later, 1,
-          `<div class="go-dial-num is-word">${dayAbbrs[dayIdx]}</div>
-           <div class="go-dial-unit">clear</div>`,
-          `<div class="go-dest">
-             <h2 class="go-dest-title">Nothing to drive</h2>
-             <div class="go-dest-where">No stops${scope ? ` for ${scope}` : ''} on ${dayNames[dayIdx]}</div>
-           </div>`,
-          '');
-        return;
-      }
-      // Loose ends are stops that came and went without being checked off -
-      // the day is over either way, but don't call that "all clear".
-      const settled = looseEnds === 0;
-      el.innerHTML = goDialShell(settled ? GO_TONE.clear : GO_TONE.later, 1,
+      const settled = v.looseEnds === 0;
+      el.innerHTML = goDialShell('clear', 1,
         `<div class="go-dial-icon">${settled ? '✓' : '🌙'}</div>`,
-        `<div class="go-dest">
-           <h2 class="go-dest-title">${settled ? 'All clear' : 'Nothing left to drive'}</h2>
+        `<div class="go-dest"><h2 class="go-dest-title">${settled ? 'All clear' : 'Day is over'}</h2>
            <div class="go-dest-where">${settled
              ? (scope ? `Every ${scope} handoff done` : 'Every handoff done')
-             : `${looseEnds} stop${looseEnds > 1 ? 's' : ''} never checked off`}</div>
-         </div>`,
-        '');
+             : `${v.looseEnds} never checked off`}</div></div>`, '');
       return;
     }
 
-    const st = goDialState(e, now);
-    const tone = GO_TONE[st.kind];
+    // ---- A completed stop, reached by swapping back through the day -------
+    if(e.done){
+      el.innerHTML = goDialShell('clear', 1,
+        `<div class="go-dial-icon">✓</div><div class="go-dial-unit">done</div>`,
+        `<button class="go-dest" onclick="goEditOpen(${e.id})" aria-label="Open ${e.title}">
+           <h2 class="go-dest-title">${e.title}</h2>
+           <div class="go-dest-where">${goNoTravel(e) ? '⌂' : (icons[e.mode] || '🚗')} ${e.location}<b>›</b></div>
+         </button>
+         <div class="go-facepile">${goDriverChip(e.lead)}${goKidChips(e)}</div>`,
+        `<div class="go-actions" style="grid-template-columns:1fr">
+           <button class="go-btn ghost" onclick="goToggleDone(${e.id})">Reopen</button>
+         </div>`);
+      return;
+    }
+
     const start = timeToMinutes(e.time);
     const depart = goSafeDepart(e);
     const isTBD = e.lead === 'TBD';
+    const noTravel = goNoTravel(e);
 
-    // Ring depletes across the run-up; pinned full outside that window so it
-    // never reads as empty-and-broken.
-    let fraction = 1;
-    if(st.kind === 'ontrack' || st.kind === 'soon') fraction = st.mins / GO_LEAD_IN;
-
-    let center;
-    if(st.kind === 'later'){
-      const t = depart === null ? formatTime(e.time) : formatTime(minutesToTime(depart));
-      const [clock, period] = t.split(' ');
-      center = `<div class="go-dial-num is-word">${clock}</div><div class="go-dial-unit">${period} · leave at</div>`;
-    } else if(st.kind === 'now'){
-      center = `<div class="go-dial-num is-word">NOW</div><div class="go-dial-unit">time to leave</div>`;
-    } else if(st.kind === 'started'){
-      center = `<div class="go-dial-num is-word">LATE</div><div class="go-dial-unit">already started</div>`;
-    } else {
-      center = `<div class="go-dial-num">${st.mins}</div><div class="go-dial-unit">min to leave</div>`;
+    // An at-home stop counts down to when everyone is together, not to a
+    // departure that does not exist.
+    let st = goDialState(e, v.now);
+    if(noTravel){
+      const mins = start - v.now;
+      if(v.now >= start) st = {kind:'started', mins};
+      else if(mins > GO_LEAD_IN) st = {kind:'later', mins};
+      else st = {kind: mins <= 15 ? 'soon' : 'ontrack', mins};
     }
 
-    // Travel bar: departure -> arrival, with the car placed by elapsed run-up.
+    // The ring depletes across the gap you actually have, so it is a live
+    // countdown at every distance rather than a bar pinned full until the
+    // last hour. Once the departure has passed there is nothing left to count
+    // down, so the ring goes full in the highlight colour instead.
+    const target = noTravel ? start : (depart === null ? start : depart);
+    const fraction = (st.kind === 'now' || st.kind === 'started')
+      ? 1
+      : goRingFraction(v.mine, idx, target, v.now);
+
+    let center;
+    if(st.kind === 'now'){
+      center = `<div class="go-dial-num is-word">NOW</div>
+                <div class="go-dial-unit">${noTravel ? 'be there' : 'leave'}</div>`;
+    } else if(st.kind === 'started'){
+      const late = goCountHtml(Math.max(0, v.now - start));
+      center = `<div class="go-dial-num is-word">LATE</div>
+                <div class="go-dial-unit">${late.html.replace(/<\/?small>/g, '')}${late.unit ? ' ' + late.unit : ''} ago</div>`;
+    } else {
+      // Always the count, never a clock face - the dial is doing the arithmetic.
+      const c = goCountHtml(Math.max(0, target - v.now));
+      center = `<div class="go-dial-num ${c.cls}">${c.html}</div>
+                <div class="go-dial-unit">${[c.unit, noTravel ? 'be there' : 'to leave'].filter(Boolean).join(' · ')}</div>`;
+    }
+
+    // Route bar: hollow origin, filled destination, car placed by elapsed run-up.
     let progress = 0;
-    if(depart !== null && start > depart) progress = (now - depart) / (start - depart);
+    if(depart !== null && start > depart) progress = (v.now - depart) / (start - depart);
     progress = Math.max(0, Math.min(1, progress)) * 100;
 
-    const kids = goKidsOf(e).map(k =>
-      `<span class="go-face kid"><span class="go-face-dot">${kidIcons[k] || '🎒'}</span>${k === 'All' ? 'All kids' : k}</span>`).join('');
-    const driverChip = isTBD
-      ? `<span class="go-face"><span class="go-face-dot" style="background:${ownerColor('TBD')}">?</span>Needs driver</span>`
-      : `<span class="go-face"><span class="go-face-dot" style="background:${ownerColor(e.lead)}">${e.lead[0]}</span>${e.lead === state.currentUser ? 'You drive' : e.lead + ' drives'}</span>`;
-
     const body = `
-      <div class="go-dest">
+      <button class="go-dest" onclick="goEditOpen(${e.id})" aria-label="Open ${e.title}">
         <h2 class="go-dest-title">${e.title}</h2>
-        <div class="go-dest-where">${icons[e.mode] || '🚗'} ${e.location}</div>
-      </div>
-      <div class="go-facepile">${driverChip}${kids}</div>
+        <div class="go-dest-where">${noTravel ? '⌂' : (icons[e.mode] || '🚗')} ${e.location}<b>›</b></div>
+      </button>
+      <div class="go-facepile">${goDriverChip(e.lead)}${goKidChips(e)}</div>
+      ${noTravel ? `
+      <div class="go-timebar is-home">
+        <span class="go-mark kid" role="img" aria-label="At home">⌂</span>
+        <div class="go-timebar-end">
+          <div class="go-tb-time">${formatTime(e.time).replace(' ', '')}</div>
+          <div class="go-tb-label">together</div>
+        </div>
+      </div>` : `
       <div class="go-timebar">
         <div class="go-timebar-end">
           <div class="go-tb-time">${depart === null ? '—' : formatTime(minutesToTime(depart)).replace(' ', '')}</div>
@@ -5204,6 +5797,8 @@
         <div class="go-timebar-mid">
           <div class="go-tb-line">
             <span class="go-tb-eta">${e.eta} min</span>
+            <span class="go-tb-dot start"></span>
+            <span class="go-tb-dot end"></span>
             <span class="go-tb-car" style="left:${progress}%">🚗</span>
           </div>
         </div>
@@ -5211,128 +5806,827 @@
           <div class="go-tb-time">${formatTime(e.time).replace(' ', '')}</div>
           <div class="go-tb-label">arrive</div>
         </div>
-      </div>`;
+      </div>`}`;
 
     const actions = isTBD
-      ? `<div class="go-actions">
-           <button class="go-btn primary" onclick="openDriverAssignModal(${e.id})">⚡ Assign a driver</button>
+      ? `<div class="go-actions" style="grid-template-columns:1fr">
+           <button class="go-btn primary" onclick="openDriverAssignModal(${e.id})">Assign a driver</button>
+         </div>`
+      : noTravel
+      ? `<div class="go-actions" style="grid-template-columns:1fr">
+           <button class="go-btn primary" onclick="goToggleDone(${e.id})">✓ Done</button>
          </div>`
       : `<div class="go-actions">
            <button class="go-btn primary" onclick="goDirections(${e.id})">🧭 Directions</button>
-           <button class="go-btn ghost" onclick="goToggleDone(${e.id})">Done</button>
+           <button class="go-btn ghost" onclick="goToggleDone(${e.id})" aria-label="Mark ${e.title} done" title="Mark done">✓</button>
          </div>`;
 
-    el.innerHTML = goDialShell(tone, fraction, center, body, actions);
+    el.innerHTML = goDialShell(st.kind, fraction, center, body, actions);
   }
 
-  function renderGoRail(plan, target, now, hidden, isToday){
-    const rail = $('#goRail');
-    const pips = $('#goRailPips');
-    if(!rail) return;
+  /* The dots are the discoverable path into the hero swap; the drag is only an
+     accelerator, per the lab's swipe rule. */
+  function renderGoHeroDots(v){
+    const el = $('#goHeroDots');
+    if(!el) return;
+    if(v.mine.length < 2){ el.innerHTML = ''; return; }
+    const idx = goHeroIndex(v);
+    const dots = v.mine.map((e, i) =>
+      `<button class="go-hero-dot ${e.done ? 'is-done' : ''}" aria-pressed="${i === idx}"
+               onclick="goSetHero(${i})" title="${formatTime(e.time)} · ${e.title}"
+               aria-label="Show ${e.title} at ${formatTime(e.time)}"></button>`).join('');
+    const offLive = idx !== v.live && v.live >= 0;
+    el.innerHTML = dots + (offLive
+      ? `<button class="go-hero-live" onclick="goSetHero(null)">Live</button>` : '');
+  }
 
-    if(pips){
-      pips.innerHTML = plan.map(e => `<span class="go-pip ${e.done ? 'filled' : ''}"></span>`).join('');
-    }
+  /* SWAP 2 — one row for three pickers. Each segment shows its current value
+     as a mark and swaps the matching picker into the drawer below. */
+  function renderGoScope(v){
+    const el = $('#goScope');
+    if(!el) return;
+    const open = state.goScopeOpen;
+    const who = goListWho();
+    const kid = state.goKidFilter;
+    const offset = state.goDayOffset || 0;
 
-    if(!plan.length){
-      const scope = goScopeLabel();
-      rail.innerHTML = hidden > 0
-        ? `<div class="go-empty">Nothing here${scope ? ` for ${scope}` : ''}.</div>`
-        : `<div class="go-empty">Nothing on the calendar ${isToday ? 'today' : 'that day'}.</div>`;
+    const daySeg = `
+      <button class="go-scope-seg" aria-expanded="${open === 'day'}" onclick="goToggleScope('day')"
+              aria-label="Which day the list shows. Showing ${dayNames[v.listIdx]}">
+        <span class="go-scope-date">${goDateOf(offset)}</span>
+        <strong>${offset === 0 ? 'Today' : dayAbbrs[v.listIdx]}</strong>
+      </button>`;
+    // This segment scopes the list below only. The dial stays on my profile.
+    const crewSeg = `
+      <button class="go-scope-seg" aria-expanded="${open === 'crew'}" onclick="goToggleScope('crew')"
+              aria-label="Whose schedule the list shows. Showing ${who === 'All' ? 'the whole family' : who}">
+        ${who === 'All'
+          ? `<span class="go-mark kid" style="background:#eae7c5" aria-hidden="true">👪</span><strong>Everyone</strong>`
+          : `<span class="go-mark" style="background:${goPersonBg(who)}" aria-hidden="true">${who[0]}</span><strong>${who === state.currentUser ? 'Me' : who}</strong>`}
+      </button>`;
+    const kidSeg = `
+      <button class="go-scope-seg" aria-expanded="${open === 'kid'}" onclick="goToggleScope('kid')"
+              aria-label="Filter by child. Showing ${kid === 'all' ? 'all kids' : kid}">
+        <span class="go-mark kid">${kid === 'all' ? '👧' : (kidIcons[kid] || '🎒')}</span>
+        <strong>${kid === 'all' ? 'Kids' : kid}</strong>
+      </button>`;
+    el.innerHTML = daySeg + crewSeg + kidSeg;
+  }
+
+  function renderGoScopeDrawer(v){
+    const el = $('#goScopeDrawer');
+    if(!el) return;
+    const open = state.goScopeOpen;
+    if(!open){ el.innerHTML = ''; return; }
+
+    if(open === 'day'){
+      const todayIdx = getTodayIndex();
+      const offset = state.goDayOffset || 0;
+      el.innerHTML = `<div class="go-days">` + [0,1,2,3,4,5,6].map(off => {
+        const idx = (todayIdx + off) % 7;
+        // The dot marks a day that has something in the current scope, so an
+        // empty Thursday is obvious before you tap it.
+        const busy = (state.eventsByDay[idx] || []).some(goListScope);
+        return `<button class="go-day" aria-pressed="${off === offset}" onclick="goSetDay(${off})"
+                   aria-label="${dayNames[idx]}, August ${goDateOf(off)}">
+                  <span>${off === 0 ? 'Today' : dayAbbrs[idx]}</span>
+                  <strong>${goDateOf(off)}</strong>
+                  <i class="${busy ? '' : 'empty'}"></i>
+                </button>`;
+      }).join('') + `</div>`;
       return;
     }
 
-    rail.innerHTML = plan.map(e => {
+    if(open === 'crew'){
+      const who = goListWho();
+      const chip = (name, bg, glyph, label) =>
+        `<button class="go-person" aria-pressed="${who === name}"
+                 onclick="goSetCrew('${name}')" aria-label="Show ${label}'s schedule">
+           <span class="go-mark" style="background:${bg}" aria-hidden="true">${glyph}</span>
+           <em>${label}</em>
+         </button>`;
+      el.innerHTML = `<div class="go-crew">` +
+        GO_CREW.map(name => chip(name, goPersonBg(name), name[0],
+          name === state.currentUser ? 'Me' : name)).join('') +
+        chip('All', '#eae7c5', '👪', 'Everyone') +
+        `</div>`;
+      return;
+    }
+
+    const chip = (val, icon, label) => {
+      const on = state.goKidFilter === val;
+      // Grey out kids with nothing on this day, but never the active chip - it
+      // has to stay tappable to get back out of the filter.
+      const present = val === 'all' || v.plan.some(e => {
+        const kids = goKidsOf(e);
+        return kids.includes(val) || kids.includes('All');
+      });
+      return `<button class="go-chip" aria-pressed="${on}" onclick="goSetKid('${val}')"
+                 ${(present || on) ? '' : 'disabled'}><em>${icon}</em>${label}</button>`;
+    };
+    el.innerHTML = `<div class="go-kids">` + chip('all', '👧', 'All kids') +
+      GO_KIDS.map(k => chip(k, kidIcons[k] || '🎒', k)).join('') + `</div>`;
+  }
+
+  /* SWAP 3 — the rest-of-day rail and the wheel-time chart share one slot. */
+  function renderGoPanelHead(v){
+    const title = $('#goPanelTitle');
+    const swap = $('#goPanelSwap');
+    const pips = $('#goPips');
+    const onRail = state.goPanel !== 'load';
+    if(title){
+      // The list can show someone else's day, so it says whose day it is.
+      const who = goListWho();
+      const mine = who === state.currentUser;
+      title.textContent = !onRail ? 'Wheel time'
+        : who === 'All' ? (v.listIsToday ? "Everyone's day" : `Everyone · ${dayAbbrs[v.listIdx]}`)
+        : mine ? (v.listIsToday ? (v.live >= 0 ? 'Rest of day' : 'Today') : dayNames[v.listIdx])
+        : (v.listIsToday ? `${who}'s day` : `${who} · ${dayAbbrs[v.listIdx]}`);
+    }
+    if(pips){
+      pips.innerHTML = onRail
+        ? v.plan.map(e => `<span class="go-pip ${e.done ? 'filled' : ''}"></span>`).join('')
+        : '';
+    }
+    if(swap){
+      swap.innerHTML = `
+        <button aria-pressed="${onRail}" onclick="goSetPanel('rail')"
+                aria-label="Show the rest of the day">${GO_ICON_RAIL}</button>
+        <button aria-pressed="${!onRail}" onclick="goSetPanel('load')"
+                aria-label="Show the day's driving split">${GO_ICON_LOAD}</button>`;
+    }
+  }
+
+  function goRailHtml(v){
+    const heroId = (() => { const i = goHeroIndex(v); return i >= 0 ? v.mine[i].id : null; })();
+    if(!v.listed.length){
+      const who = goListWho();
+      return `<div class="go-empty"><i>◦</i>${v.hidden > 0
+        ? `Nothing here for ${who === 'All' ? 'the family' : who}`
+        : `Nothing on the calendar ${v.listIsToday ? 'today' : `on ${dayNames[v.listIdx]}`}`}</div>`
+        + goRailMoreHtml(v);
+    }
+    const rows = v.listed.map(e => {
       const isTBD = e.lead === 'TBD';
-      const isTarget = target && e.id === target.id;
-      const stale = !e.done && now >= timeToMinutes(e.time) + GO_STALE_AFTER;
-      // Name the kid on the row - who a stop is for is the first thing you
-      // scan for, and it should never require opening the detail sheet.
+      // A future day has no clock, so nothing on it can be stale or current.
+      const stale = v.listIsToday && !e.done && v.now >= timeToMinutes(e.time) + GO_STALE_AFTER;
+      const driver = isTBD ? 'Needs driver'
+                   : (e.lead === state.currentUser ? 'You' : e.lead);
       const kids = goKidsOf(e).map(k =>
         `<span class="go-stop-kid">${kidIcons[k] || '🎒'} ${k === 'All' ? 'All kids' : k}</span>`).join('');
+      const leave = goLeaveLabel(e);
       return `
-        <div class="go-stop ${e.done ? 'done' : ''} ${isTarget ? 'now' : ''} ${(isTBD || stale) ? 'alert' : ''}"
-             onclick="editEvent(${e.id})">
-          <div class="go-stop-time">${goDepartLabel(e)}</div>
+        <div class="go-stop ${e.done ? 'done' : ''} ${(v.listIsToday && e.id === heroId) ? 'now' : ''} ${(isTBD || stale) ? 'alert' : ''}"
+             onclick="goEditOpen(${e.id})">
+          <div class="go-stop-time">${formatTime(e.time)}</div>
           <button class="go-stop-marker" onclick="event.stopPropagation(); goToggleDone(${e.id});"
                   aria-label="${e.done ? 'Reopen' : 'Complete'} ${e.title}">${e.done ? '✓' : ''}</button>
           <div class="go-stop-body">
             <p class="go-stop-title">${e.title}</p>
             <div class="go-stop-meta">
-              <span class="go-stop-kids">${kids}</span>
-              <span>${icons[e.mode] || '🚗'}</span>
+              ${kids}
+              <span aria-hidden="true">${goNoTravel(e) ? '⌂' : (icons[e.mode] || '🚗')}</span>
               <span class="go-stop-venue">${e.location}</span>
+              ${e.gcal ? `<span class="go-stop-gcal" title="Queued for Google Calendar"
+                                aria-label="Queued for Google Calendar">📅</span>` : ''}
             </div>
+            ${leave ? `<div class="go-stop-leave">${leave}</div>` : ''}
           </div>
-          <div class="go-stop-driver ${isTBD ? 'tbd' : ''}" style="${isTBD ? '' : `background:${ownerColor(e.lead)}`}"
-               title="${isTBD ? 'Driver needed' : e.lead + ' is driving'}">${isTBD ? '?' : e.lead[0]}</div>
+          <div class="go-stop-lead">
+            <span class="go-stop-driver ${isTBD ? 'tbd' : ''}" ${isTBD ? '' : `style="background:${goPersonBg(e.lead)}"`}
+                  aria-hidden="true">${isTBD ? '?' : e.lead[0]}</span>
+            <span class="go-stop-lead-name ${isTBD ? 'tbd' : ''}">${driver}</span>
+          </div>
         </div>`;
     }).join('');
-
+    return `<div class="go-rail">${rows}</div>` + goRailMoreHtml(v);
   }
 
-  /* Lives outside .go-rail so the spine still ends at the last stop. */
-  function renderGoRailMore(hidden){
-    const el = $('#goRailMore');
-    if(!el) return;
-    el.innerHTML = hidden > 0
-      ? `<button class="go-rail-hidden" onclick="goClearScope()">+ ${hidden} more stop${hidden > 1 ? 's' : ''} on this day \u00b7 show everything</button>`
-      : '';
+  /* Stops hidden by the active scope never silently disappear, and the way
+     back to the whole day stays one tap. */
+  function goRailMoreHtml(v){
+    return (v.hidden > 0
+      ? `<button class="go-rail-more" onclick="goClearScope()">+ ${v.hidden} more on this day · show everything</button>`
+      : '')
+      // Creation belongs beside the day it affects, not on a floating button.
+      + `<button class="go-add" onclick="goAddOpen()">
+           <span aria-hidden="true">+</span> Add a stop${v.listIsToday ? '' : ` on ${dayAbbrs[v.listIdx]}`}
+         </button>`;
   }
 
-  function renderGoLoad(drivers){
-    const el = $('#goLoad');
+  /* Wheel time stays whole-family: it is a load-balance read, not a filter. */
+  function goLoadHtml(v){
+    const active = Object.entries(v.drivers).filter(([, d]) => d.driveMinutes > 0);
+    if(!active.length) return `<div class="go-empty"><i>◦</i>No driving assigned yet</div>`;
+    const max = Math.max(...active.map(([, d]) => d.driveMinutes));
+    return active
+      .sort((a, b) => b[1].driveMinutes - a[1].driveMinutes)
+      .map(([name, d]) => `
+        <div class="go-load-row">
+          <span class="go-stop-lead">
+            <span class="go-stop-driver" style="background:${goPersonBg(name)}" aria-hidden="true">${name[0]}</span>
+            <span class="go-stop-lead-name">${name === state.currentUser ? 'You' : name}</span>
+          </span>
+          <span class="go-load-track">
+            <span class="go-load-fill" style="width:${Math.round(d.driveMinutes / max * 100)}%;background:${goPersonInk(name)}"></span>
+          </span>
+          <span class="go-load-min">${d.driveMinutes}<span> m</span></span>
+        </div>`).join('');
+  }
+
+  function renderGoPanel(v){
+    const el = $('#goPanel');
     if(!el) return;
-    const active = Object.entries(drivers).filter(([, d]) => d.driveMinutes > 0);
-    if(!active.length){
-      el.innerHTML = `<div class="go-load-head"><span>Wheel time</span></div>
-                      <div class="go-empty" style="padding:6px 0">No driving assigned yet.</div>`;
+    el.innerHTML = state.goPanel === 'load' ? goLoadHtml(v) : goRailHtml(v);
+  }
+
+
+  /* ==========================================================================
+     GO — NEW STOP
+     The same swap idea as the scope row, applied to composing an event: five
+     field rows, each showing its value as a mark and a word, with one picker
+     open at a time in a drawer beneath the row that owns it.
+
+     The design goal is that a parent can add the usual thing in two taps. So
+     nothing is a blank field: the preset supplies the title, the venue, the
+     travel mode and the duration; the day comes from the list you were looking
+     at; the driver is you. Typing is reachable but never required.
+     ========================================================================== */
+
+  const GO_KINDS = [
+    {id:'dropoff',  icon:'🎒', label:'Drop-off',    mins:20,  mode:'Drive', place:'Oak Ridge Elementary'},
+    {id:'pickup',   icon:'🚗', label:'Pickup',      mins:20,  mode:'Drive', place:'Oak Ridge Elementary'},
+    {id:'practice', icon:'⚽', label:'Practice',    mins:90,  mode:'Drive', place:'Lakeside Sports Complex'},
+    {id:'lesson',   icon:'🎹', label:'Lesson',      mins:60,  mode:'Drive', place:'Community Center'},
+    {id:'clinic',   icon:'🏥', label:'Appointment', mins:60,  mode:'Drive', place:'Pediatric Clinic'},
+    {id:'play',     icon:'🎨', label:'Playdate',    mins:120, mode:'Drive', place:'Downtown Square'},
+    {id:'dinner',   icon:'🍜', label:'Dinner',      mins:60,  mode:'Home',  place:'Home'},
+    {id:'other',    icon:'✎',  label:'Something else', mins:60, mode:'Drive', place:'Home'}
+  ];
+  const goKind = id => GO_KINDS.find(k => k.id === id) || GO_KINDS[1];
+
+  // A handful of times that cover most family logistics. The stepper handles
+  // everything else, so the keyboard never has to open for a time.
+  const GO_TIME_PRESETS = ['07:35', '15:15', '16:30', '17:30', '18:30'];
+  const GO_DURATIONS = [30, 45, 60, 90, 120];
+
+  /* Title composes itself: one kid gets their name on it, several do not. */
+  function goDraftTitle(d){
+    if(d.title) return d.title;   // anything written by hand wins
+    const label = goKind(d.kind).label;
+    const kids = d.kids.filter(k => k !== 'All');
+    return kids.length === 1 ? `${kids[0]} ${label}` : label;
+  }
+
+  /* The sheet deliberately shows NO departure time.
+     A leave-by is only meaningful once we know where the caregiver will be
+     coming from, and at composition time we do not - the stop before it may
+     not exist yet, and a custom place has no route at all. So the preview
+     states only what the parent is actually deciding: when it starts and how
+     long it runs. The rail computes the departure later, from the finished
+     day, and that is the only place it is honest to show one. */
+  function goDraftEnd(d){
+    return minutesToTime(Math.min(23 * 60 + 59, timeToMinutes(d.time) + d.mins));
+  }
+
+  /* The first half hour that is both ahead of you and not already spoken for.
+     "After everything else on the day" would land every new stop at bedtime. */
+  function goNextFreeTime(dayIdx){
+    const list = state.eventsByDay[dayIdx] || [];
+    const isToday = dayIdx === getTodayIndex();
+    const floor = isToday ? getNowMinutes() + 30 : 15 * 60;
+    let t = Math.max(8 * 60, Math.ceil(Math.max(floor, 0) / 30) * 30);
+    const busy = m => list.some(e => {
+      const a = timeToMinutes(e.time);
+      const b = timeToMinutes(e.endTime || e.time);
+      return m >= a - 10 && m < Math.max(b, a + 10);
+    });
+    while(t < 21 * 60 && busy(t)) t += 15;
+    return minutesToTime(Math.min(t, 21 * 60));
+  }
+
+  function goNewDraft(){
+    const kind = goKind('pickup');
+    const dayIdx = goDayIndex();
+    const kid = state.goKidFilter !== 'all' ? state.goKidFilter : GO_KIDS[0];
+    return {
+      id: null,
+      kind: kind.id,
+      title: '',
+      kids: [kid],
+      place: kind.place,
+      dayOffset: state.goDayOffset || 0,
+      time: goNextFreeTime(dayIdx),
+      mins: kind.mins,
+      owner: state.currentUser === 'All' ? 'Mom' : state.currentUser,
+      mode: kind.mode,
+      gcal: false,
+      customPlace: false,
+      customTime: false,
+      customMins: false
+    };
+  }
+
+  /* An existing stop carries no preset, so infer one from its title. Getting
+     it wrong costs nothing - the title is kept verbatim either way. */
+  function goKindFromEvent(e){
+    const t = (e.title || '').toLowerCase();
+    const hit = GO_KINDS.find(k => k.id !== 'other' && t.includes(k.label.toLowerCase()));
+    return hit ? hit.id : 'other';
+  }
+
+  function goEditDraft(e, dayIdx){
+    const kind = goKindFromEvent(e);
+    const start = timeToMinutes(e.time);
+    const end = timeToMinutes(e.endTime || e.time);
+    const offset = (dayIdx - getTodayIndex() + 7) % 7;
+    return {
+      id: e.id,
+      kind,
+      // Keep the written title whatever the preset guess was, so editing never
+      // quietly renames somebody's event.
+      title: e.title || '',
+      kids: (e.kids && e.kids.length) ? [...e.kids] : (e.kid ? e.kid.split(',').map(x => x.trim()) : ['All']),
+      place: e.location || 'Home',
+      dayOffset: offset,
+      time: e.time,
+      mins: Math.max(5, end > start ? end - start : 60),
+      owner: e.owner || e.lead || 'Mom',
+      mode: e.mode || 'Drive',
+      gcal: !!e.gcal
+    };
+  }
+
+  function goSheetShow(field){
+    state.goAddField = field;
+    const back = $('#goAddBackdrop');
+    if(!back) return;
+    back.hidden = false;
+    renderGoAdd();
+    requestAnimationFrame(() => $('#goAddFields')?.querySelector('button')?.focus());
+  }
+
+  window.goAddOpen = function(){
+    state.goDraft = goNewDraft();
+    goSheetShow('kind');   // open on "What" - the one choice that matters
+  };
+
+  /* Editing is the same sheet, seeded from the stop. Two different forms for
+     "describe an event" would be two things to learn and two things to keep
+     in step; Go has one. */
+  window.goEditOpen = function(id){
+    for(let d = 0; d < 7; d++){
+      const e = (state.eventsByDay[d] || []).find(x => x.id === id);
+      if(e){
+        state.goDraft = goEditDraft(e, d);
+        goSheetShow(null);   // nothing to choose first - it is all filled in
+        return;
+      }
+    }
+  };
+
+  window.goAddClose = function(){
+    const back = $('#goAddBackdrop');
+    if(back) back.hidden = true;
+    state.goDraft = null;
+    state.goAddField = null;
+  };
+
+  // One field open at a time; tapping the open one closes it.
+  window.goAddField = function(which){
+    state.goAddField = state.goAddField === which ? null : which;
+    renderGoAdd();
+  };
+
+  window.goAddSet = function(patch){
+    Object.assign(state.goDraft, patch);
+    renderGoAdd();
+  };
+
+  // Picking a preset re-seeds the fields the parent has not touched yet, which
+  // is what makes "tap what, tap add" actually work.
+  window.goAddKind = function(id){
+    const k = goKind(id);
+    const d = state.goDraft;
+    const prior = goKind(d.kind);
+    if(d.place === prior.place) d.place = k.place;
+    if(d.mins === prior.mins) d.mins = k.mins;
+    // A title the parent typed is theirs; a composed one follows the preset.
+    if(d.title && d.title === goComposedTitle(prior, d.kids)) d.title = '';
+    d.mode = k.mode;
+    d.kind = id;
+    state.goAddField = id === 'other' ? 'kind' : null;
+    renderGoAdd();
+  };
+
+  function goComposedTitle(kind, kids){
+    const named = kids.filter(k => k !== 'All');
+    return named.length === 1 ? `${named[0]} ${kind.label}` : kind.label;
+  }
+
+  window.goAddKid = function(kid){
+    const d = state.goDraft;
+    if(kid === 'All'){ d.kids = ['All']; renderGoAdd(); return; }
+    const next = d.kids.filter(k => k !== 'All');
+    d.kids = next.includes(kid) ? next.filter(k => k !== kid) : [...next, kid];
+    if(!d.kids.length) d.kids = [kid];   // never leave a stop with nobody on it
+    renderGoAdd();
+  };
+
+  window.goAddNudge = function(step){
+    const d = state.goDraft;
+    const next = Math.max(0, Math.min(23 * 60 + 45, timeToMinutes(d.time) + step));
+    d.time = minutesToTime(next);
+    renderGoAdd();
+  };
+
+  window.goAddTitleInput = function(value){ state.goDraft.title = value; };
+
+  /* "Custom" everywhere follows one rule: a chip or tile reveals an input, and
+     the input is the only thing on this screen that opens a keyboard. */
+  window.goAddCustom = function(which, on){
+    state.goDraft[which] = on;
+    renderGoAdd();
+  };
+
+  window.goAddPlaceInput = function(value){
+    state.goDraft.place = value.trim() || 'Home';
+    goAddPreviewRefresh();
+  };
+
+  window.goAddTimeInput = function(value){
+    if(!/^\d{2}:\d{2}$/.test(value)) return;
+    state.goDraft.time = value;
+    goAddPreviewRefresh();
+    goAddValueRefresh('when');
+  };
+
+  window.goAddMinsInput = function(value){
+    const n = Math.max(5, Math.min(600, Number(value) || 0));
+    state.goDraft.mins = n;
+    goAddPreviewRefresh();
+  };
+
+  /* Typing must not re-render the field that holds the caret. Repaint the
+     preview and the collapsed value only. */
+  function goAddPreviewRefresh(){
+    const el = $('#goAddPreview');
+    if(el && state.goDraft) el.innerHTML = goAddPreviewHtml(state.goDraft);
+  }
+  function goAddValueRefresh(id){
+    const row = document.querySelector(`.go-add-row[data-field="${id}"] .go-add-value`);
+    if(row && state.goDraft) row.innerHTML = goAddValueHtml(id, state.goDraft);
+  }
+
+  function goDraftFields(d){
+    const kids = d.kids.includes('All') ? ['All'] : d.kids;
+    return {
+      time: d.time,
+      endTime: goDraftEnd(d),
+      title: goDraftTitle(d),
+      owner: d.owner,
+      kid: kids.join(', '),
+      kids,
+      location: d.place,
+      mode: d.mode,
+      gcal: !!d.gcal,
+      color: ownerColor(d.owner)
+    };
+  }
+
+  window.goAddSave = function(alsoCalendar){
+    const d = state.goDraft;
+    if(!d) return;
+    if(alsoCalendar === true) d.gcal = true;
+    const dayIdx = (getTodayIndex() + d.dayOffset) % 7;
+    const fields = goDraftFields(d);
+    const editing = !!d.id;
+
+    if(editing){
+      // The day may have changed, so find it wherever it is and move it.
+      for(let day = 0; day < 7; day++){
+        const i = (state.eventsByDay[day] || []).findIndex(x => x.id === d.id);
+        if(i === -1) continue;
+        const prior = state.eventsByDay[day][i];
+        if(day === dayIdx){
+          Object.assign(prior, fields);
+        } else {
+          state.eventsByDay[day].splice(i, 1);
+          const to = state.eventsByDay[dayIdx] || (state.eventsByDay[dayIdx] = []);
+          to.push({...prior, ...fields});
+        }
+        break;
+      }
+    } else {
+      const list = state.eventsByDay[dayIdx] || (state.eventsByDay[dayIdx] = []);
+      list.push({id: Date.now(), ...fields, done: false});
+    }
+
+    // Land the list on the day the stop went to, so the result is visible.
+    state.goDayOffset = d.dayOffset;
+    saveState();
+    const title = fields.title;
+    const queued = d.gcal;
+    goAddClose();
+    renderAll();
+    toast(queued
+      ? `✓ ${title} · queued for Google Calendar`
+      : `✓ ${title} ${editing ? 'updated' : 'added'}`);
+  };
+
+  window.goAddDelete = function(){
+    const d = state.goDraft;
+    if(!d || !d.id) return;
+    for(let day = 0; day < 7; day++){
+      const i = (state.eventsByDay[day] || []).findIndex(x => x.id === d.id);
+      if(i === -1) continue;
+      const [gone] = state.eventsByDay[day].splice(i, 1);
+      saveState();
+      goAddClose();
+      renderAll();
+      toast(`${gone.title} removed`);
       return;
     }
-    const total = active.reduce((sum, [, d]) => sum + d.driveMinutes, 0);
-    const segs = active.map(([name, d]) =>
-      `<div class="go-load-seg" style="flex-grow:${d.driveMinutes};background:${ownerColor(name)}"
-            title="${name}: ${d.driveMinutes} min behind the wheel">${name[0]}</div>`).join('');
-    el.innerHTML = `
-      <div class="go-load-head"><span>Wheel time</span><span>${total} min</span></div>
-      <div class="go-load-bar">${segs}</div>`;
+  };
+
+  /* --- Rendering ---------------------------------------------------------- */
+
+  function goDurationLabel(m){
+    return m < 60 ? `${m}m` : (m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h`);
+  }
+  function goIsCustomPlace(d){
+    return d.customPlace || !state.locations.some(p => p.name === d.place);
+  }
+  function goPlaceIcon(d){
+    return (state.locations.find(p => p.name === d.place) || {}).icon || '📍';
+  }
+
+  /* The preview states only what is being decided: what, who, where, when it
+     starts and how long it runs. No leave-by - see goDraftEnd(). */
+  function goAddPreviewHtml(d){
+    const noTravel = d.mode === 'Home' || d.place === 'Home';
+    return `
+      <div class="go-add-preview">
+        <h3>${goDraftTitle(d)}</h3>
+        <div class="go-add-where">${noTravel ? '⌂' : (icons[d.mode] || '🚗')} ${d.place}</div>
+        <div class="go-facepile">${goDriverChip(d.owner)}${goKidChips({kids: d.kids})}</div>
+        <div class="go-timebar">
+          <div class="go-timebar-end">
+            <div class="go-tb-time">${formatTime(d.time).replace(' ', '')}</div>
+            <div class="go-tb-label">starts</div>
+          </div>
+          <div class="go-timebar-mid">
+            <div class="go-tb-line">
+              <span class="go-tb-eta">${goDurationLabel(d.mins)}</span>
+              <span class="go-tb-dot start"></span>
+              <span class="go-tb-dot end"></span>
+            </div>
+          </div>
+          <div class="go-timebar-end">
+            <div class="go-tb-time">${formatTime(goDraftEnd(d)).replace(' ', '')}</div>
+            <div class="go-tb-label">ends</div>
+          </div>
+        </div>
+        <p class="go-add-hint">Leave-by is worked out from the rest of the day once this is saved.</p>
+      </div>`;
+  }
+
+  function goAddRow(id, label, valueHtml, drawerHtml){
+    const open = state.goAddField === id;
+    return `
+      <button class="go-add-row" data-field="${id}" aria-expanded="${open}" onclick="goAddField('${id}')">
+        <span class="go-add-label">${label}</span>
+        <span class="go-add-value">${valueHtml}</span>
+        <span class="go-add-caret" aria-hidden="true">${open ? '⌃' : '⌄'}</span>
+      </button>
+      ${open ? `<div class="go-add-drawer">${drawerHtml}</div>` : ''}`;
+  }
+
+  /* The collapsed value of a row, repainted on its own while an input in the
+     open drawer holds the caret. */
+  function goAddValueHtml(id, d){
+    const dayIdx = (getTodayIndex() + d.dayOffset) % 7;
+    if(id === 'kind'){
+      return `<span class="go-mark kid" aria-hidden="true">${goKind(d.kind).icon}</span>${goDraftTitle(d)}`;
+    }
+    if(id === 'kids'){
+      return d.kids.map(x => `<span class="go-mark kid" aria-hidden="true">${kidIcons[x] || '🎒'}</span>`).join('') +
+        (d.kids.includes('All') ? 'All kids' : d.kids.join(', '));
+    }
+    if(id === 'place'){
+      return `<span class="go-mark kid" aria-hidden="true">${goPlaceIcon(d)}</span>${d.place}`;
+    }
+    if(id === 'when'){
+      return `<span class="go-scope-date" aria-hidden="true">${goDateOf(d.dayOffset)}</span>` +
+        `${d.dayOffset === 0 ? 'Today' : dayAbbrs[dayIdx]} · ${formatTime(d.time)} · ${goDurationLabel(d.mins)}`;
+    }
+    return d.owner === 'TBD'
+      ? `<span class="go-mark tbd" aria-hidden="true">?</span>Find one later`
+      : `<span class="go-mark" style="background:${goPersonBg(d.owner)}" aria-hidden="true">${d.owner[0]}</span>${d.owner === state.currentUser ? 'Me' : d.owner}`;
+  }
+
+  function goAddFieldsHtml(d){
+    const todayIdx = getTodayIndex();
+    const customPlace = goIsCustomPlace(d);
+    const customTime = d.customTime || !GO_TIME_PRESETS.includes(d.time);
+    const customMins = d.customMins || !GO_DURATIONS.includes(d.mins);
+
+    const kindDrawer = `
+      <div class="go-add-grid">` +
+      GO_KINDS.map(x => `
+        <button class="go-tile" aria-pressed="${x.id === d.kind}" onclick="goAddKind('${x.id}')">
+          <em aria-hidden="true">${x.icon}</em>${x.label}
+        </button>`).join('') +
+      `</div>
+      <input class="go-add-input" type="text" maxlength="48" placeholder="Call it something else (optional)"
+             value="${goEsc(d.title)}" aria-label="Name this stop"
+             oninput="goAddTitleInput(this.value)">`;
+
+    const kidDrawer = `<div class="go-kids">` +
+      GO_KIDS.map(x => `
+        <button class="go-chip" aria-pressed="${d.kids.includes(x)}" onclick="goAddKid('${x}')">
+          <em>${kidIcons[x] || '🎒'}</em>${x}
+        </button>`).join('') +
+      `<button class="go-chip" aria-pressed="${d.kids.includes('All')}" onclick="goAddKid('All')">
+         <em>${kidIcons.All}</em>All kids
+       </button></div>`;
+
+    // Saved places first, then the same "something else" escape hatch the
+    // preset grid has - one pattern for every custom value in this sheet.
+    const placeDrawer = `<div class="go-add-grid places">` +
+      state.locations.map(p => `
+        <button class="go-tile" aria-pressed="${!customPlace && p.name === d.place}"
+                onclick="goAddSet({place:'${goEsc(p.name)}', customPlace:false})">
+          <em aria-hidden="true">${p.icon}</em>${p.name}
+        </button>`).join('') +
+      `<button class="go-tile" aria-pressed="${customPlace}" onclick="goAddCustom('customPlace', true)">
+         <em aria-hidden="true">✎</em>Somewhere else
+       </button></div>` +
+      (customPlace ? `
+        <input class="go-add-input" type="text" maxlength="60" placeholder="Where is it?"
+               value="${goEsc(d.place)}" aria-label="Place name"
+               oninput="goAddPlaceInput(this.value)">` : '');
+
+    const whenDrawer = `
+      <div class="go-days">` + [0,1,2,3,4,5,6].map(off => {
+        const idx = (todayIdx + off) % 7;
+        return `<button class="go-day" aria-pressed="${off === d.dayOffset}"
+                   onclick="goAddSet({dayOffset:${off}})"
+                   aria-label="${dayNames[idx]}, August ${goDateOf(off)}">
+                  <span>${off === 0 ? 'Today' : dayAbbrs[idx]}</span>
+                  <strong>${goDateOf(off)}</strong>
+                </button>`;
+      }).join('') + `</div>
+      <div class="go-add-stepper">
+        <button onclick="goAddNudge(-15)" aria-label="15 minutes earlier">−</button>
+        <span class="go-add-clock">${formatTime(d.time)}<em>starts</em></span>
+        <button onclick="goAddNudge(15)" aria-label="15 minutes later">+</button>
+      </div>
+      <div class="go-kids">` +
+      GO_TIME_PRESETS.map(t => `
+        <button class="go-chip" aria-pressed="${!customTime && t === d.time}"
+                onclick="goAddSet({time:'${t}', customTime:false})">${formatTime(t)}</button>`).join('') +
+      `<button class="go-chip" aria-pressed="${customTime}" onclick="goAddCustom('customTime', true)">
+         <em>✎</em>Exact
+       </button></div>` +
+      (customTime ? `
+        <input class="go-add-input narrow" type="time" value="${d.time}"
+               aria-label="Exact start time" oninput="goAddTimeInput(this.value)">` : '') +
+      `<p class="go-add-note">How long</p>
+      <div class="go-kids">` +
+      GO_DURATIONS.map(m => `
+        <button class="go-chip" aria-pressed="${!customMins && m === d.mins}"
+                onclick="goAddSet({mins:${m}, customMins:false})">${goDurationLabel(m)}</button>`).join('') +
+      `<button class="go-chip" aria-pressed="${customMins}" onclick="goAddCustom('customMins', true)">
+         <em>✎</em>Exact
+       </button></div>` +
+      (customMins ? `
+        <input class="go-add-input narrow" type="number" min="5" max="600" step="5" value="${d.mins}"
+               aria-label="Length in minutes" oninput="goAddMinsInput(this.value)">
+        <span class="go-add-suffix">minutes</span>` : '');
+
+    const driverDrawer = `<div class="go-crew">` +
+      GO_CREW.map(name => `
+        <button class="go-person" aria-pressed="${d.owner === name}" onclick="goAddSet({owner:'${name}'})"
+                aria-label="${name} drives">
+          <span class="go-mark" style="background:${goPersonBg(name)}" aria-hidden="true">${name[0]}</span>
+          <em>${name === state.currentUser ? 'Me' : name}</em>
+        </button>`).join('') +
+      `<button class="go-person" aria-pressed="${d.owner === 'TBD'}" onclick="goAddSet({owner:'TBD'})"
+               aria-label="Nobody yet, find a driver later">
+         <span class="go-mark tbd" aria-hidden="true">?</span><em>Later</em>
+       </button></div>`;
+
+    return [
+      goAddRow('kind',  'What',   goAddValueHtml('kind', d),  kindDrawer),
+      goAddRow('kids',  'Who',    goAddValueHtml('kids', d),  kidDrawer),
+      goAddRow('place', 'Where',  goAddValueHtml('place', d), placeDrawer),
+      goAddRow('when',  'When',   goAddValueHtml('when', d),  whenDrawer),
+      goAddRow('who',   'Driver', goAddValueHtml('who', d),   driverDrawer)
+    ].join('');
+  }
+
+  function goEsc(v){ return String(v || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  function renderGoAdd(){
+    const d = state.goDraft;
+    if(!d) return;
+    const editing = !!d.id;
+    const title = $('#goAddTitle');
+    const preview = $('#goAddPreview');
+    const fields = $('#goAddFields');
+    const foot = $('#goAddFoot');
+    if(title) title.textContent = editing ? 'Edit stop' : 'New stop';
+    if(preview) preview.innerHTML = goAddPreviewHtml(d);
+    if(fields) fields.innerHTML = goAddFieldsHtml(d);
+    if(foot){
+      // Calendar is a second outcome, not a second form: it saves the stop and
+      // marks it for the calendar. See SYSTEM.md - v1 Calendar is read-only, so
+      // the lab records the intent rather than pretending to have written.
+      foot.innerHTML = `
+        <button class="go-btn primary" onclick="goAddSave()">${editing ? 'Save changes' : 'Add stop'}</button>
+        <button class="go-btn outline" onclick="goAddSave(true)">
+          <span aria-hidden="true">📅</span> Add to Google Calendar
+        </button>
+        ${editing ? `<button class="go-btn quiet" onclick="goAddDelete()">Remove this stop</button>` : ''}`;
+    }
+  }
+
+  function goBindAdd(){
+    const back = $('#goAddBackdrop');
+    if(!back || back.dataset.bound) return;
+    back.dataset.bound = '1';
+    $('#goAddCloseBtn').onclick = goAddClose;
+    back.addEventListener('click', ev => { if(ev.target === back) goAddClose(); });
+    document.addEventListener('keydown', ev => {
+      if(ev.key === 'Escape' && !back.hidden) goAddClose();
+    });
+  }
+
+  /* --- Hero drag: the accelerator, never the only path -------------------- */
+  const goDrag = {active:false, id:null, x:0, dx:0, card:null, len:0};
+
+  function goBindHero(){
+    const hero = $('#goHero');
+    if(!hero || hero.dataset.bound) return;
+    hero.dataset.bound = '1';
+
+    hero.addEventListener('pointerdown', ev => {
+      if(ev.target.closest('button')) return;
+      const card = hero.querySelector('.go-dial-card');
+      const v = goView();
+      if(!card || v.mine.length < 2) return;
+      goDrag.active = true; goDrag.id = ev.pointerId; goDrag.x = ev.clientX;
+      goDrag.dx = 0; goDrag.card = card; goDrag.len = v.mine.length;
+      card.classList.add('is-dragging');
+      hero.setPointerCapture(ev.pointerId);
+    });
+
+    hero.addEventListener('pointermove', ev => {
+      if(!goDrag.active || ev.pointerId !== goDrag.id) return;
+      goDrag.dx = ev.clientX - goDrag.x;
+      // Resistance, so the card reads as a peek rather than a free-moving sheet.
+      goDrag.card.style.transform = `translateX(${goDrag.dx * 0.35}px)`;
+    });
+
+    const end = ev => {
+      if(!goDrag.active || (ev.pointerId !== undefined && ev.pointerId !== goDrag.id)) return;
+      const dx = goDrag.dx;
+      goDrag.card.classList.remove('is-dragging');
+      goDrag.card.style.transform = '';
+      goDrag.active = false;
+      if(Math.abs(dx) > 44){
+        const v = goView();
+        const cur = goHeroIndex(v);
+        const next = Math.max(0, Math.min(v.mine.length - 1, cur + (dx < 0 ? 1 : -1)));
+        if(next !== cur) window.goSetHero(next);
+      }
+    };
+    hero.addEventListener('pointerup', end);
+    hero.addEventListener('pointercancel', end);
   }
 
   function renderGo(){
-    const dayIdx = goDayIndex();
-    const isToday = goIsToday();
-    const now = goNow();
-    const {plan, drivers} = calculateDayPlan(dayIdx);
-
-    renderGoDays();
-    renderGoCrew();
-    renderGoFilter(plan);
-
-    // One scope drives the whole screen: caregiver AND kid, applied to the
-    // dial and the rail together so they can never contradict each other.
-    const scoped = plan.filter(goInScope);
-    const hidden = plan.length - scoped.length;
-
-    // "Next" = in scope, unfinished, and not so far past its start that it is
-    // really a missed stop. Missed stops roll off the dial and stay flagged
-    // on the rail instead of pinning a huge red number to the screen.
-    const target = scoped.find(e => !e.done && now < timeToMinutes(e.time) + GO_STALE_AFTER) || null;
-    const looseEnds = isToday
-      ? scoped.filter(e => !e.done && now >= timeToMinutes(e.time) + GO_STALE_AFTER).length
-      : 0;
-
-    const railTitle = $('#goRailTitle');
-    if(railTitle){
-      railTitle.textContent = isToday ? (target ? 'Rest of day' : 'Today') : dayNames[dayIdx];
+    // A drag in flight owns the card; re-rendering under it would drop the peek.
+    if(goDrag.active) return;
+    const v = goView();
+    if(state.goHeroIdx !== null && state.goHeroIdx !== undefined){
+      // The scope may have shrunk under a pinned hero; clamp or release it.
+      if(!v.mine.length) state.goHeroIdx = null;
+      else state.goHeroIdx = Math.max(0, Math.min(v.mine.length - 1, state.goHeroIdx));
     }
-
-    renderGoDial(target, now, looseEnds, isToday, dayIdx);
-    renderGoRail(scoped, target, now, hidden, isToday);
-    renderGoRailMore(hidden);
-    // Wheel time stays whole-family: it is a load-balance read, not a filter.
-    renderGoLoad(drivers);
+    renderGoMasthead(v);
+    renderGoDial(v);
+    renderGoHeroDots(v);
+    renderGoScope(v);
+    renderGoScopeDrawer(v);
+    renderGoPanelHead(v);
+    renderGoPanel(v);
+    goBindHero();
+    goBindAdd();
   }
 
+  // Looking ahead is browsing, not navigating. The dial does not follow.
   window.goSetDay = function(offset){
     state.goDayOffset = offset;
     renderGo();
@@ -5343,26 +6637,55 @@
     renderGo();
   };
 
-  // One tap back to the whole day from any combination of facets.
+  // One tap back to the whole day from any combination of list facets. It does
+  // not touch the profile - the dial is not something a filter gets to move.
   window.goClearScope = function(){
-    state.currentUser = 'All';
+    state.goCrewFilter = 'All';
     state.goKidFilter = 'all';
-    saveState();
-    renderAll();
+    renderGo();
   };
 
-  window.goSetUser = function(name){
-    state.currentUser = name;
-    saveState();
-    renderAll();
+  // Scopes the list only. Switching profile is the topbar's job.
+  window.goSetCrew = function(name){
+    state.goCrewFilter = name;
+    renderGo();
   };
 
-  // The Go screen has its own day cursor, independent of state.activeDay.
+  // SWAP 1: pin the dial to a stop, or pass null to follow the live one again.
+  window.goSetHero = function(i){
+    state.goHeroIdx = i;
+    renderGo();
+  };
+
+  // SWAP 2: open one picker, or close the drawer by tapping the same segment.
+  window.goToggleScope = function(which){
+    state.goScopeOpen = state.goScopeOpen === which ? null : which;
+    renderGo();
+  };
+
+  // SWAP 3: rail or wheel time in the shared panel slot.
+  window.goSetPanel = function(which){
+    state.goPanel = which;
+    renderGo();
+  };
+
+  // The dial acts on today; the list acts on whichever day it is showing. Look
+  // in both, so one handler serves both surfaces.
+  function goFindEvent(id){
+    for(const idx of new Set([goDayIndex(), getTodayIndex()])){
+      const e = (state.eventsByDay[idx] || []).find(x => x.id === id);
+      if(e) return {event:e, dayIdx:idx};
+    }
+    return null;
+  }
+
   window.goToggleDone = function(id){
-    const dayIdx = goDayIndex();
-    const e = (state.eventsByDay[dayIdx] || []).find(x => x.id === id);
-    if(!e) return;
+    const hit = goFindEvent(id);
+    if(!hit) return;
+    const e = hit.event;
     e.done = !e.done;
+    // Completing the pinned stop should hand the dial back to the live one.
+    if(e.done) state.goHeroIdx = null;
     saveState();
     renderAll();
     toast(e.done ? '✓ Handoff done' : 'Handoff reopened');
@@ -5370,8 +6693,9 @@
 
   // Native iOS: hand the venue coordinate to MapKit / open maps://
   window.goDirections = function(id){
-    const {plan} = calculateDayPlan(goDayIndex());
-    const e = plan.find(x => x.id === id);
+    const hit = goFindEvent(id);
+    if(!hit) return;
+    const e = calculateDayPlan(hit.dayIdx).plan.find(x => x.id === id);
     if(e) toast(`Navigating to ${e.location} · ${e.eta} min`);
   };
 
@@ -5539,7 +6863,10 @@
   };
 
   function go(screen){
-    document.querySelector('.app').classList.toggle('next-mode', screen === 'next');
+    const app = document.querySelector('.app');
+    app.classList.toggle('next-mode', screen === 'next');
+    // Go borrows Next's ivory chrome; both live in the same warm design language.
+    app.classList.toggle('go-mode', screen === 'go');
     if (screen === 'next' && window.renderNextConcept) window.renderNextConcept();
     $$('.screen').forEach(s=>s.classList.toggle('active',s.dataset.screen===screen));
     $$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.nav===screen));
@@ -5914,6 +7241,8 @@
   if(userSelectEl){
     userSelectEl.onchange=e=>{
       state.currentUser=e.target.value;
+      state.goCrewFilter = null;
+      state.goHeroIdx = null;
       saveState();
       renderAll();
       toast(`Viewing Heli-Pad as ${state.currentUser}`);
@@ -6128,6 +7457,10 @@
       const currentIdx = profileCycle.indexOf(state.currentUser);
       const nextUser = profileCycle[(currentIdx + 1) % profileCycle.length];
       state.currentUser = nextUser;
+      // Go's list follows the new profile until it is filtered again, and the
+      // dial hands itself back to that profile's live stop.
+      state.goCrewFilter = null;
+      state.goHeroIdx = null;
       saveState();
       renderAll();
       toast(`Profile switched to ${state.currentUser === 'All' ? 'Family (All)' : state.currentUser}`);

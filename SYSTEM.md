@@ -185,6 +185,23 @@ HTML lab today collapses most of this into one file; the layers above are the mi
 - Local persistence of People, Places, Tasks (+ overlays cache), cached TripPlans; shared backend is multi-caregiver source of truth for overlays
 - Survive offline / cold start
 
+**WeatherProvider**
+
+- Input: date + the family's home (or destination) coordinates
+- Output: one condition token (`sun` · `partly` · `cloud` · `rain` · `storm` · …) plus a human label and temperature
+- Preferred on-device path for iOS: WeatherKit
+- Cache with a TTL and refresh on the same cadence as the day sync; a stale icon is acceptable, a missing one is fine
+- Ambient only — it never changes a plan, a departure, or an assignment. Go renders it as a single masthead icon (`goWeather()` is the lab stub)
+
+**ArrivalDetector** (not built — recorded for a later pass)
+
+- Input: the destination Place for an active Task + the device's location
+- Output: an arrival signal that **auto-completes the Task** instead of waiting for a tap
+- Rationale: completion is the action a caregiver is least likely to perform — they are at the field, with a child, and the phone is in a pocket
+- Preferred iOS path: region monitoring / significant-location change (background-friendly, low power); not continuous GPS
+- Requires an explicit, revocable permission; the manual tap stays as the fallback, since a handoff can happen without the assignee's phone arriving
+- Interacts with the shared overlay: an auto-complete is still a synced overlay write, and other caregivers should see who/what completed it
+
 **Notifier**
 
 - Local notifications for leave-by and driver-needed
@@ -247,6 +264,9 @@ Gate Avery’s Today port against this map; escalate gaps — do not approximate
 | Travel provider | MapKit vs Google Directions | Product may want Google ETAs to match Maps app choice |
 | Depart-by audience | Assignee-only vs every caregiver | Avery to spike with shared push once sync shape lands |
 | Exact Task kind enum | Final set / naming beyond the confirmed list | Keep extensible; ship drive-shaped UX first while model stays broad |
+| Weather provider | WeatherKit vs a web forecast API | Ambient icon only for now; picking a provider can wait until after the home freeze |
+| **Calendar write-back** | Keep v1 read-only vs add a write path | **Conflict to resolve.** Go's new-stop sheet now offers "Add to Google Calendar", which the confirmed "Calendar v1: read-only" decision does not support. The lab records the intent on the Task overlay (`gcal: true`) and shows it on the row rather than approximating a write. Product must either grant v1 a write path (scoped to a Heli-Pad secondary calendar), defer the button, or re-label it as a queued intent |
+| Arrival auto-complete | Region monitoring vs manual only | Needs a location permission and a story for handoffs where the assignee's phone does not arrive; manual tap stays regardless |
 
 ## 8. Evolution path
 

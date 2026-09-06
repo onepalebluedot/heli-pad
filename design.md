@@ -1,12 +1,31 @@
-# Heli-Pad: the "Next" design language
+# Heli-Pad: the warm design language (Next and Go)
 
-This document describes the existing "Next" tab, Concept 03, as of September 5, 2026. The reference implementation is [next-concept.css](./next-concept.css) and [next-concept.js](./next-concept.js), with the shared shell in [index.html](./index.html). Open `index.html#next` to view the concept.
+This document describes the shared design language used by two home-screen concepts, as of September 5, 2026:
 
-"Next" is a warm family handoff sheet. An ivory page, forest-green trip card, and serif greeting give the schedule a domestic, personal character. Compact sans-serif labels keep times, children, places, and responsibilities easy to scan. The strongest visual emphasis belongs to the next decision a caregiver needs to make.
+- **Next** — Concept 03, the warm family handoff sheet. Reference implementation: [next-concept.css](./next-concept.css) and [next-concept.js](./next-concept.js). Open `index.html#next`, or select **Next** in the bottom navigation.
+- **Go** — the at-a-glance departure view, rebuilt in this language on September 5, 2026. It lives in the `"GO" SCREEN` CSS block and the `renderGo()` family in [index.html](./index.html). Select **Go** in the bottom navigation.
 
-The concept remains an experiment within the UX lab. [SYSTEM.md](./SYSTEM.md) defines the broader product direction and the unresolved choice of home screen. This document records the current design and gives guidance for extending it. Values and behavior were checked against source; local-file browser access was blocked, so this pass does not include rendered visual verification.
+Both share an ivory page, forest-green tone cards, a serif editorial voice, and compact sans-serif labels for times, children, places, and responsibilities. The strongest visual emphasis belongs to the next decision a caregiver needs to make. Next presents the whole day as a handoff sheet; Go presents one decision — *do I need to move, and when?* — and draws everything else as a mark.
+
+The concepts remain experiments within the UX lab. [SYSTEM.md](./SYSTEM.md) defines the broader product direction and the unresolved choice of home screen.
+
+## Standing direction: graphic over text
+
+This is the product owner's stated preference and it outranks the more specific guidance below when the two disagree. Applied first in Go; extend Next toward it as Next is revised.
+
+- **Prefer a mark to a sentence.** A ring, a spine, a dot, a coloured bar, an avatar, an emoji — if the state can be drawn, draw it. Reach for prose only when a mark would be genuinely ambiguous.
+- **Push contrast up.** Tone cards are three clearly different backgrounds (forest, olive, clay), not three shades of one. A viewer should read the state from across a kitchen before reading a single word. One highlight — `#ffd36b` — is reserved for the two states that mean *act now*.
+
+- **A gauge must actually move.** A ring, bar, or meter pinned at full for hours is decoration, not information. If a range is too wide for a linear mapping, make the mapping piecewise so the gauge is most expressive where the decision lives.
+- **One channel, one job.** Do not encode the same fact twice. In Go the card background carries *how urgent* and the ring carries *how much run-up is left* — two channels, two facts, no explanatory sentence.
+- **A mark plus a name, never a mark alone.** *(Amended after review — an earlier pass put caregiver and child names in `title`/`aria-label` only, and a lone initial or emoji turned out to be a memory test.)* People are the one thing that must not be reduced to a glyph: pair the pale disc or emoji tile with the written name. The disc carries the colour, the word carries the identity. Every other fact on the screen still prefers the mark.
+- **Swap instead of stack.** When two surfaces answer related questions, give them one slot and a visible way to switch, rather than two permanent modules. Fewer assets on screen beats more information per scroll.
+- **Reduce copy to its operative words.** "min to leave" becomes "min". "Nothing left to drive · 3 stops never checked off" becomes a moon glyph, "Day is over", and "3 never checked off".
+- **Keep the two exceptions.** *Leave* and *arrive* stay labelled on the route bar, because confusing those two times has a real cost. Every warning still names its next step.
 
 ## Design principles
+
+These hold for both concepts. Go applies them with the standing direction above layered on top: the same priorities, expressed with fewer words.
 
 - Lead with timing. The largest operational text says when to leave, whether there is time, or what needs confirmation.
 - Keep responsibility visible. Put the child and caregiver beside the activity, with explicit leave-by and arrive-by labels below.
@@ -15,7 +34,7 @@ The concept remains an experiment within the UX lab. [SYSTEM.md](./SYSTEM.md) de
 - Keep the day in context. The agenda retains earlier unconfirmed handoffs, and the caregiver grid shows the distribution of work.
 - Reveal detail on demand. Trip details open in a bottom sheet; editing and driver comparison use the existing shared dialogs.
 
-## Page composition
+## Page composition (Next)
 
 The screen is one vertical column inside a mobile app shell. Its reading order is deliberate.
 
@@ -56,7 +75,9 @@ Use muted green and warm neutrals throughout the Next content. Forest green is t
 | Warning text | `#9a482c` | Unconfirmed, unassigned, or overlapping agenda entries |
 | Focus copper | `#af612d` | Keyboard focus outline |
 
-Caregiver identity uses pale backgrounds and dark initials. Preserve the written name or initial alongside the color.
+Go reuses these exact values; it adds no palette of its own. Forest, olive, and clay are the three tone-card backgrounds, butter is the primary action on a dark card, ochre marks the sun and needs-attention states, and sage rules divide the rail.
+
+Caregiver identity uses pale backgrounds and dark initials. Under the graphic-first direction the initial usually stands alone, with the written name carried in `title` and `aria-label`.
 
 | Caregiver | Badge background | Badge text |
 | --- | --- | --- |
@@ -67,9 +88,13 @@ Caregiver identity uses pale backgrounds and dark initials. Preserve the written
 | Family | `#eae7c5` | All |
 | Unassigned | `#f0dcc6` | ? |
 
+These pale grounds are deliberately quiet behind a dark initial, so they cannot also carry a bar on an ivory track. Charts use the same hues at chart strength: Mom `#bda170`, Dad `#7fa375`, Nani `#bc86a5`, Grandma `#7f9fad`, Family `#c2ba6b`, unassigned `#cf9a63`. Identity stays recognisable and the bar stays readable.
+
 ## Typography
 
-The shared interface uses **Plus Jakarta Sans**, followed by system sans-serif fallbacks. Buttons inherit that family. The masthead alone uses **Georgia**, followed by Times New Roman and serif. This gives the greeting a personal voice while operational information stays compact.
+The shared interface uses **Plus Jakarta Sans**, followed by system sans-serif fallbacks. Buttons inherit that family. The masthead alone uses **Georgia**, followed by Times New Roman and serif. This gives the greeting a personal voice while operational information stays compact. In Go the serif is reserved for the date line, and nothing else on that screen uses it.
+
+The table below is Next's scale; Go's is in its own section.
 
 | Element | Size | Weight and treatment |
 | --- | --- | --- |
@@ -110,7 +135,7 @@ The standard content gutter is 22px. Content has 4px of top padding and 110px of
 
 Keep elevation slight. The hero uses `0 7px 12px -9px #203f3350`; navigation uses `0 4px 24px #253e3310`. Agenda rows sit directly on the page with a single bottom rule. The sheet uses a larger upward shadow and a translucent green backdrop, `#15362955`, to establish its modal position.
 
-## Component language
+## Component language (Next)
 
 ### Handoff card
 
@@ -146,7 +171,7 @@ Actions stack vertically. Completion is forest-filled; editing and caregiver com
 
 The sheet is specific to Next. Appointment editing and driver assignment reuse shared prototype dialogs; their styling is only partly adapted by Next's modal background and primary-color overrides.
 
-## Timing and feedback states
+## Timing and feedback states (Next)
 
 Color reinforces the status label and explanation. The same warm palette carries urgency through olive and clay.
 
@@ -166,7 +191,7 @@ The code checks elapsed start time before the other conditions. A past, unfinish
 
 The all-clear message is scoped to the current filters. Its supporting copy says "in this view" so it does not imply that the entire family has finished the day.
 
-## Icons, motion, and interaction
+## Icons, motion, and interaction (Next)
 
 Use small symbols with clear jobs. The masthead sun is a 40px line drawing in ochre, rotated by -12 degrees. Child icons sit in a 39px pale-yellow tile. Diagonal arrows accompany actions, initials identify caregivers, and route markers distinguish origin and destination. Decorative icons are hidden from assistive technology.
 
@@ -176,18 +201,208 @@ Day, child, preview-clock, and caregiver selections expose `aria-pressed`. Next 
 
 The current design includes 9–11px metadata and several controls smaller than 44px. These are prototype measurements, not a completed accessibility audit. For production, verify text contrast, text scaling, and touch targets while preserving the visual hierarchy.
 
+## Go — the departure view
+
+Go answers one question: *do I need to move, and when?* It is the graphic-first direction applied end to end, and it is the reference for how to extend the language.
+
+### Composition
+
+Nothing sits above the dial. The week strip and the filters live below it, which also satisfies the Today gesture contract in [SYSTEM.md](./SYSTEM.md) — a filter never outranks leave-in.
+
+| Order | Element | Role |
+| --- | --- | --- |
+| 1 | Masthead | Today's date in serif on the left, today's weather on the right. No greeting, no scope sentence. |
+| 2 | Dial card | The whole decision: countdown ring, destination, who and which kids as named chips, route bar, actions. |
+| 3 | Hero dots | One dot per stop *of mine*; the tap path into the hero swap, plus a **Live** return. |
+| 4 | Scope row | Three segments — day, caregiver, child — each showing its current value as a mark and a word. |
+| 5 | Scope drawer | Whichever picker the scope row has swapped open. Empty by default. |
+| 6 | Panel head | Section title, day-completion pips, and the two-icon panel swap. |
+| 7 | Panel | Either the rest-of-day rail or the wheel-time chart. The rail ends with a dashed **Add a stop**. |
+
+The floating add button is hidden in Go, as it is in Next. Go carries no create flow of its own, and the button is one more asset competing with the dial.
+
+### Two scopes, deliberately different
+
+The dial answers *when do **I** leave next?* That is a fact about right now and about the profile you are signed in as, and **nothing in the scope row may change it**. The list below is a browsing surface: it can show any day, any caregiver, any child.
+
+| Surface | Shows | Moved by |
+| --- | --- | --- |
+| Masthead, dial, hero dots, **Live** | Today, the signed-in profile | The clock, and the topbar profile switcher |
+| Rail, wheel time, panel title | The chosen day, caregiver and child | The three scope segments |
+
+Every segment in the scope row — day, caregiver, child — is a list control. Picking Thursday is *looking ahead*, not navigating: the countdown must survive it, because it is the thing you opened the app for. The caregiver picker says so in a line beneath it, and the masthead keeps naming today so the two are never confused.
+
+The panel title names whose day is listed — "Rest of day" when it is mine and today, "Thursday" when I have looked ahead, "Dad's day", "Everyone · Thu". Switching profile is the one action that moves both: the dial follows the new profile and the list resets to it.
+
+### The three swaps
+
+Swapping is how Go keeps its asset count down. Each swap replaces a module that would otherwise be permanently on screen. All three follow the lab's rule from [SWIPE-TAP-MAP-v1.md](./design-lab/SWIPE-TAP-MAP-v1.md): **swipe accelerates, never hides** — every swap has a visible tap path first.
+
+| Swap | Replaces | Tap path | Accelerator |
+| --- | --- | --- | --- |
+| **Hero** | A separate "later today" card | The dot rail under the dial | Horizontal drag on the card, ~44px threshold, with a damped peek |
+| **Scope** | A day strip, a crew strip, and a filter row, all permanently stacked | Tap a segment to open its picker; tap it again to close | — |
+| **Panel** | A wheel-time card sitting permanently below the rail | The two-icon toggle in the panel head | — |
+
+The hero swap has one rule worth preserving: `null` means *follow the live stop*. Any other value pins the dial to a stop the parent chose, and a **Live** button appears to hand it back. Only switching profile or completing the pinned stop releases the pin — the scope row does not, because it does not own the dial. A drag in flight owns the card, so the five-second ticker skips its re-render rather than dropping the peek. The rail's own rows open the stop's details; they do not move the dial, because the list may be showing a day that is not mine.
+
+### Marks
+
+| Fact | Mark | Words on screen |
+| --- | --- | --- |
+| How urgent | Card background: forest, olive, or clay | The state word in the ring, at most |
+| How much run-up is left | Depleting ring, piecewise (see below) | The count in minutes |
+| Who is driving | Pale disc, dark initial; hatched ochre when unassigned | **The name** — "Dad", or "You" for the signed-in profile |
+| Which children | Emoji on a butter tile | **The name** |
+| Where, and how far | Hollow origin dot, dashed line, filled square destination, car by elapsed run-up | `leave`, `arrive`, and the ETA |
+| When a stop starts | The rail's time column | The clock time |
+| When to leave for it | — (it is derived, not scheduled) | `Leave 2:51 PM` inside the row |
+| Day completion | Pips in the panel head | None |
+| Driving split | One bar per caregiver at chart strength | The minutes |
+| Position in the day | Spine behind the rail markers | None |
+
+### The countdown
+
+The centre of the dial is a count, never a clock face — a clock time makes the reader do the subtraction themselves. The unit follows what the reader actually thinks in:
+
+- **60 minutes or fewer:** the minute count, with `min` on the unit line. Three-digit counts step down from 56px to 46px.
+- **More than 60 minutes:** hours and minutes — `3h 21m`, or `2h` on the hour. The units ride small and light, in the same treatment Next gives the AM/PM suffix on its trip card. The unit line drops `min` and reads just `to leave`.
+
+The dial always counts today, so there is no future-day fallback to name a departure time.
+
+The ring is the same count drawn as an arc, and it is **piecewise** — one linear window cannot serve both "four hours out" and "eleven minutes out". Stretched wide, the final hour becomes an invisible sliver; kept narrow, the ring sits pinned full all morning, which is the failure this replaced.
+
+- The **final 60 minutes own 60% of the circle** — the range where the decision actually lives gets most of the resolution.
+- **Everything earlier shares the remaining 40%**, measured across the gap you really have: from the end of your previous stop, or from 6:00 AM when there is no earlier stop.
+
+So 411 minutes out reads 90%, 56 minutes reads 56%, 11 minutes reads 11%, and the arc is always moving. It reads full in only two situations: you have swapped the dial forward to a stop whose gap has not begun yet, or the departure has passed and there is nothing left to count.
+
+| Situation | Card tone | Ring | Centre |
+| --- | --- | --- | --- |
+| More than 60 minutes before departure | Forest | Depleting, `#caeaa4` | `3h 21m`, then `to leave` |
+| 16–60 minutes | Forest | Depleting, `#caeaa4` | Minutes, then `min · to leave` |
+| 15 minutes or fewer | Olive | Depleting, `#f5cf7d` | Minutes, then `min · to leave` |
+| Departure reached | Clay | Full, **highlight `#ffd36b`**, pulsing | `NOW`, then `leave` |
+| Scheduled start reached | Clay | Full, **highlight `#ffd36b`**, pulsing | `LATE`, then `*n* min ago` (or `1h 5m ago`) |
+| Driver unassigned | Tone as above; hatched driver mark | As above | As above; the only action is "Assign a driver" |
+| At-home or no-travel stop | Counts down to the start, not a departure | As above | The count, then `be there`; the route bar collapses to a home mark and the only action is "✓ Done" |
+| A completed stop, reached by swapping | Forest | Full | `✓`, then `done`; the action is "Reopen" |
+| Nothing left today, all confirmed | Forest | Full | `✓` · "All clear" |
+| Nothing left today, unconfirmed stops | Forest | Full | `🌙` · "Day is over" · "*n* never checked off" |
+
+The highlight is the one colour on this screen that means *act, not wait*, and it appears nowhere else. Stops more than 20 minutes past their start roll off the dial and stay flagged on the rail, so a phone opened at 11 PM shows "Day is over" rather than a four-hundred-minute alarm.
+
+### Not yet built
+
+Recorded here so the next pass does not re-derive them.
+
+- **Arrival auto-completes a stop.** When the device reaches the destination inside the activity's window, mark it done rather than waiting for a tap. Completion is the one action a parent is least likely to perform — they are already at the field, with a child. Needs a geofence or significant-location port and an explicit, revocable permission; the manual tap stays as the fallback, since a stop can be handed off without the phone arriving.
+
+### Weather
+
+One icon, top right of the masthead, for today. It is the only ambient fact on this screen: it changes nothing about the plan, but it changes what you put on the kid before you leave. It sits where Next's decorative sun sat and keeps that drawing style — 38px, ochre `#ad722d`, 1.5px line, rotated -12 degrees — so the masthead reads the same whether the sky is clear or not.
+
+Five sky tokens are drawn: `sun`, `partly`, `cloud`, `rain`, `storm`. The forecast description and temperature live in `title` and `aria-label`; only the icon is on the canvas. There is no temperature text, no second row, no forecast strip — a weather module would compete with the dial, and the dial is the reason the screen exists.
+
+`goWeather(dayIdx)` is a stub over sample data. Production reads a **WeatherProvider** port keyed by date and the family's home coordinates (WeatherKit on iOS), cached with a TTL like `TravelEstimator` — see [SYSTEM.md](./SYSTEM.md). Keep the return shape: one `sky` token that maps to an icon, one human `label` for the tooltip, so the view never has to know about a forecast payload.
+
+### Rail and wheel time
+
+A rail row is time, marker, title, and lead, with a meta line of named children, mode icon, and venue, and a departure line beneath it.
+
+**The time column is the arrival — when the thing actually starts.** That is the schedule, and the schedule is what a column of times down the left edge is for. The departure is *derived* from it (arrival minus travel minus buffer), so it belongs with the other derived detail inside the row: a `Leave 2:51 PM` line in forest under the venue. Two times of different kinds must never share one column; the row would stop being scannable and the reader would have to remember which one they were looking at.
+
+The lead is a pale disc with the name beneath it — "You" for the signed-in profile, "Needs driver" in warning clay when unassigned. The title owns the whole flexible column and never truncates; only the venue may ellipsize. Tapping the marker completes the stop; tapping the row opens its details. Completed rows drop to 57% opacity with a struck-through title and a filled forest marker. The row matching the dial's current stop keeps the thick forest marker, so you can see where the hero sits in the day. Stops hidden by the active scope are never silently dropped — a single underlined action restores the whole day. The rail ends with a dashed **Add a stop**, so creation sits beside the day it affects rather than on a floating button.
+
+Wheel time is whole-family by design: it is a load-balance read, not a filter. One row per caregiver who drove, sorted longest first, each a named disc and a chart-strength bar scaled against the busiest caregiver.
+
+### New stop, and editing one
+
+**One sheet does both.** Adding a stop and opening an existing one land in the same surface, seeded differently: the title reads "New stop" or "Edit stop", the primary action reads "Add stop" or "Save changes", and editing adds a quiet "Remove this stop". Two different forms for *describe an event* would be two things to learn and two things to keep in step; Go has one. In the rail, on the hero's destination block, and from the add action, the same sheet opens.
+
+Creation reuses the screen's own parts rather than inventing a form. The preview is a small tone card, the field rows are the scope row turned vertical, and the pickers are the same chips, day buttons and caregiver discs used elsewhere. Nothing here is a new visual language, which is why it needs no explaining.
+
+**The target is two taps.** Nothing is a blank field, because a blank field is work the app could have done:
+
+| Field | Default |
+| --- | --- |
+| What | Pickup. The preset also supplies the venue, the travel mode and the duration. |
+| Who | The child the list is filtered to, else the first child. |
+| Where | The preset's usual venue — school for a drop-off, the sports complex for practice, home for dinner. |
+| When | The day the list was showing, at the first half hour that is both ahead of you and not already spoken for. "After everything else on the day" would land every new stop at bedtime. |
+| Driver | You. |
+
+The title composes itself: one child puts their name on it ("Noah Practice"), several leave it as the preset ("Playdate"). A written title always wins, and it survives switching presets — editing must never quietly rename somebody's event.
+
+**Every value has an escape hatch, and they all look the same.** A tile or chip marked ✎ reveals exactly one input beneath its picker:
+
+| Field | Preset path | ✎ Custom path |
+| --- | --- | --- |
+| What | Eight activity tiles | A free-text name, always available under the grid |
+| Where | The saved places | "Somewhere else" → a text field |
+| When | Five common times, ± 15 stepper | "Exact" → a native time input |
+| How long | Five durations | "Exact" → minutes |
+
+Those inputs are the only things on this screen that open a keyboard. Everything else is a tap.
+
+**No leave-by, on purpose.** The sheet shows when the stop *starts* and how long it *runs*, and says in one line that the leave-by is worked out from the rest of the day once it is saved. A departure is only meaningful once we know where the caregiver will be coming from, and at composition time we do not — the stop before it may not exist yet, and a custom place has no route at all. Inventing one here would put a number on screen that the rail would then quietly contradict. The rail is the only place a leave-by is honest, because by then there is a finished day to compute it from.
+
+**Structure.** Five rows, each showing its value as a mark and a word, with one picker open at a time in a drawer beneath the row that owns it — the scope row's swap, applied to composing an event. The preview above updates on every tap. Typing repaints the preview and the collapsed row value only, never the field holding the caret.
+
+**Google Calendar.** A second outcome, not a second form: "Add to Google Calendar" saves the stop *and* marks it for the calendar, and the flag shows as a small 📅 on the row so the button has a visible consequence. Calendar is read-only in v1 (see [SYSTEM.md](./SYSTEM.md)), so the lab records the intent rather than pretending to have written — an outlined secondary under the primary, never a third equal action.
+
+**Craft.** The sheet rises over a green scrim from Next's sheet vocabulary: warm white, 26px top corners, a grip, a circular close, a body that scrolls under a fixed foot. The primary action is forest-filled rather than butter — butter is for a dark card, and on ivory it loses its contrast. Removal is underlined clay text with no fill, because destructive actions should be reachable without being inviting. Escape and a backdrop tap close it; the first field takes focus on open.
+
+| Component | Geometry |
+| --- | --- |
+| Sheet | 26px top corners; max height 92%; 20px side padding |
+| Preview card | 20px radius; 15px padding; the screen's own facepile and route bar |
+| Field row | `54px / flexible / 16px` columns; 56px minimum height |
+| Preset / place tile | 14px radius; 72px minimum height; four columns for presets, three for places |
+| Time stepper | `46px / flexible / 46px`; 46px targets; 21px clock |
+| Primary action | Full width, forest-filled, 46px minimum height |
+| Secondary action | Full width, outlined, 44px minimum height |
+| Destructive action | Underlined clay text, 40px minimum height, no fill |
+
+### Geometry
+
+| Component | Geometry |
+| --- | --- |
+| Dial card | 26px radius; 18px padding; 172px ring wrap, 12px stroke |
+| Timing numeral | 56px, weight 650, tracking `-0.055em`; 30px when it is a word |
+| Dial unit | 9px, weight 800, uppercase, tracking `0.2em` |
+| Destination title | 21px, weight 650 |
+| Named chip on the card | 26px disc in a translucent pill; 12.5px label |
+| Mark (driver, child) | 26–30px circle on the card; 27px in the scope row; 40px in the crew picker; 35px in the rail with a 9.5px name below |
+| Weather icon | 38px, ochre line, rotated -12 degrees |
+| Hours numeral | 44px, with 24px weight-500 unit letters |
+| Card actions | 12px radius; minimum height 46px; wide primary plus an icon-only secondary |
+| Hero dot | 22px target around a 5px dot; the active dot becomes a 17px bar |
+| Scope row | 16px radius; 44px minimum segment height |
+| Day button | 13px radius; 52px minimum height; seven equal columns |
+| Rail row | `48px / 22px / flexible / 46px` columns; 13px vertical padding; spine at 68px |
+| Wheel-time row | `46px / flexible / 46px` columns; 10px track |
+
+Below 370px the masthead drops to 24px, the ring to 156px, the numeral to 50px, and the rail becomes `48px / 20px / flexible / 42px` with a 12.5px time and the spine at 64px. The sheet tightens to 15px gutters and its tiles to 66px.
+
 ## Responsive behavior
 
 The desktop prototype centers a phone frame with a maximum width of 490px and 36px corners. At viewport widths of 520px or less, the frame fills the viewport and loses its decorative border, shadow, and rounded corners. The screen keeps one content column; the caregiver grid keeps two.
 
 At 370px or less, Next reduces side gutters to 15px, the greeting to 28px, the hero heading to 29px, and the sun to 34px. Hero padding becomes 17px. Agenda columns become `44px / flexible / 34px` with 7px gaps. Route text and filter padding tighten as well. Child filters wrap instead of requiring horizontal scrolling.
 
-Bottom navigation and sheet padding account for the bottom safe area. The outer desktop page retains the shared prototype's cool background; it is separate from Next's ivory in-app palette.
+Bottom navigation and sheet padding account for the bottom safe area. The outer desktop page retains the shared prototype's cool background; it is separate from the ivory in-app palette.
+
+Both concepts take over the shared chrome while they are active — `next-mode` and `go-mode` on `.app` repaint the topbar, bottom navigation, and modals in ivory and forest. Neither leaves those overrides in place when another tab is selected.
 
 ## Copy and prototype boundaries
 
 Write as a caregiver coordinating a day. Use familiar words such as "handoff", "take this one", "leave", "arrive", and "together". Give each warning a next step: confirm the handoff, compare caregivers, or edit the plan. Keep reassurance tied to an actual state or time estimate.
 
-The preview clock defaults to 2:40 PM and offers 3:00 PM, 3:15 PM, and Live. It is local to this concept and is not persisted. The date strip uses sample August dates. Travel estimates, driver suggestions, and family data come from the prototype. Keep those facts explicit in design reviews; neither "Live" nor the route presentation establishes a live routing or calendar integration.
+Next's preview clock defaults to 2:40 PM and offers 3:00 PM, 3:15 PM, and Live. It is local to that concept and is not persisted. Go reads the shared simulation clock in the Today scaffolding instead and has no clock control of its own. The date strips use sample August dates. Travel estimates, driver suggestions, and family data come from the prototype. Keep those facts explicit in design reviews; neither "Live" nor the route presentation establishes a live routing or calendar integration.
 
-When extending Next, preserve its serif greeting, ivory canvas, dark timing card, aligned agenda, and pale caregiver identities. Put additional information at the point where it helps a decision, and keep secondary operations in the details or comparison flows. Use the existing component dimensions and semantic colors before introducing new visual treatments.
+Go's "Live" control is unrelated to either clock. It means *follow the live stop* and only appears when the hero is pinned to a stop the parent chose.
+
+When extending either concept, preserve the ivory canvas, the serif masthead, the dark tone card, the aligned rows, and the pale caregiver identities. Put additional information at the point where it helps a decision, and keep secondary operations in the details or comparison flows. Use the existing component dimensions and semantic colors before introducing new visual treatments.
+
+Before adding a module, check whether it can swap into a slot that already exists. Before writing a sentence, check whether a mark would say it. Those two questions are the standing direction, and they are why Go carries the same reach as its predecessor on noticeably less screen.
