@@ -277,13 +277,23 @@ The ring is the same count drawn as an arc, and it is **piecewise** — one line
 
 So 411 minutes out reads 90%, 56 minutes reads 56%, 11 minutes reads 11%, and the arc is always moving. It reads full in only two situations: you have swapped the dial forward to a stop whose gap has not begun yet, or the departure has passed and there is nothing left to count.
 
+**The dial is drawn as an instrument, not a progress bar.** Three pieces of craft carry that, and they are the licence this screen has for a bit of delight — it is the thing a parent looks at most, and a flat arc on a flat card had none:
+
+- **A gradient along the sweep.** Each tone is a pair, deep to bright, and the gradient axis is recomputed every render to point at the leading edge — so the arc always gains light toward the end that is moving. A gradient fixed in space would brighten the wrong side half the time.
+- **A bead on the leading edge.** A glowing disc with a white centre, sitting exactly where the arc ends, breathing on a three-second cycle and easing to its new position as the count falls. It is the one element here that is plainly *moving*, which is what makes a countdown read as a countdown rather than as a filled shape. It is hidden at the two moments it would have nothing to point at: an empty arc, and a full one.
+- **Twelve hour ticks** inside the track, every third one heavier. They give the ring the character of a dial and let you read roughly how much is left without reading the number at all.
+
+A wash of the active tone sits behind the numeral so the middle is not a flat hole. Under `prefers-reduced-motion` the breathing, the alarm pulse and the bead's easing all stop; the ring still depletes.
+
+Tones are pairs — the first value is the deep end of the gradient, the second the bright end and the bead.
+
 | Situation | Card tone | Ring | Centre |
 | --- | --- | --- | --- |
-| More than 60 minutes before departure | Forest | Depleting, `#caeaa4` | `3h 21m`, then `to leave` |
-| 16–60 minutes | Forest | Depleting, `#caeaa4` | Minutes, then `min · to leave` |
-| 15 minutes or fewer | Olive | Depleting, `#f5cf7d` | Minutes, then `min · to leave` |
-| Departure reached | Clay | Full, **highlight `#ffd36b`**, pulsing | `NOW`, then `leave` |
-| Scheduled start reached | Clay | Full, **highlight `#ffd36b`**, pulsing | `LATE`, then `*n* min ago` (or `1h 5m ago`) |
+| More than 60 minutes before departure | Forest | Depleting, `#7cae5f` → `#caeaa4` | `3h 21m`, then `to leave` |
+| 16–60 minutes | Forest | Depleting, `#7cae5f` → `#caeaa4` | Minutes, then `min · to leave` |
+| 15 minutes or fewer | Olive | Depleting, `#cfa250` → `#f7dc9a` | Minutes, then `min · to leave` |
+| Departure reached | Clay | Full, `#e39d33` → **highlight `#ffd36b`**, pulsing | `NOW`, then `leave` |
+| Scheduled start reached | Clay | Full, `#e39d33` → **highlight `#ffd36b`**, pulsing | `LATE`, then `*n* min ago` (or `1h 5m ago`) |
 | Driver unassigned | Tone as above; hatched driver mark | As above | As above; the only action is "Assign a driver" |
 | At-home or no-travel stop | Counts down to the start, not a departure | As above | The count, then `be there`; the route bar collapses to a home mark and the only action is "✓ Done" |
 | A completed stop, reached by swapping | Forest | Full | `✓`, then `done`; the action is "Reopen" |
@@ -369,6 +379,8 @@ Those inputs are the only things on this screen that open a keyboard. Everything
 | Component | Geometry |
 | --- | --- |
 | Dial card | 26px radius; 18px padding; 172px ring wrap, 12px stroke |
+| Hour ticks | 12 lines between r74.5 and r79; 1.5px, every third 2px |
+| Leading bead | r8.5 core, r3.2 white centre, r21 radial glow |
 | Timing numeral | 56px, weight 650, tracking `-0.055em`; 30px when it is a word |
 | Dial unit | 9px, weight 800, uppercase, tracking `0.2em` |
 | Destination title | 21px, weight 650 |

@@ -2663,12 +2663,34 @@
     }
 
     .go-dial-wrap { position: relative; width: 172px; height: 172px; margin: 2px auto 0; }
-    .go-dial-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
-    .go-ring-track { stroke: #ffffff1f; }
+    /* The quarter turn lives on a group inside the SVG now, so the bead's own
+       coordinates stay in the SVG's frame and the gradient is not double-turned. */
+    .go-dial-wrap svg { width: 100%; height: 100%; display: block; position: relative; z-index: 1; }
+    /* A wash of the tone behind the numeral, so the middle is not a flat hole. */
+    .go-dial-wrap::before {
+      content: '';
+      position: absolute;
+      inset: 22%;
+      border-radius: 50%;
+      background: radial-gradient(circle, color-mix(in srgb, var(--g-bloom, #caeaa4) 22%, transparent), transparent 72%);
+      pointer-events: none;
+    }
+    .go-ring-track { stroke: #ffffff1a; }
     .go-ring-fill {
       stroke-linecap: round;
-      transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.4s;
+      transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     }
+    /* Hour ticks: the dial reads as an instrument, and you can see roughly how
+       much is left without reading the number. */
+    .go-tick { stroke: #ffffff26; stroke-width: 1.5; stroke-linecap: round; }
+    .go-tick.major { stroke: #ffffff42; stroke-width: 2; }
+    /* The bead on the leading edge - the one thing here that is plainly moving. */
+    .go-ring-bead circle {
+      transition: cx 0.6s cubic-bezier(0.4, 0, 0.2, 1), cy 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .go-bead-glow { animation: go-bead-breathe 3s ease-in-out infinite; }
+    .go-bead-eye { opacity: 0.9; }
+    @keyframes go-bead-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     .go-dial-center {
       position: absolute;
       inset: 0;
@@ -2691,7 +2713,9 @@
     .go-dial-num.is-hours { font-size: 44px; letter-spacing: -0.04em; }
     .go-dial-num.is-hours small { font-size: 24px; font-weight: 500; letter-spacing: -0.02em; margin-left: 1px; }
     .go-dial-card[data-tone='now'] .go-ring-fill,
-    .go-dial-card[data-tone='started'] .go-ring-fill { animation: go-ring-pulse 1.6s ease-in-out infinite; }
+    .go-dial-card[data-tone='started'] .go-ring-fill,
+    .go-dial-card[data-tone='now'] .go-ring-bead,
+    .go-dial-card[data-tone='started'] .go-ring-bead { animation: go-ring-pulse 1.6s ease-in-out infinite; }
     @keyframes go-ring-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
     .go-dial-unit {
       font-size: 9px;
@@ -3493,7 +3517,11 @@
     @media (prefers-reduced-motion: reduce) {
       .go-dial-card, .go-ring-fill, .go-tb-car, .go-load-fill { transition: none; }
       .go-dial-card[data-tone='now'] .go-ring-fill,
-      .go-dial-card[data-tone='started'] .go-ring-fill { animation: none; }
+      .go-dial-card[data-tone='started'] .go-ring-fill,
+      .go-dial-card[data-tone='now'] .go-ring-bead,
+      .go-dial-card[data-tone='started'] .go-ring-bead,
+      .go-bead-glow { animation: none; }
+      .go-ring-bead circle { transition: none; }
       .go-sheet, .go-add-drawer { animation: none; }
     }
 
@@ -5505,13 +5533,20 @@
     later:'calm', ontrack:'calm', soon:'soon',
     now:'now', started:'started', clear:'calm'
   };
-  /* Ring accents. `now` and `started` share the highlight - the one colour on
-     this screen that means act, not wait - and the ring goes full so it reads
-     as an alarm rather than an empty gauge. */
+  /* Ring accents, deep -> bright. The gradient runs along the sweep so the arc
+     gains light as it goes, and a bead sits on the leading edge carrying the
+     brightest point - it is the one thing on this screen that is unambiguously
+     moving, which is what makes a countdown read as a countdown.
+     `now` and `started` share the highlight, the one colour here that means
+     act rather than wait, and the ring goes full so it reads as an alarm. */
   const GO_RING_HIGHLIGHT = '#ffd36b';
   const GO_RING = {
-    later:'#caeaa4', ontrack:'#caeaa4', soon:'#f5cf7d',
-    now:GO_RING_HIGHLIGHT, started:GO_RING_HIGHLIGHT, clear:'#caeaa4'
+    later:  ['#7cae5f', '#caeaa4'],
+    ontrack:['#7cae5f', '#caeaa4'],
+    soon:   ['#cfa250', '#f7dc9a'],
+    now:    ['#e39d33', GO_RING_HIGHLIGHT],
+    started:['#e39d33', GO_RING_HIGHLIGHT],
+    clear:  ['#7cae5f', '#caeaa4']
   };
 
   /* Caregiver identity, Next's rule: pale ground, dark initial, name in the
@@ -5662,16 +5697,64 @@
     }
   }
 
+  /* Twelve hour ticks, drawn once. They give the dial the character of an
+     instrument rather than a progress bar, and they let you read roughly how
+     much is left without reading the number at all. */
+  const GO_DIAL_TICKS = Array.from({length: 12}, (_, i) => {
+    const a = i * Math.PI / 6;
+    const cos = Math.cos(a), sin = Math.sin(a);
+    return `<line x1="${(100 + 74.5 * cos).toFixed(1)}" y1="${(100 + 74.5 * sin).toFixed(1)}"
+                  x2="${(100 + 79 * cos).toFixed(1)}" y2="${(100 + 79 * sin).toFixed(1)}"
+                  class="go-tick ${i % 3 === 0 ? 'major' : ''}"/>`;
+  }).join('');
+
   function goDialShell(tone, ringFraction, centerHtml, bodyHtml, actionsHtml){
-    const offset = GO_RING_C * (1 - Math.max(0, Math.min(1, ringFraction)));
+    const f = Math.max(0, Math.min(1, ringFraction));
+    const offset = GO_RING_C * (1 - f);
+    const [deep, bright] = GO_RING[tone] || GO_RING.clear;
+
+    // The leading edge of the arc, in the SVG's own frame - the group below
+    // carries the quarter turn that puts zero at twelve o'clock.
+    const a = f * 2 * Math.PI;
+    const cos = Math.cos(a), sin = Math.sin(a);
+    const hx = (100 + 86 * cos).toFixed(2);
+    const hy = (100 + 86 * sin).toFixed(2);
+    // A bead at the very start or the very end has nothing to point at.
+    const bead = f > 0.012 && f < 0.995;
+    // The gradient axis points at the bead, so the arc always gains light
+    // toward its leading edge however far round the dial that edge has got.
+    // A gradient fixed in space would brighten the wrong side half the time.
+    const g1 = `x1="${(0.5 - 0.5 * cos).toFixed(3)}" y1="${(0.5 - 0.5 * sin).toFixed(3)}"`;
+    const g2 = `x2="${(0.5 + 0.5 * cos).toFixed(3)}" y2="${(0.5 + 0.5 * sin).toFixed(3)}"`;
+
     return `
       <div class="go-dial-card" data-tone="${GO_CARD_TONE[tone] || 'calm'}">
-        <div class="go-dial-wrap">
+        <div class="go-dial-wrap" style="--g-bloom:${bright}">
           <svg viewBox="0 0 200 200" aria-hidden="true">
-            <circle class="go-ring-track" cx="100" cy="100" r="86" fill="none" stroke-width="12"/>
-            <circle class="go-ring-fill" cx="100" cy="100" r="86" fill="none" stroke-width="12"
-                    stroke="${GO_RING[tone] || GO_RING.clear}" stroke-dasharray="${GO_RING_C.toFixed(1)}"
-                    stroke-dashoffset="${offset.toFixed(1)}"/>
+            <defs>
+              <linearGradient id="goRingGrad" ${g1} ${g2}>
+                <stop offset="0%" stop-color="${deep}"/>
+                <stop offset="100%" stop-color="${bright}"/>
+              </linearGradient>
+              <radialGradient id="goRingBead">
+                <stop offset="0%" stop-color="${bright}" stop-opacity="0.6"/>
+                <stop offset="55%" stop-color="${bright}" stop-opacity="0.18"/>
+                <stop offset="100%" stop-color="${bright}" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <g transform="rotate(-90 100 100)">
+              ${GO_DIAL_TICKS}
+              <circle class="go-ring-track" cx="100" cy="100" r="86" fill="none" stroke-width="12"/>
+              <circle class="go-ring-fill" cx="100" cy="100" r="86" fill="none" stroke-width="12"
+                      stroke="url(#goRingGrad)" stroke-dasharray="${GO_RING_C.toFixed(1)}"
+                      stroke-dashoffset="${offset.toFixed(1)}"/>
+              ${bead ? `
+              <g class="go-ring-bead">
+                <circle class="go-bead-glow" cx="${hx}" cy="${hy}" r="21" fill="url(#goRingBead)"/>
+                <circle class="go-bead-core" cx="${hx}" cy="${hy}" r="8.5" fill="${bright}"/>
+                <circle class="go-bead-eye" cx="${hx}" cy="${hy}" r="3.2" fill="#ffffff"/>
+              </g>` : ''}
+            </g>
           </svg>
           <div class="go-dial-center">${centerHtml}</div>
         </div>
