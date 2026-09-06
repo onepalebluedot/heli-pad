@@ -7,7 +7,7 @@ This document describes the shared design language used by two home-screen conce
 
 Both share an ivory page, forest-green tone cards, a serif editorial voice, and compact sans-serif labels for times, children, places, and responsibilities. The strongest visual emphasis belongs to the next decision a caregiver needs to make. Next presents the whole day as a handoff sheet; Go presents one decision — *do I need to move, and when?* — and draws everything else as a mark.
 
-Go is the product owner's chosen home design and intended daily workflow. Plan is its weekly planning companion. Next and Today remain reference experiments in the UX lab. [SYSTEM.md](./SYSTEM.md) records the architecture and integration boundaries.
+Go is the product owner's chosen home design and intended daily workflow. Plan is its weekly planning companion. Next and Today remain reference experiments in the UX lab. [SYSTEM.md](./SYSTEM.md) records the architecture and integration boundaries; [BUILD.md](./BUILD.md) turns both into an implementation spec, and its §13 lists the decisions recorded here that must survive a port.
 
 ## Standing direction: graphic over text
 
@@ -250,7 +250,9 @@ The hero swap has one rule worth preserving: `null` means *follow the live stop*
 
 ### The route, beside the dial
 
-The two times and the count are one decision, so they are one glance. The dial and the route share the top of the card — the dial at 158px on the left, the route filling the rest — rather than the route sitting under the dial where reading it costs a downward look. Lifting it also shortens the card by roughly a third, which brings the destination, the people and the actions above the fold.
+The two times and the count are one decision, so they are one glance. The dial and the route share the top of the card rather than stacking, which shortens it by roughly a third and brings the destination, the people and the actions above the fold.
+
+**The dial keeps its size.** It is the reason the screen exists, so it stays at 168px beside the route — near the 172px it has alone — and the route takes only the slack on the right, about 120px. An earlier pass split the row more evenly at 158/150; the dial read as demoted, and it was.
 
 The route is drawn vertically, in Next's idiom: a hollow origin circle, a dashed run, a filled square destination, with the time and its label beside each mark. The traveller on that line is a **bead** — the same mark that rides the countdown ring — not a vehicle. A car emoji did two things wrong: it competed with the destination square for attention, and it was the one piece of clip art on a screen otherwise drawn by hand.
 
@@ -310,9 +312,11 @@ Tones are pairs — the first value is the deep end of the gradient, the second 
 | Scheduled start reached | Clay | Full, `#e39d33` → **highlight `#ffd36b`**, pulsing | `LATE`, then `*n* min ago` (or `1h 5m ago`) |
 | Driver unassigned | Tone as above; hatched driver mark | As above | As above; the only action is "Assign a driver" |
 | At-home or no-travel stop | Counts down to the start, not a departure | As above | The count, then `be there`; the route bar collapses to a home mark and the only action is "✓ Done" |
-| A completed stop, reached by swapping | Forest | Full | `✓`, then `done`; the action is "Reopen" |
-| Nothing left today, all confirmed | Forest | Full | `✓` · "All clear" |
-| Nothing left today, unconfirmed stops | Forest | Full | `🌙` · "Day is over" · "*n* never checked off" |
+| A completed stop, reached by swapping | Forest | Full | A drawn check, then `done`; the action is "Reopen" |
+| Nothing left today, all confirmed | Forest | Full | A drawn check · "All clear" |
+| Nothing left today, unconfirmed stops | Forest | Full | A drawn crescent · "Day is over" · "*n* never checked off" |
+
+The dial's two resting states are line glyphs in the tone's bright colour, 44px, at the same stroke as the weather and transit icons. They were emoji until review: an emoji arrives in another designer's colour and gloss, and it broke the one surface that should feel most considered. There is no glow behind the numeral either — a soft radial wash sat there briefly and read as dated.
 
 The highlight is the one colour on this screen that means *act, not wait*, and it appears nowhere else. Stops more than 20 minutes past their start roll off the dial and stay flagged on the rail, so a phone opened at 11 PM shows "Day is over" rather than a four-hundred-minute alarm.
 
@@ -418,8 +422,9 @@ Both ends stay on screen. Tapping one aims the stepper, the hour chips and the e
 
 | Component | Geometry |
 | --- | --- |
-| Dial card | 26px radius; 18px padding; 172px ring wrap alone, 158px beside a route |
-| Route column | `11px / flexible` rows; 46px leg; 16px times, 8.5px labels |
+| Dial card | 26px radius; 18px padding; 172px ring wrap alone, 168px beside a route |
+| Route column | `10px / flexible` rows; 42px leg; 14.5px times, 8.5px labels |
+| Resting glyph | 44px line drawing in the tone's bright colour |
 | Transit glyph | 15px in the hero, 13px in the rail; 1.6px stroke |
 | Hour ticks | 12 lines between r74.5 and r79; 1.5px, every third 2px |
 | Leading bead | r8.5 core, r3.2 white centre, r21 radial glow |

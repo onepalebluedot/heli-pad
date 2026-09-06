@@ -2665,18 +2665,20 @@
 
     /* Dial and route share the top of the card. Side by side, the two times
        and the count are one glance instead of two, and the card is shorter. */
+    /* The dial keeps the size it had before the route joined it - it is the
+       reason the screen exists. The route takes only the slack on the right. */
     .go-dial-head { display: flex; align-items: center; justify-content: center; gap: 12px; }
-    .go-dial-head.has-aside { justify-content: flex-start; gap: 16px; padding-right: 2px; }
-    .go-dial-wrap { position: relative; width: 172px; height: 172px; margin: 2px auto 0; flex: 0 0 auto; }
-    .go-dial-head.has-aside .go-dial-wrap { width: 158px; height: 158px; margin: 0; }
+    .go-dial-head.has-aside { gap: 10px; }
+    .go-dial-wrap { position: relative; width: 172px; height: 172px; flex: 0 0 auto; }
+    .go-dial-head.has-aside .go-dial-wrap { width: 168px; height: 168px; }
 
     /* Next's route, stood on end: hollow origin, dashed line, filled square
        destination, with a bead for the traveller. */
-    .go-route { flex: 1; min-width: 0; padding-right: 2px; }
-    .go-route-row { display: grid; grid-template-columns: 11px minmax(0, 1fr); align-items: center; gap: 9px; }
+    .go-route { flex: 0 1 auto; min-width: 0; }
+    .go-route-row { display: grid; grid-template-columns: 10px minmax(0, 1fr); align-items: center; gap: 8px; }
     .go-route-row strong {
       display: block;
-      font-size: 16px;
+      font-size: 14.5px;
       font-weight: 800;
       letter-spacing: -0.02em;
       font-variant-numeric: tabular-nums;
@@ -2691,14 +2693,14 @@
       color: #ffffff73;
       margin-top: 3px;
     }
-    .go-route-mark { width: 11px; height: 11px; border-radius: 50%; border: 2px solid #bdcdb8; justify-self: center; }
+    .go-route-mark { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #bdcdb8; justify-self: center; }
     .go-route-mark.end { background: #e5e5b2; border-color: #e5e5b2; border-radius: 3px; }
     /* The leg: a dashed run with the traveller on it and the estimate beside. */
     .go-route-leg {
       position: relative;
-      height: 46px;
-      margin: 5px 0;
-      padding-left: 20px;
+      height: 42px;
+      margin: 4px 0;
+      padding-left: 18px;
       display: flex;
       align-items: center;
     }
@@ -2731,15 +2733,6 @@
     /* The quarter turn lives on a group inside the SVG now, so the bead's own
        coordinates stay in the SVG's frame and the gradient is not double-turned. */
     .go-dial-wrap svg { width: 100%; height: 100%; display: block; position: relative; z-index: 1; }
-    /* A wash of the tone behind the numeral, so the middle is not a flat hole. */
-    .go-dial-wrap::before {
-      content: '';
-      position: absolute;
-      inset: 22%;
-      border-radius: 50%;
-      background: radial-gradient(circle, color-mix(in srgb, var(--g-bloom, #caeaa4) 22%, transparent), transparent 72%);
-      pointer-events: none;
-    }
     .go-ring-track { stroke: #ffffff1a; }
     .go-ring-fill {
       stroke-linecap: round;
@@ -2774,13 +2767,12 @@
     }
     .go-dial-num.is-word { font-size: 30px; letter-spacing: -0.03em; }
     .go-dial-num.is-long { font-size: 46px; }   /* three-digit minute counts */
-    .go-dial-head.has-aside .go-dial-num { font-size: 48px; }
-    .go-dial-head.has-aside .go-dial-num.is-word { font-size: 26px; }
-    .go-dial-head.has-aside .go-dial-num.is-long { font-size: 38px; }
-    .go-dial-head.has-aside .go-dial-num.is-hours { font-size: 34px; }
-    .go-dial-head.has-aside .go-dial-num.is-hours small { font-size: 19px; }
-    .go-dial-head.has-aside .go-dial-unit { font-size: 8px; letter-spacing: 0.16em; }
-    .go-dial-head.has-aside .go-dial-icon { font-size: 34px; }
+    .go-dial-head.has-aside .go-dial-num { font-size: 54px; }
+    .go-dial-head.has-aside .go-dial-num.is-word { font-size: 29px; }
+    .go-dial-head.has-aside .go-dial-num.is-long { font-size: 44px; }
+    .go-dial-head.has-aside .go-dial-num.is-hours { font-size: 38px; }
+    .go-dial-head.has-aside .go-dial-num.is-hours small { font-size: 21px; }
+
     /* Past an hour the count reads in hours; the units ride small and light. */
     .go-dial-num.is-hours { font-size: 44px; letter-spacing: -0.04em; }
     .go-dial-num.is-hours small { font-size: 24px; font-weight: 500; letter-spacing: -0.02em; margin-left: 1px; }
@@ -2796,7 +2788,9 @@
       text-transform: uppercase;
       color: #ffffff8a;
     }
-    .go-dial-icon { font-size: 42px; line-height: 1; }
+    .go-dial-glyph { display: block; width: 44px; height: 44px; }
+    .go-dial-glyph svg { width: 100%; height: 100%; display: block; }
+    .go-dial-head.has-aside .go-dial-glyph { width: 38px; height: 38px; }
 
     /* The destination block is the edit path. The rail row pins the dial, so
        details need a target of their own — one that costs no extra chrome. */
@@ -3663,13 +3657,14 @@
     @media (max-width: 370px) {
       .go-masthead h1 { font-size: 24px; }
       .go-dial-wrap { width: 156px; height: 156px; }
-      .go-dial-head { gap: 9px; }
-      .go-dial-head.has-aside .go-dial-wrap { width: 138px; height: 138px; }
-      .go-dial-head.has-aside .go-dial-num { font-size: 42px; }
-      .go-dial-head.has-aside .go-dial-num.is-long { font-size: 34px; }
-      .go-dial-head.has-aside .go-dial-num.is-hours { font-size: 30px; }
-      .go-dial-head.has-aside .go-dial-num.is-hours small { font-size: 17px; }
-      .go-route-row strong { font-size: 14.5px; }
+      .go-dial-head.has-aside { gap: 8px; }
+      .go-dial-head.has-aside .go-dial-wrap { width: 150px; height: 150px; }
+      .go-dial-head.has-aside .go-dial-num { font-size: 46px; }
+      .go-dial-head.has-aside .go-dial-num.is-long { font-size: 38px; }
+      .go-dial-head.has-aside .go-dial-num.is-hours { font-size: 33px; }
+      .go-dial-head.has-aside .go-dial-num.is-hours small { font-size: 18px; }
+      .go-route-row strong { font-size: 13.5px; }
+      .go-route-leg { height: 38px; }
       .go-dial-num { font-size: 50px; }
       .go-stop { grid-template-columns: 48px 20px minmax(0, 1fr) 42px; gap: 0 6px; }
       .go-stop-time { font-size: 12.5px; letter-spacing: -0.02em; }
@@ -5769,6 +5764,19 @@
     'School Bus': `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4.6" width="16" height="11" rx="2.4"/><path d="M4 10h16M9.4 4.6v5.4M6.8 15.6v1.8M17.2 15.6v1.8"/><circle cx="7.6" cy="13" r=".9" fill="currentColor" stroke="none"/><circle cx="16.4" cy="13" r=".9" fill="currentColor" stroke="none"/></svg>`,
     Home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V19a1.4 1.4 0 0 1-1.4 1.4H5.4A1.4 1.4 0 0 1 4 19z"/><path d="M9.6 20.4v-6h4.8v6"/></svg>`
   };
+  /* The dial's two resting states. Drawn, like everything else on this card -
+     an emoji here arrives in another designer's colour and gloss and breaks
+     the one surface that should feel most considered. */
+  const GO_GLYPH = {
+    moon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.3 14.9A8.7 8.7 0 0 1 9.1 3.7 8.9 8.9 0 1 0 20.3 14.9z"/></svg>`,
+    check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.7 4.9 4.9L19 6.6"/></svg>`,
+    home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V19a1.4 1.4 0 0 1-1.4 1.4H5.4A1.4 1.4 0 0 1 4 19z"/><path d="M9.6 20.4v-6h4.8v6"/></svg>`
+  };
+  function goGlyph(name, tone){
+    const bright = (GO_RING[tone] || GO_RING.clear)[1];
+    return `<span class="go-dial-glyph" style="color:${bright}">${GO_GLYPH[name]}</span>`;
+  }
+
   function goModeIcon(e){
     const svg = goNoTravel(e) ? GO_MODE.Home : (GO_MODE[e.mode] || GO_MODE.Drive);
     return `<span class="go-transit" aria-hidden="true">${svg}</span>`;
@@ -5967,7 +5975,7 @@
     if(!e){
       const settled = v.looseEnds === 0;
       el.innerHTML = goDialShell('clear', 1,
-        `<div class="go-dial-icon">${settled ? '✓' : '🌙'}</div>`,
+        goGlyph(settled ? 'check' : 'moon', 'clear'),
         `<div class="go-dest"><h2 class="go-dest-title">${settled ? 'All clear' : 'Day is over'}</h2>
            <div class="go-dest-where">${settled
              ? (scope ? `Every ${scope} handoff done` : 'Every handoff done')
@@ -5978,7 +5986,7 @@
     // ---- A completed stop, reached by swapping back through the day -------
     if(e.done){
       el.innerHTML = goDialShell('clear', 1,
-        `<div class="go-dial-icon">✓</div><div class="go-dial-unit">done</div>`,
+        `${goGlyph('check', 'clear')}<div class="go-dial-unit">done</div>`,
         `<button class="go-dest" onclick="goEditOpen(${e.id})" aria-label="Open ${e.title}">
            <h2 class="go-dest-title">${e.title}</h2>
            <div class="go-dest-where">${goModeIcon(e)} ${e.location}<b>›</b></div>

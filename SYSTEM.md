@@ -282,6 +282,7 @@ Gate Avery’s Today port against this map; escalate gaps — do not approximate
 ## 9. Doc ownership
 
 - Software Lead maintains this document
+- [`BUILD.md`](./BUILD.md) is the implementation spec derived from this one: stack, schemas, API shapes, integration mechanics, phased plan. It is a proposal, not a decision record — where the two disagree, this document wins
 - Escalate to Marcus Hale (EM) on scope/timeline tradeoffs (client stack, sync scope eating home-tab week, home freeze)
 - Prototype README remains the lab feature narrative; this doc is the system of record for architecture
 

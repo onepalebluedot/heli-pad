@@ -6,7 +6,10 @@
 
 A modern, iOS-inspired mobile web application designed for stress-free family handoffs, activity relays, and parental coordination.
 
-> **Architecture:** see [`SYSTEM.md`](./SYSTEM.md) for the system document (domain, integrations, evolution). This HTML app is the **UX / feature lab** — long-term production is not intended to remain HTML.
+> **Architecture:** see [`SYSTEM.md`](./SYSTEM.md) for the system document (domain, integrations, evolution),
+> [`design.md`](./design.md) for the design language, and [`BUILD.md`](./BUILD.md) for the implementation spec
+> — stack, schemas, Google/weather/data integration, and a phased build plan.
+> This HTML app is the **UX / feature lab** — long-term production is not intended to remain HTML.
 
 
 **Live Web App**: [https://heli-pad.vercel.app](https://heli-pad.vercel.app)
