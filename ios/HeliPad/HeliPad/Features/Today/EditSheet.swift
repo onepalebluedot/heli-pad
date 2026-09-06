@@ -113,6 +113,13 @@ struct EditSheet: View {
                 .font(.subheadline)
                 .foregroundStyle(TodayTheme.muted)
 
+            // Lab contract (b090167): show pre-snooze / pre-edit stash — not post-bump values.
+            if let was = vm.wasSummary {
+                Text(was)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(TodayTheme.muted)
+            }
+
             Button("Send") { vm.sendToCrew() }
                 .buttonStyle(HeroPrimaryButton())
             // Don’t notify is tap-only — never swipe dismissal.
