@@ -2453,97 +2453,898 @@
       border-radius: 7px;
     }
 
-    /* Family Screen */
-    .family-section-title {
-      font-size: 12px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      margin: 14px 2px 8px;
+    /* ==========================================================================
+       "FAMILY" SCREEN — Household logistics, caregiver workload balance,
+       commonly used locations & event templates, and kids' activity statistics.
+       Drawn in Go's warm design language: ivory canvas, forest tone card,
+       serif masthead, compact sans-serif tabular numbers, and zero-scroll swapping.
+       ========================================================================== */
+    .family-screen {
+      --g-canvas: #f6f4ed;
+      --g-paper:  #fffef8;
+      --g-ink:    #233d33;
+      --g-slate:  #687469;
+      --g-line:   #dfe2d6;
+      --g-forest: #235746;
+      --g-olive:  #55532e;
+      --g-clay:   #814d3c;
+      --g-butter: #e9e7bc;
+      --g-ochre:  #ad722d;
+      --g-warn:   #9a482c;
+      color: var(--g-ink);
+      margin: -2px 0 0;
+      padding-bottom: 24px;
     }
-    .family-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+    .family-screen button, .fam-sheet button, .fam-sheet input, .fam-sheet select {
+      color: inherit;
+      font-family: inherit;
     }
-    .person {
-      padding: 14px 12px;
-      text-align: center;
-      border-radius: var(--radius-lg);
-    }
-    .person .avatar {
-      width: 44px;
-      height: 44px;
-      margin: 0 auto 8px;
-      font-size: 16px;
-    }
-    .person b {
-      display: block;
-      font-size: 14px;
-      font-weight: 800;
-    }
-    .person span {
-      display: block;
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-    .person-tag {
-      display: inline-block;
-      font-size: 10px;
-      font-weight: 800;
-      padding: 2px 7px;
-      border-radius: 999px;
-      margin-top: 5px;
-    }
-    .load {
-      height: 5px;
-      border-radius: 999px;
-      margin-top: 9px;
-      background: #e2e8f0;
-      overflow: hidden;
-    }
-    .load i {
-      display: block;
-      height: 100%;
-      border-radius: 999px;
-      background: linear-gradient(90deg, #0284c7, #4f46e5);
-      transition: width 0.35s ease;
+    .family-screen button:focus-visible,
+    .fam-sheet button:focus-visible,
+    .fam-sheet input:focus-visible,
+    .fam-sheet select:focus-visible {
+      outline: 3px solid #af612d;
+      outline-offset: 3px;
     }
 
-    .location-control-grid {
-      display: grid;
-      gap: 10px;
-    }
-    .location-control {
-      padding: 13px 15px;
-      border-radius: var(--radius-lg);
-    }
-    .location-control-head {
+    /* Masthead */
+    .fam-masthead {
       display: flex;
+      align-items: center;
       justify-content: space-between;
       gap: 10px;
+      margin: 7px 0 14px;
+    }
+    .fam-masthead > div { min-width: 0; }
+    .fam-masthead h1 {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-weight: 400;
+      letter-spacing: -0.045em;
+      font-size: 27px;
+      line-height: 1.08;
+      margin: 5px 0 0;
+    }
+    .fam-eyebrow {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--g-slate);
+      margin: 0;
+    }
+    .fam-seal {
+      display: block;
+      width: 38px;
+      height: 38px;
+      color: var(--g-ochre);
+      flex: 0 0 auto;
+      transform: rotate(-12deg);
+    }
+    .fam-seal svg { display: block; width: 100%; height: 100%; }
+
+    /* Hero Tone Card: Mom & Dad Workload Balance */
+    .fam-hero-card {
+      position: relative;
+      overflow: hidden;
+      border-radius: 26px;
+      padding: 18px 18px 16px;
+      background: var(--g-forest);
+      color: var(--g-paper);
+      box-shadow: 0 10px 18px -12px #203f3366;
+      transition: background 0.4s ease;
+    }
+    .fam-hero-card::after {
+      content: '';
+      position: absolute;
+      width: 200px;
+      height: 200px;
+      right: -120px;
+      top: 20px;
+      border: 1px solid #ffffff17;
+      border-radius: 50%;
+      box-shadow: 0 0 0 28px #ffffff08, 0 0 0 56px #ffffff04;
+      pointer-events: none;
+    }
+    .fam-hero-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .fam-hero-eyebrow {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #ffffff85;
+    }
+    .fam-hero-toggle {
+      display: inline-flex;
+      background: #ffffff18;
+      border: 1px solid #ffffff24;
+      border-radius: 999px;
+      padding: 2px;
+      gap: 2px;
+    }
+    .fam-hero-toggle button {
+      border: 0;
+      background: transparent;
+      color: #ffffff99;
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: 0.04em;
+      padding: 3px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .fam-hero-toggle button[aria-pressed='true'] {
+      background: #ffffff2e;
+      color: #ffffff;
+    }
+    .fam-hero-body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+    .fam-dial-wrap {
+      position: relative;
+      width: 148px;
+      height: 148px;
+      flex: 0 0 auto;
+    }
+    .fam-dial-wrap svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      transform: rotate(-90deg);
+    }
+    .fam-dial-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      text-align: center;
+    }
+    .fam-dial-ratio {
+      font-size: 28px;
+      font-weight: 750;
+      letter-spacing: -0.04em;
+      line-height: 0.95;
+      font-variant-numeric: tabular-nums;
+    }
+    .fam-dial-sub {
+      font-size: 8.5px;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: #ffffff80;
+    }
+
+    /* Caregiver split stats on the right */
+    .fam-split-col {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .fam-split-row {
+      background: #ffffff12;
+      border: 1px solid #ffffff1a;
+      border-radius: 14px;
+      padding: 8px 11px;
+    }
+    .fam-split-row-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 5px;
+    }
+    .fam-split-caregiver {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 750;
+    }
+    .fam-split-caregiver .go-mark {
+      width: 24px;
+      height: 24px;
+      font-size: 10.5px;
+      border: 0;
+    }
+    .fam-split-counts {
+      font-size: 12px;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+    }
+    .fam-split-counts span {
+      font-size: 9.5px;
+      font-weight: 650;
+      color: #ffffff85;
+      margin-left: 2px;
+    }
+    .fam-split-track {
+      height: 4px;
+      border-radius: 2px;
+      background: #ffffff1f;
+      overflow: hidden;
+    }
+    .fam-split-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.5s ease;
+    }
+
+    /* Status & Hero Actions */
+    .fam-hero-status {
+      margin-top: 12px;
+      font-size: 11px;
+      font-weight: 650;
+      color: #cde0cf;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .fam-hero-status strong {
+      color: #ffffff;
+      font-weight: 750;
+    }
+    .fam-hero-actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .fam-btn {
+      border: 0;
+      border-radius: 12px;
+      min-height: 44px;
+      padding: 10px 14px;
+      font-size: 12.5px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: transform 0.12s, filter 0.15s;
+    }
+    .fam-btn:active { transform: scale(0.978); }
+    .fam-btn.primary { background: var(--g-butter); color: #283e2d; }
+    .fam-btn.ghost {
+      background: transparent;
+      color: var(--g-paper);
+      border: 1px solid #ffffff40;
+      font-size: 12.5px;
+      padding: 10px 14px;
+    }
+
+    /* --- Segmented Scope Swapper (Zero-Scroll Architecture) --- */
+    .fam-scope {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin: 18px 0 0;
+      padding: 5px;
+      background: var(--g-paper);
+      border: 1px solid var(--g-line);
+      border-radius: 16px;
+    }
+    .fam-scope-seg {
+      flex: 1;
+      min-width: 0;
+      border: 0;
+      background: transparent;
+      border-radius: 12px;
+      min-height: 44px;
+      padding: 6px 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      cursor: pointer;
+      transition: background 0.18s, color 0.18s;
+    }
+    .fam-scope-seg .fam-seg-icon {
+      font-size: 14px;
+      line-height: 1;
+      opacity: 0.7;
+    }
+    .fam-scope-seg strong {
+      font-size: 10.5px;
+      font-weight: 750;
+      letter-spacing: 0.01em;
+      color: var(--g-slate);
+      white-space: nowrap;
+    }
+    .fam-scope-seg[aria-pressed='true'] {
+      background: #e6e9db;
+    }
+    .fam-scope-seg[aria-pressed='true'] .fam-seg-icon {
+      opacity: 1;
+    }
+    .fam-scope-seg[aria-pressed='true'] strong {
+      color: var(--g-ink);
+    }
+
+    /* --- Family Panels Container --- */
+    .fam-panel {
+      margin-top: 18px;
+    }
+    .fam-panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .fam-panel-head h2 {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      margin: 0;
+    }
+    .fam-action-link {
+      border: 0;
+      background: transparent;
+      color: var(--g-forest);
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 6px;
+      border-radius: 6px;
+    }
+    .fam-action-link:hover { text-decoration: underline; }
+
+    /* Panel: Kids Weekly Stats */
+    .fam-kids-chips {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 14px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .fam-chip {
+      background: transparent;
+      border: 1px solid var(--g-line);
+      padding: 6px 12px 6px 8px;
+      border-radius: 30px;
+      min-height: 36px;
+      font-size: 11px;
+      font-weight: 650;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.18s, border-color 0.18s;
+    }
+    .fam-chip em { font-style: normal; font-size: 14px; line-height: 1; }
+    .fam-chip[aria-pressed='true'] {
+      background: #e6e9db;
+      border-color: #cbd3bd;
+      font-weight: 750;
+      color: var(--g-ink);
+    }
+
+    /* Metric Counters */
+    .fam-metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .fam-metric-card {
+      background: var(--g-paper);
+      border: 1px solid var(--g-line);
+      border-radius: 16px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 3px #2357460a;
+    }
+    .fam-metric-label {
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--g-slate);
+      margin-bottom: 4px;
+    }
+    .fam-metric-val {
+      font-size: 22px;
+      font-weight: 750;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+      color: var(--g-ink);
+    }
+    .fam-metric-sub {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--g-slate);
+      margin-top: 3px;
+    }
+
+    /* Category Distribution Graphic Bar */
+    .fam-cat-box {
+      background: var(--g-paper);
+      border: 1px solid var(--g-line);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .fam-cat-bar {
+      display: flex;
+      height: 12px;
+      border-radius: 6px;
+      overflow: hidden;
+      margin: 8px 0 12px;
+      background: #ecebe0;
+      gap: 1px;
+    }
+    .fam-cat-seg {
+      height: 100%;
+      transition: width 0.4s ease;
+    }
+    .fam-cat-legend {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px 12px;
+    }
+    .fam-cat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 650;
+    }
+    .fam-cat-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+    }
+    .fam-cat-item span {
+      margin-left: auto;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+      color: var(--g-slate);
+    }
+
+    /* Kids cards */
+    .fam-kids-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .fam-kid-card {
+      background: var(--g-paper);
+      border: 1px solid var(--g-line);
+      border-radius: 16px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .fam-kid-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: #fbfaf3;
+      border: 1px solid var(--g-line);
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      flex: 0 0 auto;
+    }
+    .fam-kid-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .fam-kid-name {
+      font-size: 13.5px;
+      font-weight: 750;
+      margin: 0 0 2px;
+    }
+    .fam-kid-stat-line {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--g-slate);
+    }
+    .fam-kid-driver-pill {
+      font-size: 10.5px;
+      font-weight: 750;
+      padding: 4px 8px;
+      border-radius: 8px;
+      background: #e6e9db;
+      color: var(--g-forest);
+      white-space: nowrap;
+    }
+
+    /* Panel: Locations & Starting Points */
+    .fam-start-venues {
+      background: var(--g-paper);
+      border: 1px solid var(--g-line);
+      border-radius: 16px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+    .fam-start-venues h3 {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--g-slate);
+      margin: 0 0 10px;
+    }
+    .fam-start-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .fam-start-box {
+      background: #fbfaf3;
+      border: 1px solid #e8e9dd;
+      border-radius: 12px;
+      padding: 8px 10px;
+    }
+    .fam-start-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 750;
+      margin-bottom: 4px;
+    }
+    .fam-start-select {
+      width: 100%;
+      border: 1px solid var(--g-line);
+      background: var(--g-paper);
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-size: 11.5px;
+      font-weight: 650;
+      color: var(--g-ink);
+      outline: none;
+    }
+
+    /* Locations List */
+    .fam-loc-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .fam-loc-card {
+      background: var(--g-paper);
+      border: 1px solid var(--g-line);
+      border-radius: 16px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .fam-loc-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 11px;
+      background: #fbfaf3;
+      border: 1px solid #e8e9dd;
+      display: grid;
+      place-items: center;
+      font-size: 17px;
+      flex: 0 0 auto;
+    }
+    .fam-loc-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .fam-loc-title {
+      font-size: 13px;
+      font-weight: 750;
+      margin: 0 0 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .fam-loc-address {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--g-slate);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .fam-loc-eta {
+      font-size: 10.5px;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+      color: var(--g-forest);
+      background: #e7eedf;
+      padding: 3px 7px;
+      border-radius: 7px;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+    .fam-loc-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .fam-icon-btn {
+      border: 0;
+      background: transparent;
+      color: var(--g-slate);
+      font-size: 13px;
+      padding: 6px;
+      border-radius: 8px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .fam-icon-btn:hover {
+      background: #e6e9db;
+      color: var(--g-ink);
+    }
+
+    /* Panel: Templates */
+    .fam-tpl-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .fam-tpl-card {
+      background: var(--g-paper);
+      border: 1px solid var(--g-line);
+      border-radius: 16px;
+      padding: 13px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .fam-tpl-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .fam-tpl-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .fam-tpl-title {
+      font-size: 13.5px;
+      font-weight: 750;
+      margin: 0 0 4px;
+    }
+    .fam-tpl-chips {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .fam-tpl-chip {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #f1f2e8;
+      color: var(--g-ink);
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .fam-tpl-chip.lead {
+      background: #e7eedf;
+      color: var(--g-forest);
+    }
+    .fam-tpl-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--g-line);
+      margin-top: 2px;
+    }
+    .fam-tpl-venue {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--g-slate);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .fam-tpl-sched-btn {
+      border: 0;
+      background: var(--g-forest);
+      color: var(--g-paper);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 6px 12px;
+      border-radius: 9px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      flex: 0 0 auto;
+      transition: transform 0.12s;
+    }
+    .fam-tpl-sched-btn:active { transform: scale(0.96); }
+
+    /* Panel: Roster & Rules */
+    .fam-crew-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .fam-crew-card {
+      background: var(--g-paper);
+      border: 1px solid var(--g-line);
+      border-radius: 16px;
+      padding: 12px;
+      text-align: center;
+    }
+    .fam-crew-card .go-mark {
+      margin: 0 auto 6px;
+      width: 36px;
+      height: 36px;
+      font-size: 13px;
+    }
+    .fam-crew-name {
+      font-size: 13px;
+      font-weight: 750;
+      margin: 0;
+    }
+    .fam-crew-role {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--g-slate);
+      margin-top: 2px;
+    }
+    .fam-crew-mins {
+      margin-top: 6px;
+      font-size: 11px;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+      color: var(--g-forest);
+    }
+    .fam-rules-box {
+      background: var(--g-paper);
+      border: 1px solid var(--g-line);
+      border-radius: 16px;
+      padding: 14px;
+    }
+    .fam-rules-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .fam-rule-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--g-line);
+    }
+    .fam-rule-row:last-child {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+    .fam-rule-copy {
+      flex: 1;
+      min-width: 0;
+    }
+    .fam-rule-copy b {
+      display: block;
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .fam-rule-copy span {
+      display: block;
+      font-size: 10px;
+      font-weight: 550;
+      color: var(--g-slate);
+      margin-top: 1px;
+    }
+    .fam-toggle {
+      width: 38px;
+      height: 22px;
+      border-radius: 11px;
+      background: #dfe2d6;
+      border: 0;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex: 0 0 auto;
+    }
+    .fam-toggle::after {
+      content: '';
+      position: absolute;
+      left: 2px;
+      top: 2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+      transition: transform 0.2s;
+    }
+    .fam-toggle[aria-checked='true'] {
+      background: var(--g-forest);
+    }
+    .fam-toggle[aria-checked='true']::after {
+      transform: translateX(16px);
+    }
+
+    /* --- Family Sheet Extensions (reusing .go-sheet-backdrop) --- */
+    .fam-form-group {
+      margin-bottom: 14px;
+    }
+    .fam-form-group label {
+      display: block;
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--g-slate);
       margin-bottom: 6px;
     }
-    .location-control-head b {
-      font-size: 13.5px;
-      font-weight: 800;
-    }
-    .location-control-head span {
-      font-size: 11px;
-      color: var(--muted);
-    }
-    .location-control select {
+    .fam-form-input {
       width: 100%;
-      border: 1.5px solid var(--line);
-      background: white;
-      border-radius: 10px;
-      padding: 7px 10px;
-      color: var(--ink);
+      border: 1px solid var(--g-line);
+      background: var(--g-canvas);
+      border-radius: 12px;
+      padding: 10px 12px;
       font-size: 13px;
       font-weight: 600;
+      color: var(--g-ink);
       outline: none;
+      box-sizing: border-box;
+    }
+    .fam-icon-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+    }
+    .fam-icon-pick-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--g-line);
+      background: var(--g-canvas);
+      border-radius: 10px;
+      font-size: 16px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .fam-icon-pick-btn[aria-pressed='true'] {
+      background: #e6e9db;
+      border-color: var(--g-forest);
+      box-shadow: 0 0 0 1px var(--g-forest);
+    }
+    .fam-day-picker-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+      margin-top: 10px;
     }
 
     /* ==========================================================================
@@ -4150,59 +4951,48 @@
           </div>
         </div>
 
-        <!-- Screen: Family -->
-        <div class="screen" data-screen="family">
-          <div class="family-section-title">Primary Caregivers & Starting Points</div>
-          <div class="location-control-grid">
-            <div class="card location-control">
-              <div class="location-control-head">
-                <b>Mom</b>
-                <span>Default Work/Start Venue</span>
-              </div>
-              <select id="momLocationSelect"></select>
+        <!-- Screen: Family (Redesigned in Go's warm design language) -->
+        <div class="screen family-screen" data-screen="family">
+          <!-- Masthead: Georgia serif, eyebrow, line emblem -->
+          <div class="fam-masthead">
+            <div>
+              <p class="fam-eyebrow">HOUSEHOLD LOGISTICS</p>
+              <h1>Family Base</h1>
             </div>
-            <div class="card location-control">
-              <div class="location-control-head">
-                <b>Dad</b>
-                <span>Default Work/Start Venue</span>
-              </div>
-              <select id="dadLocationSelect"></select>
-            </div>
+            <span class="fam-seal" role="img" aria-label="Family Hub">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 10.5 12 3l9 7.5V20a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 20z"/>
+                <path d="M9 21v-6a3 3 0 0 1 6 0v6"/>
+                <circle cx="12" cy="7" r="1.5" fill="currentColor"/>
+              </svg>
+            </span>
           </div>
 
-          <div class="section-title">
-            <h2>Weekly Driving Distribution</h2>
-            <button class="section-action-btn" id="familyBalanceBtn">Rebalance</button>
-          </div>
-          <div class="family-grid" id="familyGrid"></div>
+          <!-- Hero: Mom & Dad Workload Balance Dashboard -->
+          <div class="fam-hero-card" id="famHeroCard"></div>
 
-          <div class="family-section-title" style="margin-top:20px;">Caregiver Smart Rules</div>
-          <div class="card checklist">
-            <div class="check-row">
-              <div class="avatar" style="background:#0284c7;font-size:12px;">D</div>
-              <div class="check-copy">
-                <b>Dad handles morning drop-offs</b>
-                <span>Preferred tie-breaker before Dad's work morning meetings</span>
-              </div>
-              <button class="check-action">Active</button>
-            </div>
-            <div class="check-row">
-              <div class="avatar" style="background:#4f46e5;font-size:12px;">M</div>
-              <div class="check-copy">
-                <b>Mom coordinates pediatric visits</b>
-                <span>Prioritizes clinic checkups unless impossible commute overlap</span>
-              </div>
-              <button class="check-action">Active</button>
-            </div>
-            <div class="check-row">
-              <div class="avatar" style="background:#d946ef;font-size:12px;">N</div>
-              <div class="check-copy">
-                <b>Nani & Grandma on backup roster</b>
-                <span>Can be tagged for overlapping afternoon lessons</span>
-              </div>
-              <button class="check-action">Backup</button>
-            </div>
+          <!-- Segmented Scope Swapper (Zero-Scroll Architecture) -->
+          <div class="fam-scope" id="famScope">
+            <button class="fam-scope-seg active" data-fampanel="kids" aria-pressed="true">
+              <span class="fam-seg-icon">📊</span>
+              <strong>Kids Stats</strong>
+            </button>
+            <button class="fam-scope-seg" data-fampanel="places" aria-pressed="false">
+              <span class="fam-seg-icon">📍</span>
+              <strong>Locations</strong>
+            </button>
+            <button class="fam-scope-seg" data-fampanel="events" aria-pressed="false">
+              <span class="fam-seg-icon">⚡</span>
+              <strong>Templates</strong>
+            </button>
+            <button class="fam-scope-seg" data-fampanel="crew" aria-pressed="false">
+              <span class="fam-seg-icon">👥</span>
+              <strong>Roster & Rules</strong>
+            </button>
           </div>
+
+          <!-- Dynamic Panel swapped in place without scrolling -->
+          <div class="fam-panel" id="famPanel"></div>
         </div>
       </section>
 
@@ -4487,6 +5277,137 @@
         </div>
       </div>
 
+      <!-- ======================================================================
+           FAMILY SCREEN: ADD / EDIT LOCATION SHEET
+           ====================================================================== -->
+      <div class="go-sheet-backdrop" id="famLocationBackdrop" hidden>
+        <div class="go-sheet" role="dialog" aria-modal="true" aria-labelledby="famLocationTitle">
+          <div class="go-sheet-grip" aria-hidden="true"></div>
+          <div class="go-sheet-head">
+            <h2 id="famLocationTitle">Saved location</h2>
+            <button class="go-sheet-close" id="famLocationCloseBtn" aria-label="Close">✕</button>
+          </div>
+          <div class="go-sheet-body">
+            <input type="hidden" id="famLocEditIndex" value="-1" />
+            <div class="fam-form-group">
+              <label for="famLocName">Location Name</label>
+              <input type="text" id="famLocName" class="fam-form-input" placeholder="e.g. Martial Arts Studio" />
+            </div>
+            <div class="fam-form-group">
+              <label for="famLocAddress">Address / Description</label>
+              <input type="text" id="famLocAddress" class="fam-form-input" placeholder="e.g. 520 Park Boulevard" />
+            </div>
+            <div class="fam-form-group">
+              <label>Icon Glyph</label>
+              <div class="fam-icon-grid" id="famLocIconGrid"></div>
+            </div>
+            <div class="fam-form-group">
+              <label for="famLocEta">Travel Time from Home (Minutes)</label>
+              <input type="number" id="famLocEta" class="fam-form-input" min="1" max="90" value="15" />
+            </div>
+          </div>
+          <div class="go-sheet-foot">
+            <button class="fam-btn primary" id="famSaveLocBtn">Save location</button>
+            <button class="fam-btn ghost" id="famDeleteLocBtn" style="display:none;color:var(--g-warn);border-color:var(--g-line);">Delete location</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================================================================
+           FAMILY SCREEN: ADD / EDIT EVENT TEMPLATE SHEET
+           ====================================================================== -->
+      <div class="go-sheet-backdrop" id="famTemplateBackdrop" hidden>
+        <div class="go-sheet" role="dialog" aria-modal="true" aria-labelledby="famTemplateTitle">
+          <div class="go-sheet-grip" aria-hidden="true"></div>
+          <div class="go-sheet-head">
+            <h2 id="famTemplateTitle">Event template</h2>
+            <button class="go-sheet-close" id="famTemplateCloseBtn" aria-label="Close">✕</button>
+          </div>
+          <div class="go-sheet-body">
+            <input type="hidden" id="famTplEditId" value="" />
+            <div class="fam-form-group">
+              <label for="famTplTitle">Event Title</label>
+              <input type="text" id="famTplTitle" class="fam-form-input" placeholder="e.g. Swim Team Practice" />
+            </div>
+            <div class="fam-form-group">
+              <label>Child</label>
+              <div class="fam-kids-chips" id="famTplKidChips"></div>
+            </div>
+            <div class="fam-form-group">
+              <label>Default Driver</label>
+              <div class="fam-kids-chips" id="famTplDriverChips"></div>
+            </div>
+            <div class="fam-form-group">
+              <label for="famTplLocation">Location</label>
+              <select id="famTplLocation" class="fam-form-input"></select>
+            </div>
+            <div class="fam-form-group">
+              <label for="famTplDuration">Duration (Minutes)</label>
+              <input type="number" id="famTplDuration" class="fam-form-input" min="15" max="180" step="15" value="60" />
+            </div>
+            <div class="fam-form-group">
+              <label for="famTplCategory">Category</label>
+              <select id="famTplCategory" class="fam-form-input">
+                <option value="Sports">Sports</option>
+                <option value="Arts">Arts & Music</option>
+                <option value="School">School & Academics</option>
+                <option value="Health">Health & Wellness</option>
+                <option value="Family">Family & Social</option>
+              </select>
+            </div>
+          </div>
+          <div class="go-sheet-foot">
+            <button class="fam-btn primary" id="famSaveTplBtn">Save template</button>
+            <button class="fam-btn ghost" id="famDeleteTplBtn" style="display:none;color:var(--g-warn);border-color:var(--g-line);">Delete template</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================================================================
+           FAMILY SCREEN: QUICK SCHEDULE TEMPLATE TO DAY
+           ====================================================================== -->
+      <div class="go-sheet-backdrop" id="famScheduleBackdrop" hidden>
+        <div class="go-sheet" role="dialog" aria-modal="true" aria-labelledby="famScheduleTitle">
+          <div class="go-sheet-grip" aria-hidden="true"></div>
+          <div class="go-sheet-head">
+            <h2 id="famScheduleTitle">Schedule event</h2>
+            <button class="go-sheet-close" id="famScheduleCloseBtn" aria-label="Close">✕</button>
+          </div>
+          <div class="go-sheet-body">
+            <div id="famSchedulePreview" style="margin-bottom:14px;"></div>
+            <div class="fam-form-group">
+              <label>Select Day to Schedule</label>
+              <div class="fam-day-picker-grid" id="famScheduleDayGrid"></div>
+            </div>
+            <div class="fam-form-group">
+              <label for="famScheduleTime">Start Time</label>
+              <input type="time" id="famScheduleTime" class="fam-form-input" value="16:00" />
+            </div>
+          </div>
+          <div class="go-sheet-foot">
+            <button class="fam-btn primary" id="famConfirmScheduleBtn">Add to Schedule</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================================================================
+           FAMILY SCREEN: WORKLOAD REBALANCE SHEET
+           ====================================================================== -->
+      <div class="go-sheet-backdrop" id="famRebalanceBackdrop" hidden>
+        <div class="go-sheet" role="dialog" aria-modal="true" aria-labelledby="famRebalanceTitle">
+          <div class="go-sheet-grip" aria-hidden="true"></div>
+          <div class="go-sheet-head">
+            <h2 id="famRebalanceTitle">Workload rebalance</h2>
+            <button class="go-sheet-close" id="famRebalanceCloseBtn" aria-label="Close">✕</button>
+          </div>
+          <div class="go-sheet-body" id="famRebalanceBody"></div>
+          <div class="go-sheet-foot">
+            <button class="fam-btn primary" id="famApplyRebalanceBtn">Apply balanced assignments</button>
+            <button class="fam-btn ghost" id="famDismissRebalanceBtn" style="color:var(--g-ink);border-color:var(--g-line);">Keep current schedule</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Toast Feedback -->
       <div class="toast" id="toast">Updated</div>
     </div>
@@ -4497,6 +5418,24 @@
   const STORAGE_KEY = 'heli-pad-events-v6';
   const LOCATION_KEY = 'heli-pad-locations-v6';
   const SETTINGS_KEY = 'heli-pad-settings-v6';
+  const TEMPLATES_KEY = 'heli-pad-templates-v1';
+  const RULES_KEY = 'heli-pad-rules-v1';
+
+  const defaultTemplates = [
+    { id: 'tpl_1', title: 'School Morning Drop-off', kid: 'Soni', owner: 'Dad', location: 'Oak Ridge Elementary', duration: 30, mode: 'Drive', category: 'School' },
+    { id: 'tpl_2', title: 'Soccer Practice', kid: 'Noah', owner: 'Dad', location: 'Lakeside Sports Complex', duration: 75, mode: 'Drive', category: 'Sports' },
+    { id: 'tpl_3', title: 'Football Practice Pickup', kid: 'Maya', owner: 'Mom', location: 'North Athletic Field', duration: 60, mode: 'Drive', category: 'Sports' },
+    { id: 'tpl_4', title: 'Piano Lesson & Rehearsal', kid: 'Maya', owner: 'Mom', location: 'Community Center', duration: 45, mode: 'Drive', category: 'Arts' },
+    { id: 'tpl_5', title: 'Pediatric Wellness Visit', kid: 'All', owner: 'Mom', location: 'Pediatric Clinic', duration: 45, mode: 'Drive', category: 'Health' },
+    { id: 'tpl_6', title: 'Family Dinner & Game Night', kid: 'All', owner: 'Family', location: 'Home', duration: 90, mode: 'Home', category: 'Family' }
+  ];
+
+  const defaultSmartRules = [
+    { id: 'rule_1', title: 'Dad handles morning drop-offs', desc: "Preferred tie-breaker before Dad's work morning meetings", active: true },
+    { id: 'rule_2', title: 'Mom coordinates pediatric visits', desc: 'Prioritizes clinic checkups unless impossible commute overlap', active: true },
+    { id: 'rule_3', title: 'Nani & Grandma on backup roster', desc: 'Can be tagged for overlapping afternoon lessons', active: true },
+    { id: 'rule_4', title: 'Protected dinner window (6:30 PM)', desc: 'Flags departures that infringe on evening family dinner', active: true }
+  ];
 
   const defaultEvents = {
     0:[
@@ -4580,6 +5519,13 @@
     goAddField:null,    // Go new-stop sheet: which field's picker is open
     expandedEventIds:new Set(),
     selectedEventId:null,
+    familyActivePanel:'kids',
+    familyKidStatsFilter:'All',
+    familyBalanceScope:'week',
+    activeScheduleTplId:null,
+    pendingRebalanceSwaps:[],
+    templates:JSON.parse(localStorage.getItem(TEMPLATES_KEY) || 'null') || structuredClone(defaultTemplates),
+    smartRules:JSON.parse(localStorage.getItem(RULES_KEY) || 'null') || structuredClone(defaultSmartRules),
     eventsByDay:JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || structuredClone(defaultEvents),
     locations:JSON.parse(localStorage.getItem(LOCATION_KEY) || 'null') || structuredClone(defaultLocations),
     ...defaultSettings,
@@ -4629,6 +5575,8 @@
   function saveState(){
     localStorage.setItem(STORAGE_KEY,JSON.stringify(state.eventsByDay));
     localStorage.setItem(LOCATION_KEY,JSON.stringify(state.locations));
+    localStorage.setItem(TEMPLATES_KEY,JSON.stringify(state.templates));
+    localStorage.setItem(RULES_KEY,JSON.stringify(state.smartRules));
     localStorage.setItem(SETTINGS_KEY,JSON.stringify({
       buffer:state.buffer,
       synced:state.synced,
@@ -5506,28 +6454,1016 @@
     });
   }
 
-  function renderFamily(){
-    const weeklyDrive={Mom:0,Dad:0,Nani:0,Grandma:0};
-    for(let day=0;day<7;day++){
-      const {plan}=calculateDayPlan(day);
-      plan.forEach(e=>{if(weeklyDrive[e.lead]!==undefined)weeklyDrive[e.lead]+=e.eta});
+  /* ==========================================================================
+     FAMILY SCREEN CONTROLLER & RENDERING SUITE
+     Go-style warm design: Workload balance dashboard, zero-scroll panel swapping,
+     saved locations & templates, kids weekly activity statistics.
+     ========================================================================== */
+
+  // Workload computation for Mom and Dad
+  function calcFamilyWorkload(scope = 'week'){
+    let momTasks = 0, dadTasks = 0;
+    let momDrive = 0, dadDrive = 0;
+
+    const daysToCount = (scope === 'today') ? [state.todayIndex] : [0, 1, 2, 3, 4, 5, 6];
+    for(const d of daysToCount){
+      const { plan } = calculateDayPlan(d);
+      for(const e of plan){
+        if(e.lead === 'Mom'){
+          momTasks++;
+          momDrive += (e.eta || 0);
+        } else if(e.lead === 'Dad'){
+          dadTasks++;
+          dadDrive += (e.eta || 0);
+        }
+      }
     }
-    const max=Math.max(1,weeklyDrive.Mom,weeklyDrive.Dad);
-    const family=[
-      {name:'Mom',role:`${state.parentLocations.Mom} · Primary`,detail:`${weeklyDrive.Mom} drive mins this week`,tag:'Primary Driver',initials:'M',bg:'#4f46e5',tagBg:'#eef2ff',tagColor:'#4f46e5',load:Math.round(weeklyDrive.Mom/max*100)},
-      {name:'Dad',role:`${state.parentLocations.Dad} · Primary`,detail:`${weeklyDrive.Dad} drive mins this week`,tag:'Primary Driver',initials:'D',bg:'#0284c7',tagBg:'#e0f2fe',tagColor:'#0284c7',load:Math.round(weeklyDrive.Dad/max*100)},
-      {name:'Nani',role:'Secondary Caregiver',detail:`${weeklyDrive.Nani} mins · Piano backup`,tag:'On-Call Backup',initials:'N',bg:'#d946ef',tagBg:'#fdf4ff',tagColor:'#c026d3',load:20},
-      {name:'Grandma',role:'Secondary Caregiver',detail:`${weeklyDrive.Grandma} mins · Friday early pickup`,tag:'On-Call Backup',initials:'G',bg:'#10b981',tagBg:'#f0fdf4',tagColor:'#16a34a',load:15}
+    const totalTasks = momTasks + dadTasks;
+    const momPct = totalTasks > 0 ? Math.round((momTasks / totalTasks) * 100) : 50;
+    const dadPct = 100 - momPct;
+
+    return {
+      momTasks,
+      dadTasks,
+      momDrive,
+      dadDrive,
+      totalTasks,
+      momPct,
+      dadPct,
+      scope
+    };
+  }
+
+  // Draw Balance Dial SVG
+  function drawBalanceDialSvg(w){
+    const R = 54;
+    const C = 2 * Math.PI * R; // ~339.29
+    const momArc = (w.momPct / 100) * C;
+    const dadArc = C - momArc;
+
+    const angleRad = (w.momPct / 100) * 2 * Math.PI;
+    const beadX = 74 + R * Math.cos(angleRad);
+    const beadY = 74 + R * Math.sin(angleRad);
+
+    let ticks = '';
+    for(let i = 0; i < 12; i++){
+      const a = (i / 12) * 2 * Math.PI;
+      const x1 = 74 + (R - 5) * Math.cos(a);
+      const y1 = 74 + (R - 5) * Math.sin(a);
+      const x2 = 74 + (R - 1) * Math.cos(a);
+      const y2 = 74 + (R - 1) * Math.sin(a);
+      const major = i % 3 === 0;
+      ticks += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#ffffff${major ? '40' : '20'}" stroke-width="${major ? 2 : 1.2}" stroke-linecap="round"/>`;
+    }
+
+    return `
+      <svg viewBox="0 0 148 148">
+        <circle cx="74" cy="74" r="${R}" fill="none" stroke="#ffffff1f" stroke-width="9"/>
+        <circle cx="74" cy="74" r="${R}" fill="none" stroke="#bda170" stroke-width="9"
+          stroke-dasharray="${momArc} ${C}" stroke-dashoffset="0" stroke-linecap="round"/>
+        <circle cx="74" cy="74" r="${R}" fill="none" stroke="#7fa375" stroke-width="9"
+          stroke-dasharray="${dadArc} ${C}" stroke-dashoffset="-${momArc}" stroke-linecap="round"/>
+        ${ticks}
+        <circle cx="${beadX.toFixed(1)}" cy="${beadY.toFixed(1)}" r="4.5" fill="#fffef8" stroke="#235746" stroke-width="1.5" style="filter:drop-shadow(0 0 4px #ffffff99);"/>
+      </svg>
+      <div class="fam-dial-center">
+        <div class="fam-dial-ratio">${w.momTasks}:${w.dadTasks}</div>
+        <div class="fam-dial-sub">Tasks Split</div>
+      </div>
+    `;
+  }
+
+  function renderFamilyHero(){
+    const el = $('#famHeroCard');
+    if(!el) return;
+    const w = calcFamilyWorkload(state.familyBalanceScope);
+
+    let statusHtml = '';
+    const diff = w.dadTasks - w.momTasks;
+    if(Math.abs(diff) <= 1){
+      statusHtml = `<span>⚖️</span> <span><strong>Equitable balance</strong> (within 1 task of 50/50)</span>`;
+    } else if(diff > 1){
+      statusHtml = `<span>⚠️</span> <span><strong>Dad carries +${diff} tasks</strong> (${w.dadDrive - w.momDrive > 0 ? '+' + (w.dadDrive - w.momDrive) + 'm drive' : 'higher task load'})</span>`;
+    } else {
+      statusHtml = `<span>⚠️</span> <span><strong>Mom carries +${Math.abs(diff)} tasks</strong> (${w.momDrive - w.dadDrive > 0 ? '+' + (w.momDrive - w.dadDrive) + 'm drive' : 'higher task load'})</span>`;
+    }
+
+    el.innerHTML = `
+      <div class="fam-hero-head">
+        <div class="fam-hero-eyebrow">Mom & Dad Workload Balance</div>
+        <div class="fam-hero-toggle">
+          <button type="button" class="${state.familyBalanceScope === 'week' ? 'active' : ''}" aria-pressed="${state.familyBalanceScope === 'week'}" onclick="window.famSetBalanceScope('week')">This Week</button>
+          <button type="button" class="${state.familyBalanceScope === 'today' ? 'active' : ''}" aria-pressed="${state.familyBalanceScope === 'today'}" onclick="window.famSetBalanceScope('today')">Today</button>
+        </div>
+      </div>
+      <div class="fam-hero-body">
+        <div class="fam-dial-wrap">
+          ${drawBalanceDialSvg(w)}
+        </div>
+        <div class="fam-split-col">
+          <div class="fam-split-row">
+            <div class="fam-split-row-top">
+              <div class="fam-split-caregiver">
+                <span class="go-mark" style="background:#e7ddc9;color:#314b37;">M</span>
+                <span>Mom</span>
+              </div>
+              <div class="fam-split-counts">
+                ${w.momTasks}<span>tasks</span> · ${w.momDrive}<span>m</span>
+              </div>
+            </div>
+            <div class="fam-split-track">
+              <div class="fam-split-fill" style="width:${w.momPct}%;background:#bda170;"></div>
+            </div>
+          </div>
+          <div class="fam-split-row">
+            <div class="fam-split-row-top">
+              <div class="fam-split-caregiver">
+                <span class="go-mark" style="background:#dce7d4;color:#314b37;">D</span>
+                <span>Dad</span>
+              </div>
+              <div class="fam-split-counts">
+                ${w.dadTasks}<span>tasks</span> · ${w.dadDrive}<span>m</span>
+              </div>
+            </div>
+            <div class="fam-split-track">
+              <div class="fam-split-fill" style="width:${w.dadPct}%;background:#7fa375;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="fam-hero-status">${statusHtml}</div>
+      <div class="fam-hero-actions">
+        <button type="button" class="fam-btn primary" onclick="window.famOpenRebalance()">
+          <span>⚖️ Rebalance Workload</span>
+        </button>
+        <button type="button" class="fam-btn ghost" onclick="window.famQuickSwapLead()" title="Quick swap lead driver for next pending stop">
+          <span>⇄ Swap Next</span>
+        </button>
+      </div>
+    `;
+  }
+
+  window.famSetBalanceScope = function(scope){
+    state.familyBalanceScope = scope;
+    renderFamilyHero();
+  };
+
+  function renderFamilyScope(){
+    const segs = $$('#famScope .fam-scope-seg');
+    segs.forEach(seg => {
+      const panel = seg.dataset.fampanel;
+      const isAct = panel === state.familyActivePanel;
+      seg.classList.toggle('active', isAct);
+      seg.setAttribute('aria-pressed', isAct ? 'true' : 'false');
+      seg.onclick = () => {
+        state.familyActivePanel = panel;
+        renderFamilyScope();
+        renderFamilyPanel();
+      };
+    });
+  }
+
+  // Kids Weekly Statistics calculation
+  function calcKidsWeeklyStats(kidFilter = 'All'){
+    let totalMinutes = 0;
+    let totalEvents = 0;
+    let transitTrips = 0;
+    const dayCounts = [0, 0, 0, 0, 0, 0, 0];
+    const catMinutes = { Sports: 0, Arts: 0, School: 0, Health: 0, Family: 0 };
+    const driverTrips = { Mom: 0, Dad: 0, Nani: 0, Grandma: 0, Other: 0 };
+
+    const kidTotals = {
+      Maya: { minutes: 0, events: 0, momDrives: 0, dadDrives: 0 },
+      Soni: { minutes: 0, events: 0, momDrives: 0, dadDrives: 0 },
+      Noah: { minutes: 0, events: 0, momDrives: 0, dadDrives: 0 }
+    };
+
+    for(let d = 0; d < 7; d++){
+      const { plan } = calculateDayPlan(d);
+      for(const e of plan){
+        const kidsInEvent = e.kids || [e.kid];
+        const hasMaya = kidsInEvent.includes('Maya') || e.kid === 'All';
+        const hasSoni = kidsInEvent.includes('Soni') || e.kid === 'All';
+        const hasNoah = kidsInEvent.includes('Noah') || e.kid === 'All';
+
+        const matchesFilter = (kidFilter === 'All') ||
+          kidsInEvent.includes(kidFilter) ||
+          e.kid === 'All' ||
+          e.kid === kidFilter;
+
+        const dur = Math.max(15, (e.endTime ? timeToMinutes(e.endTime) : timeToMinutes(e.time) + 60) - timeToMinutes(e.time));
+
+        const t = (e.title + ' ' + e.location).toLowerCase();
+        let cat = 'Family';
+        if(t.includes('soccer') || t.includes('football') || t.includes('skate') || t.includes('swim') || t.includes('sports') || t.includes('gymnastics')){
+          cat = 'Sports';
+        } else if(t.includes('piano') || t.includes('music') || t.includes('robotics') || t.includes('art')){
+          cat = 'Arts';
+        } else if(t.includes('school') || t.includes('drop-off') || t.includes('science fair')){
+          cat = 'School';
+        } else if(t.includes('clinic') || t.includes('dental') || t.includes('pediatric') || t.includes('doctor')){
+          cat = 'Health';
+        }
+
+        if(hasMaya){
+          kidTotals.Maya.minutes += dur;
+          kidTotals.Maya.events++;
+          if(e.lead === 'Mom') kidTotals.Maya.momDrives++;
+          if(e.lead === 'Dad') kidTotals.Maya.dadDrives++;
+        }
+        if(hasSoni){
+          kidTotals.Soni.minutes += dur;
+          kidTotals.Soni.events++;
+          if(e.lead === 'Mom') kidTotals.Soni.momDrives++;
+          if(e.lead === 'Dad') kidTotals.Soni.dadDrives++;
+        }
+        if(hasNoah){
+          kidTotals.Noah.minutes += dur;
+          kidTotals.Noah.events++;
+          if(e.lead === 'Mom') kidTotals.Noah.momDrives++;
+          if(e.lead === 'Dad') kidTotals.Noah.dadDrives++;
+        }
+
+        if(matchesFilter){
+          totalMinutes += dur;
+          totalEvents++;
+          dayCounts[d]++;
+          catMinutes[cat] += dur;
+          if(e.mode === 'Drive' && e.location !== 'Home'){
+            transitTrips++;
+            if(driverTrips[e.lead] !== undefined) driverTrips[e.lead]++;
+            else driverTrips.Other++;
+          }
+        }
+      }
+    }
+
+    let peakDayIdx = 0, maxDayCount = 0;
+    dayCounts.forEach((c, i) => {
+      if(c > maxDayCount){
+        maxDayCount = c;
+        peakDayIdx = i;
+      }
+    });
+
+    const totalHours = (totalMinutes / 60).toFixed(1);
+    const catSportsHours = (catMinutes.Sports / 60).toFixed(1);
+    const catArtsHours = (catMinutes.Arts / 60).toFixed(1);
+    const catSchoolHours = (catMinutes.School / 60).toFixed(1);
+    const catOtherHours = ((catMinutes.Health + catMinutes.Family) / 60).toFixed(1);
+
+    const safeMin = Math.max(1, totalMinutes);
+    const catPct = {
+      Sports: Math.round((catMinutes.Sports / safeMin) * 100),
+      Arts: Math.round((catMinutes.Arts / safeMin) * 100),
+      School: Math.round((catMinutes.School / safeMin) * 100),
+      Other: Math.max(0, 100 - Math.round((catMinutes.Sports / safeMin) * 100) - Math.round((catMinutes.Arts / safeMin) * 100) - Math.round((catMinutes.School / safeMin) * 100))
+    };
+
+    return {
+      totalHours,
+      totalEvents,
+      transitTrips,
+      peakDayName: dayNames[peakDayIdx],
+      peakDayCount: `${maxDayCount} stops`,
+      catHours: { Sports: catSportsHours, Arts: catArtsHours, School: catSchoolHours, Other: catOtherHours },
+      catPct,
+      kidTotals
+    };
+  }
+
+  function renderFamilyKidsStats(){
+    const stats = calcKidsWeeklyStats(state.familyKidStatsFilter);
+
+    const kidsList = [
+      { id: 'All', name: 'All Kids', icon: '👨‍👩‍👧‍👦' },
+      { id: 'Maya', name: 'Maya', icon: '🎨' },
+      { id: 'Soni', name: 'Soni', icon: '🎒' },
+      { id: 'Noah', name: 'Noah', icon: '⚽' }
     ];
-    $('#familyGrid').innerHTML=family.map(p=>`
-      <div class="card person">
-        <div class="avatar" style="background:${p.bg}">${p.initials}</div>
-        <b>${p.name}</b>
-        <span>${p.role}</span>
-        <span class="person-tag" style="background:${p.tagBg};color:${p.tagColor}">${p.tag}</span>
-        <div class="load"><i style="width:${p.load}%"></i></div>
+
+    const chipsHtml = kidsList.map(k => `
+      <button type="button" class="fam-chip ${state.familyKidStatsFilter === k.id ? 'active' : ''}"
+        aria-pressed="${state.familyKidStatsFilter === k.id}"
+        onclick="window.famSetKidStatsFilter('${k.id}')">
+        <em>${k.icon}</em>
+        <span>${k.name}</span>
+      </button>
+    `).join('');
+
+    const kidCardsHtml = ['Maya', 'Soni', 'Noah'].map(name => {
+      const data = stats.kidTotals[name];
+      const hours = (data.minutes / 60).toFixed(1);
+      const icon = kidIcons[name] || '🎒';
+      const totRides = data.momDrives + data.dadDrives;
+      const momPct = totRides > 0 ? Math.round((data.momDrives / totRides) * 100) : 50;
+      const dadPct = 100 - momPct;
+      return `
+        <div class="fam-kid-card">
+          <div class="fam-kid-avatar">${icon}</div>
+          <div class="fam-kid-info">
+            <h4 class="fam-kid-name">${name}</h4>
+            <div class="fam-kid-stat-line">${hours} hrs · ${data.events} scheduled sessions</div>
+          </div>
+          <div class="fam-kid-driver-pill">M ${momPct}% · D ${dadPct}%</div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="fam-panel-head">
+        <h2>Kids' Weekly Activities & Stats</h2>
+        <span class="go-eyebrow">7-Day Aggregate</span>
+      </div>
+
+      <div class="fam-kids-chips">
+        ${chipsHtml}
+      </div>
+
+      <div class="fam-metric-grid">
+        <div class="fam-metric-card">
+          <div class="fam-metric-label">Active Time</div>
+          <div class="fam-metric-val">${stats.totalHours} <small style="font-size:13px;font-weight:650;">hrs</small></div>
+          <div class="fam-metric-sub">Scheduled program window</div>
+        </div>
+        <div class="fam-metric-card">
+          <div class="fam-metric-label">Total Sessions</div>
+          <div class="fam-metric-val">${stats.totalEvents} <small style="font-size:13px;font-weight:650;">stops</small></div>
+          <div class="fam-metric-sub">Across 7 days of schedule</div>
+        </div>
+        <div class="fam-metric-card">
+          <div class="fam-metric-label">Transit Coverage</div>
+          <div class="fam-metric-val">${stats.transitTrips} <small style="font-size:13px;font-weight:650;">rides</small></div>
+          <div class="fam-metric-sub">100% covered by parents</div>
+        </div>
+        <div class="fam-metric-card">
+          <div class="fam-metric-label">Busiest Day</div>
+          <div class="fam-metric-val" style="font-size:18px;">${stats.peakDayName}</div>
+          <div class="fam-metric-sub">${stats.peakDayCount} scheduled</div>
+        </div>
+      </div>
+
+      <div class="fam-cat-box">
+        <div class="fam-metric-label" style="margin-bottom:0;">Activity Distribution by Category</div>
+        <div class="fam-cat-bar">
+          <div class="fam-cat-seg" style="width:${stats.catPct.Sports}%;background:#7fa375;" title="Sports: ${stats.catHours.Sports}h (${stats.catPct.Sports}%)"></div>
+          <div class="fam-cat-seg" style="width:${stats.catPct.Arts}%;background:#bda170;" title="Arts & Music: ${stats.catHours.Arts}h (${stats.catPct.Arts}%)"></div>
+          <div class="fam-cat-seg" style="width:${stats.catPct.School}%;background:#7f9fad;" title="School: ${stats.catHours.School}h (${stats.catPct.School}%)"></div>
+          <div class="fam-cat-seg" style="width:${stats.catPct.Other}%;background:#c2ba6b;" title="Other: ${stats.catHours.Other}h (${stats.catPct.Other}%)"></div>
+        </div>
+        <div class="fam-cat-legend">
+          <div class="fam-cat-item">
+            <span class="fam-cat-dot" style="background:#7fa375;"></span>
+            <span>Sports</span>
+            <span>${stats.catHours.Sports}h</span>
+          </div>
+          <div class="fam-cat-item">
+            <span class="fam-cat-dot" style="background:#bda170;"></span>
+            <span>Arts & Music</span>
+            <span>${stats.catHours.Arts}h</span>
+          </div>
+          <div class="fam-cat-item">
+            <span class="fam-cat-dot" style="background:#7f9fad;"></span>
+            <span>Academics</span>
+            <span>${stats.catHours.School}h</span>
+          </div>
+          <div class="fam-cat-item">
+            <span class="fam-cat-dot" style="background:#c2ba6b;"></span>
+            <span>Family & Social</span>
+            <span>${stats.catHours.Other}h</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="fam-metric-label" style="margin:14px 2px 8px;">Child Activity Intensity & Driver Split</div>
+      <div class="fam-kids-cards">
+        ${kidCardsHtml}
+      </div>
+    `;
+  }
+
+  window.famSetKidStatsFilter = function(id){
+    state.familyKidStatsFilter = id;
+    state.familyActivePanel = 'kids';
+    renderFamilyScope();
+    renderFamilyPanel();
+  };
+
+  function renderFamilyLocations(){
+    const locItemsHtml = state.locations.map((l, idx) => {
+      const eta = travelMinutes('Home', l.name);
+      const isSystem = ['Home', 'Product Office', 'Warren Plant'].includes(l.name);
+      return `
+        <div class="fam-loc-card">
+          <div class="fam-loc-icon">${l.icon || '📍'}</div>
+          <div class="fam-loc-body">
+            <div class="fam-loc-title">${l.name}</div>
+            <div class="fam-loc-address">${l.address || 'Standard Location'}</div>
+          </div>
+          <div class="fam-loc-eta">🚗 ${eta}m</div>
+          <div class="fam-loc-actions">
+            <button type="button" class="fam-icon-btn" onclick="window.famOpenEditLocation(${idx})" title="Edit location">✏️</button>
+            ${!isSystem ? `<button type="button" class="fam-icon-btn" onclick="window.famDeleteLocation(${idx})" title="Delete location">🗑️</button>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="fam-start-venues">
+        <h3>Caregiver Starting Bases</h3>
+        <div class="fam-start-grid">
+          <div class="fam-start-box">
+            <div class="fam-start-label">
+              <span class="go-mark" style="width:20px;height:20px;font-size:10px;background:#e7ddc9;color:#314b37;">M</span>
+              <span>Mom Start</span>
+            </div>
+            <select class="fam-start-select" id="famMomStartSelect" onchange="window.famSetParentStart('Mom', this.value)">
+              ${state.locations.map(l => `<option ${state.parentLocations.Mom === l.name ? 'selected' : ''} value="${l.name}">${l.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="fam-start-box">
+            <div class="fam-start-label">
+              <span class="go-mark" style="width:20px;height:20px;font-size:10px;background:#dce7d4;color:#314b37;">D</span>
+              <span>Dad Start</span>
+            </div>
+            <select class="fam-start-select" id="famDadStartSelect" onchange="window.famSetParentStart('Dad', this.value)">
+              ${state.locations.map(l => `<option ${state.parentLocations.Dad === l.name ? 'selected' : ''} value="${l.name}">${l.name}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="fam-panel-head">
+        <h2>Saved Locations (${state.locations.length})</h2>
+        <button type="button" class="fam-action-link" onclick="window.famOpenAddLocation()">
+          <span>+ Add Location</span>
+        </button>
+      </div>
+
+      <div class="fam-loc-list">
+        ${locItemsHtml}
+      </div>
+    `;
+  }
+
+  window.famSetParentStart = function(parent, venue){
+    state.parentLocations[parent] = venue;
+    saveState();
+    renderAll();
+    toast(`${parent} starting base set to ${venue}`);
+  };
+
+  function renderFamilyTemplates(){
+    const tpls = state.templates || [];
+
+    const tplsHtml = tpls.map(t => {
+      const kidIcon = kidIcons[t.kid] || '🎒';
+      const driverBg = t.owner === 'Mom' ? '#e7ddc9' : (t.owner === 'Dad' ? '#dce7d4' : '#eae7c5');
+      return `
+        <div class="fam-tpl-card">
+          <div class="fam-tpl-card-top">
+            <div class="fam-tpl-info">
+              <h3 class="fam-tpl-title">${t.title}</h3>
+              <div class="fam-tpl-chips">
+                <span class="fam-tpl-chip"><em>${kidIcon}</em> ${t.kid}</span>
+                <span class="fam-tpl-chip lead" style="background:${driverBg};color:#314b37;">Driver: ${t.owner}</span>
+                <span class="fam-tpl-chip">⏱️ ${t.duration} min</span>
+                <span class="fam-tpl-chip">🏷️ ${t.category}</span>
+              </div>
+            </div>
+            <button type="button" class="fam-icon-btn" onclick="window.famOpenEditTemplate('${t.id}')" title="Edit Template">✏️</button>
+          </div>
+          <div class="fam-tpl-actions">
+            <div class="fam-tpl-venue">📍 ${t.location}</div>
+            <button type="button" class="fam-tpl-sched-btn" onclick="window.famOpenSchedule('${t.id}')">
+              <span>⚡ Schedule to Day</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="fam-panel-head">
+        <h2>Reusable Event Templates (${tpls.length})</h2>
+        <button type="button" class="fam-action-link" onclick="window.famOpenAddTemplate()">
+          <span>+ New Template</span>
+        </button>
+      </div>
+
+      <div class="fam-tpl-list">
+        ${tplsHtml}
+      </div>
+    `;
+  }
+
+  function renderFamilyCrew(){
+    const weeklyDrive = { Mom: 0, Dad: 0, Nani: 0, Grandma: 0 };
+    for(let day = 0; day < 7; day++){
+      const { plan } = calculateDayPlan(day);
+      plan.forEach(e => {
+        if(weeklyDrive[e.lead] !== undefined) weeklyDrive[e.lead] += e.eta;
+      });
+    }
+
+    const crew = [
+      { name: 'Mom', role: `${state.parentLocations.Mom} · Primary`, mins: weeklyDrive.Mom, bg: '#e7ddc9', init: 'M' },
+      { name: 'Dad', role: `${state.parentLocations.Dad} · Primary`, mins: weeklyDrive.Dad, bg: '#dce7d4', init: 'D' },
+      { name: 'Nani', role: 'Secondary Caregiver · Piano Backup', mins: weeklyDrive.Nani, bg: '#eadce5', init: 'N' },
+      { name: 'Grandma', role: 'Secondary Caregiver · Friday Early Pickup', mins: weeklyDrive.Grandma, bg: '#dde6ea', init: 'G' }
+    ];
+
+    const crewCardsHtml = crew.map(c => `
+      <div class="fam-crew-card">
+        <div class="go-mark" style="background:${c.bg};color:#314b37;">${c.init}</div>
+        <h3 class="fam-crew-name">${c.name}</h3>
+        <div class="fam-crew-role">${c.role}</div>
+        <div class="fam-crew-mins">${c.mins} drive min this week</div>
       </div>
     `).join('');
+
+    const rulesHtml = state.smartRules.map(r => `
+      <div class="fam-rule-row">
+        <div class="fam-rule-copy">
+          <b>${r.title}</b>
+          <span>${r.desc}</span>
+        </div>
+        <button type="button" class="fam-toggle" aria-checked="${r.active ? 'true' : 'false'}"
+          onclick="window.famToggleRule('${r.id}')" aria-label="Toggle ${r.title}"></button>
+      </div>
+    `).join('');
+
+    return `
+      <div class="fam-panel-head">
+        <h2>Caregiver Roster</h2>
+        <span class="go-eyebrow">Active Crew</span>
+      </div>
+      <div class="fam-crew-grid">
+        ${crewCardsHtml}
+      </div>
+
+      <div class="fam-panel-head" style="margin-top:16px;">
+        <h2>Caregiver Smart Rules</h2>
+        <span class="go-eyebrow">Automation</span>
+      </div>
+      <div class="fam-rules-box">
+        <div class="fam-rules-list">
+          ${rulesHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  window.famToggleRule = function(ruleId){
+    const rule = state.smartRules.find(r => r.id === ruleId);
+    if(rule){
+      rule.active = !rule.active;
+      saveState();
+      renderFamilyPanel();
+      toast(`Rule "${rule.title}" ${rule.active ? 'activated' : 'paused'}`);
+    }
+  };
+
+  function renderFamilyPanel(){
+    const el = $('#famPanel');
+    if(!el) return;
+    switch(state.familyActivePanel){
+      case 'places':
+        el.innerHTML = renderFamilyLocations();
+        break;
+      case 'events':
+        el.innerHTML = renderFamilyTemplates();
+        break;
+      case 'crew':
+        el.innerHTML = renderFamilyCrew();
+        break;
+      case 'kids':
+      default:
+        el.innerHTML = renderFamilyKidsStats();
+        break;
+    }
+  }
+
+  function renderFamilyScreen(){
+    renderFamilyHero();
+    renderFamilyScope();
+    renderFamilyPanel();
+  }
+  window.renderFamilyScreen = renderFamilyScreen;
+
+  function renderFamily(){
+    renderFamilyScreen();
+  }
+
+  /* ==========================================================================
+     FAMILY MODALS & BOTTOM SHEETS CONTROLLER
+     ========================================================================== */
+  const FAM_ICONS = ['🏫', '⚽', '🏢', '🏥', '🎹', '🛍', '🛒', '🏊', '⌂', '🎨', '🥋', '🍦', '🏈', '⛺'];
+  let selectedFamIcon = '📍';
+  let selectedTplKid = 'Maya';
+  let selectedTplDriver = 'Mom';
+  let selectedScheduleDay = 0;
+
+  // --- Location Sheet Handlers ---
+  window.famOpenAddLocation = function(){
+    $('#famLocationTitle').textContent = 'Add Saved Location';
+    $('#famLocEditIndex').value = '-1';
+    $('#famLocName').value = '';
+    $('#famLocAddress').value = '';
+    $('#famLocEta').value = '15';
+    $('#famDeleteLocBtn').style.display = 'none';
+    selectedFamIcon = '📍';
+    famRenderIconGrid();
+    $('#famLocationBackdrop').removeAttribute('hidden');
+  };
+
+  window.famOpenEditLocation = function(idx){
+    const loc = state.locations[idx];
+    if(!loc) return;
+    $('#famLocationTitle').textContent = 'Edit Saved Location';
+    $('#famLocEditIndex').value = String(idx);
+    $('#famLocName').value = loc.name;
+    $('#famLocAddress').value = loc.address || '';
+    $('#famLocEta').value = travelMinutes('Home', loc.name) || 15;
+    const isSystem = ['Home', 'Product Office', 'Warren Plant'].includes(loc.name);
+    $('#famDeleteLocBtn').style.display = isSystem ? 'none' : 'block';
+    selectedFamIcon = loc.icon || '📍';
+    famRenderIconGrid();
+    $('#famLocationBackdrop').removeAttribute('hidden');
+  };
+
+  function famRenderIconGrid(){
+    const grid = $('#famLocIconGrid');
+    if(!grid) return;
+    grid.innerHTML = FAM_ICONS.map(ic => `
+      <button type="button" class="fam-icon-pick-btn ${selectedFamIcon === ic ? 'active' : ''}"
+        aria-pressed="${selectedFamIcon === ic}" onclick="window.famPickIcon('${ic}')">${ic}</button>
+    `).join('');
+  }
+  window.famPickIcon = function(ic){
+    selectedFamIcon = ic;
+    famRenderIconGrid();
+  };
+
+  function famCloseLocationSheet(){
+    $('#famLocationBackdrop').setAttribute('hidden', '');
+  }
+
+  // --- Template Sheet Handlers ---
+  window.famOpenAddTemplate = function(){
+    $('#famTemplateTitle').textContent = 'New Event Template';
+    $('#famTplEditId').value = '';
+    $('#famTplTitle').value = '';
+    selectedTplKid = 'Maya';
+    selectedTplDriver = 'Mom';
+    famRenderTplPickers();
+    $('#famTplLocation').innerHTML = state.locations.map(l => `<option value="${l.name}">${l.name}</option>`).join('');
+    $('#famTplDuration').value = '60';
+    $('#famTplCategory').value = 'Sports';
+    $('#famDeleteTplBtn').style.display = 'none';
+    $('#famTemplateBackdrop').removeAttribute('hidden');
+  };
+
+  window.famOpenEditTemplate = function(id){
+    const tpl = state.templates.find(t => t.id === id);
+    if(!tpl) return;
+    $('#famTemplateTitle').textContent = 'Edit Event Template';
+    $('#famTplEditId').value = id;
+    $('#famTplTitle').value = tpl.title;
+    selectedTplKid = tpl.kid;
+    selectedTplDriver = tpl.owner;
+    famRenderTplPickers();
+    $('#famTplLocation').innerHTML = state.locations.map(l => `<option ${tpl.location === l.name ? 'selected' : ''} value="${l.name}">${l.name}</option>`).join('');
+    $('#famTplDuration').value = tpl.duration || 60;
+    $('#famTplCategory').value = tpl.category || 'Sports';
+    $('#famDeleteTplBtn').style.display = 'block';
+    $('#famTemplateBackdrop').removeAttribute('hidden');
+  };
+
+  function famRenderTplPickers(){
+    const kidContainer = $('#famTplKidChips');
+    if(kidContainer){
+      kidContainer.innerHTML = ['All', 'Maya', 'Soni', 'Noah'].map(k => `
+        <button type="button" class="fam-chip ${selectedTplKid === k ? 'active' : ''}"
+          aria-pressed="${selectedTplKid === k}" onclick="window.famPickTplKid('${k}')">
+          <em>${kidIcons[k] || '🎒'}</em> <span>${k}</span>
+        </button>
+      `).join('');
+    }
+    const driverContainer = $('#famTplDriverChips');
+    if(driverContainer){
+      driverContainer.innerHTML = ['Mom', 'Dad', 'Family'].map(d => `
+        <button type="button" class="fam-chip ${selectedTplDriver === d ? 'active' : ''}"
+          aria-pressed="${selectedTplDriver === d}" onclick="window.famPickTplDriver('${d}')">
+          <span>${d}</span>
+        </button>
+      `).join('');
+    }
+  }
+
+  window.famPickTplKid = function(k){ selectedTplKid = k; famRenderTplPickers(); };
+  window.famPickTplDriver = function(d){ selectedTplDriver = d; famRenderTplPickers(); };
+
+  function famCloseTemplateSheet(){
+    $('#famTemplateBackdrop').setAttribute('hidden', '');
+  }
+
+  // --- Quick Schedule to Day Handlers ---
+  window.famOpenSchedule = function(tplId){
+    state.activeScheduleTplId = tplId;
+    const tpl = state.templates.find(t => t.id === tplId);
+    if(!tpl) return;
+    selectedScheduleDay = state.todayIndex || 0;
+
+    $('#famSchedulePreview').innerHTML = `
+      <div class="fam-tpl-card" style="margin:0;">
+        <h3 class="fam-tpl-title">${tpl.title}</h3>
+        <div class="fam-tpl-chips">
+          <span class="fam-tpl-chip"><em>${kidIcons[tpl.kid] || '🎒'}</em> ${tpl.kid}</span>
+          <span class="fam-tpl-chip lead">Driver: ${tpl.owner}</span>
+          <span class="fam-tpl-chip">⏱️ ${tpl.duration}m</span>
+          <span class="fam-tpl-chip">📍 ${tpl.location}</span>
+        </div>
+      </div>
+    `;
+
+    famRenderScheduleDays();
+    $('#famScheduleBackdrop').removeAttribute('hidden');
+  };
+
+  function famRenderScheduleDays(){
+    const grid = $('#famScheduleDayGrid');
+    if(!grid) return;
+    grid.innerHTML = dayAbbrs.map((d, idx) => `
+      <button type="button" class="go-day ${selectedScheduleDay === idx ? 'active' : ''}"
+        aria-pressed="${selectedScheduleDay === idx}" onclick="window.famPickScheduleDay(${idx})">
+        <span>${d}</span>
+        <strong>${dayDates[idx]}</strong>
+      </button>
+    `).join('');
+  }
+
+  window.famPickScheduleDay = function(idx){
+    selectedScheduleDay = idx;
+    famRenderScheduleDays();
+  };
+
+  function famCloseScheduleSheet(){
+    $('#famScheduleBackdrop').setAttribute('hidden', '');
+  }
+
+  // --- Workload Rebalance Handlers ---
+  window.famOpenRebalance = function(){
+    const w = calcFamilyWorkload('week');
+    const diff = w.dadTasks - w.momTasks;
+
+    const body = $('#famRebalanceBody');
+    if(!body) return;
+
+    state.pendingRebalanceSwaps = [];
+
+    // Find candidate events to propose rebalancing
+    if(diff > 1){
+      // Dad has more; find a Dad event that can shift to Mom
+      for(let d = 0; d < 7; d++){
+        const evs = state.eventsByDay[d] || [];
+        const cand = evs.find(e => e.owner === 'Dad' && e.kid !== 'All' && !e.done);
+        if(cand){
+          state.pendingRebalanceSwaps.push({ day: d, eventId: cand.id, from: 'Dad', to: 'Mom', title: cand.title });
+          break;
+        }
+      }
+    } else if(diff < -1){
+      // Mom has more; find a Mom event that can shift to Dad
+      for(let d = 0; d < 7; d++){
+        const evs = state.eventsByDay[d] || [];
+        const cand = evs.find(e => e.owner === 'Mom' && e.kid !== 'All' && !e.done);
+        if(cand){
+          state.pendingRebalanceSwaps.push({ day: d, eventId: cand.id, from: 'Mom', to: 'Dad', title: cand.title });
+          break;
+        }
+      }
+    }
+
+    if(state.pendingRebalanceSwaps.length === 0){
+      body.innerHTML = `
+        <div style="text-align:center;padding:20px 10px;">
+          <div style="font-size:36px;margin-bottom:10px;">✨</div>
+          <h3 style="font-size:16px;font-weight:750;margin:0 0 6px;">Your schedule is already balanced!</h3>
+          <p style="font-size:12px;color:var(--g-slate);margin:0;">
+            Mom has ${w.momTasks} tasks (${w.momDrive}m drive) and Dad has ${w.dadTasks} tasks (${w.dadDrive}m drive).
+            No rebalancing swaps are needed.
+          </p>
+        </div>
+      `;
+      $('#famApplyRebalanceBtn').style.display = 'none';
+    } else {
+      const s = state.pendingRebalanceSwaps[0];
+      body.innerHTML = `
+        <div style="margin-bottom:14px;">
+          <p style="font-size:12px;color:var(--g-slate);line-height:1.45;margin:0 0 12px;">
+            Current weekly split is <strong>${w.momTasks} tasks for Mom</strong> vs <strong>${w.dadTasks} tasks for Dad</strong>.
+            Reassigning this handoff will equalize the schedule:
+          </p>
+          <div class="fam-tpl-card" style="margin:0;border-color:var(--g-forest);background:#fbfaf3;">
+            <div style="font-size:11px;font-weight:800;color:var(--g-forest);margin-bottom:4px;">PROPOSED REASSIGNMENT</div>
+            <h3 class="fam-tpl-title" style="font-size:14px;">${s.title}</h3>
+            <div style="font-size:11.5px;color:var(--g-ink);margin-top:4px;">
+              <span>${dayNames[s.day]}</span> · Transfer from <strong>${s.from}</strong> → <strong>${s.to}</strong>
+            </div>
+          </div>
+        </div>
+      `;
+      $('#famApplyRebalanceBtn').style.display = 'block';
+    }
+
+    $('#famRebalanceBackdrop').removeAttribute('hidden');
+  };
+
+  window.famQuickSwapLead = function(){
+    // Swap the next pending event driver between Mom and Dad
+    const todayEvents = state.eventsByDay[state.todayIndex] || [];
+    const nextEv = todayEvents.find(e => !e.done && (e.owner === 'Mom' || e.owner === 'Dad'));
+    if(nextEv){
+      const oldOwner = nextEv.owner;
+      nextEv.owner = oldOwner === 'Mom' ? 'Dad' : 'Mom';
+      nextEv.color = ownerColors[nextEv.owner] || '#4f46e5';
+      saveState();
+      renderAll();
+      toast(`Swapped "${nextEv.title}" from ${oldOwner} to ${nextEv.owner}`);
+    } else {
+      toast('No pending Mom/Dad events today to swap.');
+    }
+  };
+
+  function famCloseRebalanceSheet(){
+    $('#famRebalanceBackdrop').setAttribute('hidden', '');
+  }
+
+  // --- Wire up family sheet buttons once DOM is loaded ---
+  function setupFamilySheetListeners(){
+    // Close buttons
+    $('#famLocationCloseBtn')?.addEventListener('click', famCloseLocationSheet);
+    $('#famLocationBackdrop')?.addEventListener('click', e => { if(e.target === $('#famLocationBackdrop')) famCloseLocationSheet(); });
+
+    $('#famTemplateCloseBtn')?.addEventListener('click', famCloseTemplateSheet);
+    $('#famTemplateBackdrop')?.addEventListener('click', e => { if(e.target === $('#famTemplateBackdrop')) famCloseTemplateSheet(); });
+
+    $('#famScheduleCloseBtn')?.addEventListener('click', famCloseScheduleSheet);
+    $('#famScheduleBackdrop')?.addEventListener('click', e => { if(e.target === $('#famScheduleBackdrop')) famCloseScheduleSheet(); });
+
+    $('#famRebalanceCloseBtn')?.addEventListener('click', famCloseRebalanceSheet);
+    $('#famDismissRebalanceBtn')?.addEventListener('click', famCloseRebalanceSheet);
+    $('#famRebalanceBackdrop')?.addEventListener('click', e => { if(e.target === $('#famRebalanceBackdrop')) famCloseRebalanceSheet(); });
+
+    // Location Save / Delete
+    $('#famSaveLocBtn')?.addEventListener('click', () => {
+      const idx = parseInt($('#famLocEditIndex').value, 10);
+      const name = $('#famLocName').value.trim();
+      const addr = $('#famLocAddress').value.trim();
+      const eta = parseInt($('#famLocEta').value, 10) || 15;
+
+      if(!name){
+        toast('Please enter a location name');
+        return;
+      }
+
+      if(idx >= 0){
+        state.locations[idx] = { icon: selectedFamIcon, name, address: addr };
+      } else {
+        state.locations.push({ icon: selectedFamIcon, name, address: addr });
+      }
+
+      if(!routeMatrix['Home']) routeMatrix['Home'] = {};
+      routeMatrix['Home'][name] = eta;
+      if(!routeMatrix[name]) routeMatrix[name] = { Home: eta };
+
+      saveState();
+      renderAll();
+      famCloseLocationSheet();
+      toast(`Saved location "${name}"`);
+    });
+
+    $('#famDeleteLocBtn')?.addEventListener('click', () => {
+      const idx = parseInt($('#famLocEditIndex').value, 10);
+      if(idx >= 0 && idx < state.locations.length){
+        const name = state.locations[idx].name;
+        state.locations.splice(idx, 1);
+        saveState();
+        renderAll();
+        famCloseLocationSheet();
+        toast(`Removed location "${name}"`);
+      }
+    });
+
+    // Template Save / Delete
+    $('#famSaveTplBtn')?.addEventListener('click', () => {
+      const id = $('#famTplEditId').value;
+      const title = $('#famTplTitle').value.trim();
+      const location = $('#famTplLocation').value;
+      const duration = parseInt($('#famTplDuration').value, 10) || 60;
+      const category = $('#famTplCategory').value;
+
+      if(!title){
+        toast('Please enter an event title');
+        return;
+      }
+
+      const tplData = {
+        id: id || `tpl_${Date.now()}`,
+        title,
+        kid: selectedTplKid,
+        owner: selectedTplDriver,
+        location,
+        duration,
+        category,
+        mode: location === 'Home' ? 'Home' : 'Drive'
+      };
+
+      if(id){
+        const existingIdx = state.templates.findIndex(t => t.id === id);
+        if(existingIdx >= 0) state.templates[existingIdx] = tplData;
+      } else {
+        state.templates.push(tplData);
+      }
+
+      saveState();
+      renderAll();
+      famCloseTemplateSheet();
+      toast(`Saved template "${title}"`);
+    });
+
+    $('#famDeleteTplBtn')?.addEventListener('click', () => {
+      const id = $('#famTplEditId').value;
+      if(id){
+        state.templates = state.templates.filter(t => t.id !== id);
+        saveState();
+        renderAll();
+        famCloseTemplateSheet();
+        toast('Template deleted');
+      }
+    });
+
+    // Schedule Confirmation
+    $('#famConfirmScheduleBtn')?.addEventListener('click', () => {
+      const tplId = state.activeScheduleTplId;
+      const tpl = state.templates.find(t => t.id === tplId);
+      if(!tpl) return;
+
+      const time = $('#famScheduleTime').value || '16:00';
+      const startMin = timeToMinutes(time);
+      const endMin = startMin + (tpl.duration || 60);
+      const endTime = minutesToTime(endMin);
+
+      const newEvent = {
+        id: Date.now(),
+        time,
+        endTime,
+        title: tpl.title,
+        owner: tpl.owner,
+        kid: tpl.kid,
+        kids: tpl.kid === 'All' ? ['All'] : [tpl.kid],
+        location: tpl.location,
+        mode: tpl.mode || 'Drive',
+        done: false,
+        color: ownerColors[tpl.owner] || '#4f46e5'
+      };
+
+      if(!state.eventsByDay[selectedScheduleDay]){
+        state.eventsByDay[selectedScheduleDay] = [];
+      }
+      state.eventsByDay[selectedScheduleDay].push(newEvent);
+
+      saveState();
+      renderAll();
+      famCloseScheduleSheet();
+      toast(`Scheduled "${tpl.title}" on ${dayNames[selectedScheduleDay]} at ${time}`);
+    });
+
+    // Rebalance Apply
+    $('#famApplyRebalanceBtn')?.addEventListener('click', () => {
+      if(state.pendingRebalanceSwaps.length > 0){
+        for(const s of state.pendingRebalanceSwaps){
+          const ev = (state.eventsByDay[s.day] || []).find(e => e.id === s.eventId);
+          if(ev){
+            ev.owner = s.to;
+            ev.color = ownerColors[s.to] || '#4f46e5';
+          }
+        }
+        saveState();
+        renderAll();
+        famCloseRebalanceSheet();
+        toast('Workload rebalanced! 50/50 split achieved.');
+      }
+    });
+  }
+
+  // Ensure listeners are registered after document load
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', setupFamilySheetListeners);
+  } else {
+    setupFamilySheetListeners();
   }
 
   /* ==========================================================================
@@ -7178,10 +9114,11 @@
     const app = document.querySelector('.app');
     app.classList.toggle('next-mode', screen === 'next');
     // Go borrows Next's ivory chrome; both live in the same warm design language.
-    app.classList.toggle('go-mode', screen === 'go');
+    app.classList.toggle('go-mode', screen === 'go' || screen === 'family');
     app.classList.toggle('plan-mode', screen === 'plan');
     if (screen === 'plan' && window.renderPlanConcept) window.renderPlanConcept();
     if (screen === 'next' && window.renderNextConcept) window.renderNextConcept();
+    if (screen === 'family' && window.renderFamilyScreen) window.renderFamilyScreen();
     $$('.screen').forEach(s=>s.classList.toggle('active',s.dataset.screen===screen));
     $$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.nav===screen));
     $('.content').scrollTop=0;
@@ -7715,11 +9652,17 @@
   };
 
   $('#openMapsBtn').onclick=()=>toast('Opening navigation...');
-  $('#familyBalanceBtn').onclick=()=>{
-    for(let day=0;day<7;day++)optimizeDay(day);
-    renderAll();
-    toast('Weekly driving distribution normalized');
-  };
+  // The rebuilt Family screen dropped this button. Guarded rather than removed,
+  // because an unguarded null here throws during setup and silently kills every
+  // wiring below it - the profile switcher and all the modal controls.
+  const familyBalanceBtn = $('#familyBalanceBtn');
+  if(familyBalanceBtn){
+    familyBalanceBtn.onclick=()=>{
+      for(let day=0;day<7;day++)optimizeDay(day);
+      renderAll();
+      toast('Weekly driving distribution normalized');
+    };
+  }
   $$('.pin').forEach(pin=>pin.onclick=()=>toast(`Destination: ${pin.dataset.place}`));
 
   // Topbar Caregiver Profile Switcher (Cycles profile)
