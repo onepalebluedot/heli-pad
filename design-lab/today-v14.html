@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Heli-Pad Today · v1.4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --page: #f6f4ed;
+    --green: #235746;
+    --green-mid: #2d6b56;
+    --green-soft: #e7efe9;
+    --cream: #f0ecd4;
+    --cream-btn: #e8e0b8;
+    --ochre: #9a6528;
+    --terracotta: #814d3c;
+    --ink: #1a221e;
+    --muted: #6a736c;
+    --shell: #141916;
+    --pill: #c8dcc8;
+    --caregiver: #235746; /* no indigo */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: #c8c2b4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    color: var(--ink);
+  }
+  .phone {
+    width: 390px;
+    height: 844px;
+    background: var(--page);
+    border-radius: 44px;
+    box-shadow: 0 0 0 10px var(--shell), 0 0 0 12px #0a0d0b, 0 28px 60px rgba(20,28,24,.35);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .notch {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    width: 118px; height: 28px; background: var(--shell); border-radius: 20px; z-index: 8;
+  }
+  .status {
+    display: flex; justify-content: space-between;
+    padding: 16px 26px 0; font-size: 12px; font-weight: 600; z-index: 2;
+  }
+  .scroll { flex: 1; overflow-y: auto; padding: 8px 18px 12px; }
+
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .brand { font-weight: 700; font-size: 1.05rem; letter-spacing: -0.02em; }
+  .brand span { opacity: .45; font-weight: 500; }
+  .top-actions { display: flex; align-items: center; gap: 8px; }
+  .caregiver {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #fff; border: 1px solid #e2ddd0; border-radius: 999px;
+    padding: 4px 10px 4px 4px; font-size: 0.78rem; font-weight: 600;
+  }
+  .caregiver .av {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--caregiver);
+    color: #fff; font-size: 0.65rem; display: grid; place-items: center; font-weight: 700;
+  }
+  .icon-btn {
+    width: 32px; height: 32px; border-radius: 50%; border: 1px solid #e2ddd0;
+    background: #fff; display: grid; place-items: center; color: var(--muted); font-size: 0.85rem;
+  }
+  .icon-btn.quiet { color: var(--muted); }
+  .icon-btn.quiet:hover { color: var(--ink); }
+
+
+  .date-line {
+    font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 4px;
+  }
+  .headline {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .headline h1 {
+    font-family: Fraunces, Georgia, serif;
+    font-weight: 650; font-size: 1.85rem; line-height: 1.1;
+    letter-spacing: -0.03em; max-width: 12ch;
+  }
+  .sun {
+    width: 36px; height: 36px; margin-top: 4px; opacity: .55;
+  }
+
+  .week {
+    display: flex; flex-wrap: nowrap; gap: 4px; margin: 8px 0 12px; overflow-x: auto;
+    padding-bottom: 2px; -webkit-overflow-scrolling: touch;
+  }
+  .week .d {
+    flex: 1 0 0; min-width: 42px; text-align: center;
+    padding: 10px 0 12px;
+    border-radius: 22px; font-size: 0.62rem; font-weight: 600;
+    color: var(--ink); background: transparent;
+  }
+  .week .d b {
+    display: block; font-size: 1.15rem; margin-top: 6px;
+    color: var(--ink); font-weight: 700; letter-spacing: -0.02em;
+  }
+  .week .d::after {
+    content: ""; display: block; width: 5px; height: 5px; border-radius: 50%;
+    background: #d5d0c4; margin: 8px auto 0;
+  }
+  .week .d.on {
+    background: var(--green); color: rgba(255,255,255,.8);
+  }
+  .week .d.on b { color: #fff; }
+  .week .d.on::after {
+    background: #e8c85a; /* mustard/gold status */
+  }
+
+  .switch-row {
+    display: flex; justify-content: flex-end; margin-bottom: 8px;
+  }
+  .switch-row button {
+    border: none; background: none; font: inherit; font-size: 0.72rem;
+    font-weight: 600; color: var(--green); cursor: pointer;
+  }
+
+  /* Hero handoff card — content-rich */
+  .hero {
+    position: relative;
+    background:
+      radial-gradient(90% 70% at 85% 15%, rgba(233,231,188,.16), transparent 55%),
+      radial-gradient(circle at 72% 42%, rgba(255,255,255,.05) 0 18%, transparent 19%),
+      radial-gradient(circle at 72% 42%, rgba(255,255,255,.035) 0 34%, transparent 35%),
+      linear-gradient(165deg, var(--green-mid), var(--green) 55%, #1a4638);
+    border-radius: 26px;
+    padding: 18px 18px 16px;
+    color: #f4f1df;
+    box-shadow: 0 18px 36px rgba(35,87,70,.28), 0 1px 0 rgba(255,255,255,.06) inset;
+    overflow: hidden;
+  }
+  .hero-top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .eyebrow {
+    font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; opacity: .72;
+  }
+  .status-pill {
+    font-size: 0.68rem; font-weight: 600;
+    background: rgba(200,220,200,.22); color: #d5e8d5;
+    border-radius: 999px; padding: 4px 10px;
+  }
+  .status-pill.warn { background: rgba(129,77,60,.35); color: #f0d8c8; }
+  /* Go countdown dial — primary leave-by mark (not a chip) */
+  .dial-wrap {
+    display: flex; align-items: center; justify-content: center;
+    margin: 4px 0 14px;
+  }
+  .dial {
+    position: relative;
+    width: 158px; height: 158px; flex-shrink: 0;
+  }
+  .dial svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
+  .dial .track {
+    fill: none; stroke: rgba(233,231,188,.22); stroke-width: 10;
+  }
+  .dial .arc {
+    fill: none; stroke-width: 10; stroke-linecap: round;
+    transition: stroke-dashoffset 280ms cubic-bezier(0.22, 0.85, 0.28, 1), stroke 180ms ease;
+  }
+  .dial.tone-later .arc { stroke: #e9e7bc; }      /* cream */
+  .dial.tone-soon .arc { stroke: #9a6528; }       /* ochre */
+  .dial.tone-late .arc { stroke: #814d3c; }       /* terracotta */
+  .dial.tone-now .arc { stroke: #814d3c; } /* leave-now = terracotta full */        /* leave-now — Elise may retune */
+  .dial.tone-now .dial-core .num { color: #f0d8c8; }
+  .dial-core {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; pointer-events: none;
+  }
+  .dial-core .num {
+    font-family: Fraunces, Georgia, serif;
+    font-weight: 650; font-size: 2.85rem; line-height: 0.95;
+    letter-spacing: -0.03em; color: #f4f1df;
+  }
+  .dial.tone-soon .dial-core .num { color: #f3ecd0; }
+  .dial.tone-late .dial-core .num { color: #f0d8c8; }
+  .dial-core .unit {
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; opacity: .75; margin-top: 4px;
+  }
+  .dial-meta { flex: 1; min-width: 0; }
+  .dial-meta .leave-label {
+    font-size: 0.65rem; font-weight: 650; letter-spacing: 0.06em;
+    text-transform: uppercase; opacity: .55; margin-bottom: 4px;
+  }
+  .dial-meta .leave-by {
+    font-family: Fraunces, Georgia, serif;
+    font-weight: 650; font-size: 1.15rem; letter-spacing: -0.02em;
+    color: rgba(233,231,188,.78); line-height: 1.15;
+  }
+  .dial-meta .leave-by small {
+    display: block; font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    font-size: 0.68rem; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase; opacity: .65; margin-top: 3px;
+  }
+  @keyframes settle {
+    from { transform: scale(1.04); }
+    to { transform: scale(1); }
+  }
+  @keyframes ring-in {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .dial.settle { animation: settle 280ms cubic-bezier(0.22, 0.85, 0.28, 1) both; }
+  .who-row .mark.backup.ring-draw::after {
+    animation: ring-in 240ms ease-out both;
+  }
+  .buffer {
+    font-size: 0.78rem; opacity: .78; margin-bottom: 14px; line-height: 1.35;
+  }
+  .who-row {
+    display: flex; gap: 10px; align-items: center;
+    background: rgba(0,0,0,.14); border-radius: 14px;
+    padding: 10px 12px; margin-bottom: 14px;
+  }
+  .who-row .mark {
+    width: 38px; height: 38px; border-radius: 11px;
+    background:
+      repeating-linear-gradient(-12deg, rgba(35,87,70,.08) 0 2px, transparent 2px 5px),
+      linear-gradient(145deg, #f7f4e2, var(--cream));
+    color: var(--green);
+    display: grid; place-items: center; font-weight: 700; font-size: 0.9rem;
+    flex-shrink: 0; position: relative;
+    border: 1.5px solid rgba(35,87,70,.25);
+    box-shadow: 0 2px 6px rgba(0,0,0,.12);
+    transform: rotate(-2deg);
+  }
+  .who-row .mark.backup::after {
+    content: ""; position: absolute; inset: -4px; border-radius: 13px;
+    border: 3px solid var(--terracotta);
+    /* single ring — no double halo */
+  }
+  .who-row .txt { font-size: 0.82rem; font-weight: 600; line-height: 1.3; }
+  .who-row .txt small { display: block; font-weight: 500; opacity: .7; font-size: 0.72rem; margin-top: 2px; }
+
+  .spine { margin: 0 4px 14px; }
+  .leg {
+    display: grid; grid-template-columns: 14px 1fr auto; gap: 8px 10px;
+    align-items: start;
+  }
+  .leg + .leg { margin-top: 0; }
+  .dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #fff; margin-top: 3px; box-shadow: 0 0 0 3px rgba(255,255,255,.2);
+  }
+  .dot.end { border-radius: 3px; }
+  .rail {
+    grid-column: 1; width: 2px; height: 22px; background: rgba(255,255,255,.35);
+    margin: 2px auto; border-style: none;
+  }
+  .place { font-size: 0.82rem; font-weight: 600; }
+  .place small { display: block; font-weight: 500; opacity: .65; font-size: 0.7rem; margin-top: 2px; }
+  .when {
+    font-family: Fraunces, Georgia, serif;
+    font-size: 1.05rem; font-weight: 650; text-align: right; white-space: nowrap;
+    letter-spacing: -0.02em;
+  }
+  .when small {
+    display: block; font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    font-weight: 600; opacity: .7; font-size: 0.62rem; letter-spacing: 0.04em;
+    text-transform: uppercase; margin-top: 2px;
+  }
+  .leg.leave .when { color: var(--cream); font-size: 1.25rem; }
+  .leg.arrive .when { opacity: .92; }
+
+  .actions { display: flex; gap: 8px; }
+  .btn-primary {
+    flex: 1; border: none; border-radius: 14px; padding: 12px 14px;
+    background: linear-gradient(180deg, #f3ecd0, var(--cream-btn));
+    color: var(--green);
+    font: inherit; font-weight: 700; font-size: 0.88rem; cursor: pointer;
+    box-shadow: 0 6px 14px rgba(0,0,0,.12), 0 1px 0 rgba(255,255,255,.5) inset;
+  }
+  .btn-ghost {
+    border: 1.5px solid rgba(255,255,255,.35); border-radius: 14px;
+    padding: 12px 16px; background: transparent; color: #f4f1df;
+    font: inherit; font-weight: 650; font-size: 0.88rem; cursor: pointer;
+  }
+
+  .rest-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin: 12px 2px 4px;
+  }
+  .rest-head h2 { font-size: 0.95rem; font-weight: 700; }
+  .rest-head span { font-size: 0.72rem; font-weight: 600; color: var(--muted); }
+
+  .row {
+    background: var(--green-soft); border: 1px solid #d5e0d8; border-radius: 16px;
+    padding: 14px 14px 12px; margin-bottom: 10px;
+    box-shadow: 0 3px 10px rgba(35,87,70,.05);
+    display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start;
+    cursor: pointer; width: 100%; text-align: left; font: inherit; color: inherit;
+  }
+  .row .time {
+    font-family: Fraunces, Georgia, serif; font-weight: 650;
+    font-size: 1.15rem; color: var(--green); min-width: 3.2rem;
+  }
+  /* soon = number color only — no cream chip (avoids second-hero read) */
+  .row .time.soon {
+    color: var(--ochre);
+    background: none; padding: 0; border-radius: 0; font-size: 1.15rem;
+  }
+  .row .meta { font-size: 0.82rem; font-weight: 650; }
+  .row .meta small { display: block; margin-top: 3px; font-weight: 500; color: var(--muted); font-size: 0.72rem; }
+  .row .stamp {
+    width: 34px; height: 34px; border-radius: 9px; border: 1.5px solid rgba(35,87,70,.35);
+    color: var(--green); display: grid; place-items: center; font-weight: 700; font-size: 0.8rem;
+    background:
+      repeating-linear-gradient(-12deg, rgba(35,87,70,.06) 0 2px, transparent 2px 5px),
+      #eef3ef;
+    transform: rotate(1.5deg);
+  }
+  .row .stamp.soon-ink {
+    border-color: var(--ochre); color: var(--ochre);
+  }
+
+  .nav {
+    background: #fff; border-top: 1px solid #e5e1d6;
+    padding: 8px 6px 20px; display: grid; grid-template-columns: repeat(4, 1fr);
+  }
+  .nav button {
+    border: none; background: transparent; font: inherit;
+    font-size: 0.62rem; font-weight: 650; color: var(--muted);
+    padding: 6px 2px; display: flex; flex-direction: column; align-items: center; gap: 5px;
+  }
+  .nav button.on { color: var(--green); }
+  .nav button.on .ico { background: rgba(35,87,70,.12); }
+  .nav .ico {
+    width: 26px; height: 26px; border-radius: 8px; background: #ece8dc;
+    position: relative;
+  }
+  .nav .ico.go::after {
+    content:""; position:absolute; inset:7px; border-radius:50%;
+    border:2px solid currentColor; border-right-color:transparent;
+  }
+  .nav .ico.today::after {
+    content:""; position:absolute; left:6px; right:6px; top:7px; bottom:6px;
+    border:2px solid currentColor; border-radius:3px;
+  }
+  .nav .ico.next::after {
+    content:""; position:absolute; left:8px; right:6px; top:8px; bottom:8px;
+    border-top:2px solid currentColor; border-right:2px solid currentColor;
+    transform: rotate(45deg);
+  }
+  .nav .ico.plan::after {
+    content:""; position:absolute; left:6px; right:6px; top:7px; bottom:6px;
+    border:2px solid currentColor; border-radius:3px;
+  }
+  .nav .ico.plan::before {
+    content:""; position:absolute; left:9px; right:9px; top:5px; height:4px;
+    border-left:2px solid currentColor; border-right:2px solid currentColor;
+  }
+
+  /* Sheet */
+  .scrim {
+    position: absolute; inset: 0; background: rgba(20,28,24,.4);
+    opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 20;
+  }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 21;
+    background: var(--page); border-radius: 22px 22px 0 0;
+    padding: 10px 18px 28px; transform: translateY(110%);
+    transition: transform .28s cubic-bezier(.22,.85,.28,1);
+    box-shadow: 0 -12px 40px rgba(0,0,0,.18);
+  }
+  .sheet.open { transform: translateY(0); }
+  .handle { width: 40px; height: 4px; border-radius: 4px; background: #d5d0c4; margin: 4px auto 14px; }
+  .sheet h3 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+  .sheet .sub { font-size: 0.75rem; color: var(--muted); margin-bottom: 14px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 0.68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .stepper { display: flex; align-items: center; gap: 10px; }
+  .stepper button {
+    width: 36px; height: 36px; border-radius: 10px; border: 1px solid #d9d3c5;
+    background: #fff; font-size: 1.1rem; font-weight: 700; cursor: pointer; color: var(--green);
+  }
+  .stepper .val {
+    font-family: Fraunces, Georgia, serif; font-size: 1.6rem; font-weight: 650;
+    min-width: 4.5rem; text-align: center;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chips button {
+    border: 1px solid #d9d3c5; background: #fff; border-radius: 999px;
+    padding: 6px 12px; font: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer;
+  }
+  .chips button.on { background: var(--green); color: #fff; border-color: var(--green); }
+  .drivers { display: flex; gap: 8px; }
+  .drivers button {
+    flex: 1; border: 1.5px solid #d9d3c5; background: #fff; border-radius: 12px;
+    padding: 10px 6px; font: inherit; font-weight: 650; font-size: 0.8rem; cursor: pointer;
+  }
+  .drivers button.on { background: var(--green); color: #fff; border-color: var(--green); }
+  .sheet-done {
+    width: 100%; margin-top: 8px; border: none; border-radius: 14px;
+    padding: 12px; background: var(--green); color: #fff;
+    font: inherit; font-weight: 700; cursor: pointer;
+  }
+
+  .toast {
+    position: absolute; left: 18px; right: 18px; top: 56px; z-index: 30;
+    background: #1a221e; color: #f4f1df; border-radius: 14px;
+    padding: 12px 14px; font-size: 0.78rem; font-weight: 600; line-height: 1.35;
+    box-shadow: 0 12px 28px rgba(0,0,0,.25);
+    opacity: 0; transform: translateY(-8px); pointer-events: none;
+    transition: opacity .22s, transform .22s;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast small { display: block; font-weight: 500; opacity: .7; margin-top: 4px; font-size: 0.7rem; }
+  .sheet.read .field-edit { display: none; }
+  .sheet.edit .field-read { display: none; }
+  .read-block { margin-bottom: 14px; }
+  .read-block .k { font-size: 0.68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .read-block .v { font-size: 0.95rem; font-weight: 650; }
+  .read-block .v small { display: block; font-weight: 500; color: var(--muted); margin-top: 3px; font-size: 0.75rem; }
+  .nudge {
+    display: flex; align-items: flex-start; gap: 8px;
+    background: var(--green-soft); border-radius: 12px; padding: 10px 12px;
+    font-size: 0.75rem; font-weight: 600; color: var(--green); margin-top: 8px; line-height: 1.35;
+  }
+  .nudge input { margin-top: 2px; }
+  .sheet .btn-ghost.read-edit {
+    border-color: #c5c0b2; color: var(--green); width: 100%; margin-top: 4px;
+  }
+
+  .step-hidden { display: none !important; }
+  .change-summary {
+    background: #fff; border: 1px solid #e5e0d4; border-radius: 14px;
+    padding: 12px; margin-bottom: 12px; font-size: 0.85rem; font-weight: 650; line-height: 1.35;
+  }
+  .change-summary small { display: block; font-weight: 500; color: var(--muted); margin-top: 4px; font-size: 0.72rem; }
+  .warn-overlap {
+    background: #f7f0e4; border: 1px solid #e5d4b8; border-radius: 12px;
+    padding: 10px 12px; font-size: 0.78rem; color: var(--ochre); font-weight: 600;
+    margin-bottom: 12px; line-height: 1.35;
+    /* amber weight, not siren — no red, no shake */
+  }
+  .pings { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .pings .chip {
+    border: 1px solid #d9d3c5; background: #fff; border-radius: 999px;
+    padding: 6px 12px; font: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer;
+    transition: background .18s, color .18s, border-color .18s, box-shadow .18s;
+  }
+  .pings .chip.on {
+    background: var(--green); color: #fff; border-color: var(--green);
+    box-shadow: 0 2px 6px rgba(35,87,70,.18);
+  }
+  /* informed: soft cream weight, not a badge stack */
+  .pings .chip.informed {
+    border-color: var(--ochre);
+    color: var(--ochre);
+    background: linear-gradient(180deg, #f7f5e4, var(--cream));
+  }
+  #btn-send {
+    background: linear-gradient(180deg, #f3ecd0, var(--cream-btn));
+    color: var(--green);
+    box-shadow: 0 6px 14px rgba(0,0,0,.1), 0 1px 0 rgba(255,255,255,.5) inset;
+  }
+  #btn-send:active { transform: scale(0.98); }
+  .ghost-silent {
+    width: 100%; border: none; background: transparent; color: var(--muted);
+    font: inherit; font-size: 0.75rem; font-weight: 600; padding: 10px; margin-top: 4px; cursor: pointer;
+  }
+  .ghost-silent:hover { color: var(--ink); }
+  /* toast = informed confirmation — calm dark, no red flash */
+  .toast.informed {
+    background: var(--green);
+    color: var(--cream);
+  }
+  .toast.informed small { color: rgba(233,231,188,.8); }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .toast.show { animation: toast-in 220ms ease-out both; }
+
+  .rest-head { display: flex; justify-content: space-between; align-items: baseline; margin: 14px 2px 8px; }
+  /* Caregiver text pills under rest-of-day — compact text, not day cells */
+  .facets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 2px 12px;
+    justify-content: flex-start;
+    align-items: center;
+  }
+  .facets.secondary { display: none !important; } /* kid row stays hidden */
+  .facet {
+    flex: 0 0 auto;
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid #c9d4cd;
+    background: #f6f4ed;
+    border-radius: 999px;
+    padding: 3px 10px;
+    margin: 0;
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+    color: #3a5c4d;
+    cursor: pointer;
+    min-width: 0;
+    min-height: 0;
+    height: auto;
+    box-shadow: none;
+  }
+  .facet::after { display: none !important; content: none !important; } /* never status dots */
+  .facet b { display: none !important; } /* never date numerals */
+  .facet.on {
+    background: #dce8df;
+    border-color: #b7cfc0;
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  /* Rest-of-day groups — distinct visual weight (go loudest → home quietest) */
+  .rest-group { margin: 2px 0 14px; }
+  .rest-group h3 {
+    margin: 0 2px 8px;
+    line-height: 1.2;
+  }
+  /* Places to go — primary outbound weight; loudest header */
+  .rest-group[data-group="go"] h3 {
+    font-size: 0.78rem;
+    font-weight: 750;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: var(--green);
+    padding-left: 8px;
+    border-left: 2.5px solid var(--green);
+  }
+  .rest-group[data-group="go"] .row {
+    background: var(--green-soft);
+    border: 1px solid #d5e0d8;
+    box-shadow: 0 3px 10px rgba(35,87,70,.06);
+  }
+  .rest-group[data-group="go"] .row .time {
+    font-size: 1.15rem; color: var(--green);
+  }
+  /* Dinner — warm, medium weight (cream/ochre, not a second hero) */
+  .rest-group[data-group="dinner"] h3 {
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #8a6a3a;
+  }
+  .rest-group[data-group="dinner"] .row {
+    background: #f3efe3;
+    border: 1px solid #e4d9c4;
+    box-shadow: 0 2px 6px rgba(154,101,40,.04);
+    border-radius: 14px;
+    padding: 12px 13px 11px;
+  }
+  .rest-group[data-group="dinner"] .row .time {
+    font-size: 1.05rem; color: #9a6528; font-weight: 600;
+  }
+  .rest-group[data-group="dinner"] .row .stamp {
+    border-radius: 999px;
+    border-color: rgba(154,101,40,.35);
+    color: #9a6528;
+    background: rgba(233,231,188,.45);
+  }
+  /* At home — quietest, flat, no trip chrome */
+  .rest-group[data-group="home"] h3 {
+    font-size: 0.68rem;
+    font-weight: 550;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: #8a918c;
+    font-style: normal;
+  }
+  .rest-group[data-group="home"] .row {
+    background: transparent;
+    border: 1px solid #e5e1d6;
+    box-shadow: none;
+    border-radius: 12px;
+    padding: 10px 12px 9px;
+    margin-bottom: 8px;
+  }
+  .rest-group[data-group="home"] .row .time {
+    font-size: 0.95rem; color: var(--muted); font-weight: 600;
+  }
+  .rest-group[data-group="home"] .row .meta { font-weight: 600; color: #3a423e; }
+  .rest-group[data-group="home"] .row .stamp {
+    width: 28px; height: 28px; border-radius: 8px;
+    border-color: #d5d0c4; color: var(--muted);
+    background: transparent; font-size: 0.7rem;
+  }
+
+  /* Swipe peeks — accelerate, never hide (Samira map) */
+  .swipe-track { position: relative; overflow: hidden; border-radius: inherit; }
+  .swipe-track.hero-track { border-radius: 26px; margin-bottom: 0; }
+  .swipe-peek {
+    position: absolute; inset: 0; display: flex; align-items: center;
+    padding: 0 22px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.02em;
+    pointer-events: none; opacity: 0; transition: opacity .12s;
+  }
+  .swipe-peek.show { opacity: 1; }
+  .swipe-peek.complete { justify-content: flex-start; background: #2a6350; color: #e9e7bc; }
+  .swipe-peek.snooze { justify-content: flex-end; background: #9a6528; color: #f6f4ed; }
+  .swipe-peek.row-complete { background: #dce8df; color: var(--green); border-radius: 16px; }
+  .swipe-peek.row-snooze { background: #f3e6d0; color: var(--ochre); border-radius: 16px; }
+  .swipe-surface {
+    position: relative; z-index: 1; touch-action: pan-y;
+    will-change: transform;
+  }
+  .swipe-surface.dragging { transition: none !important; }
+  /* Peek opacity tracks drag; at threshold, type weight steps up (reads as armed) */
+  .swipe-peek.armed { font-weight: 800; letter-spacing: 0.03em; }
+
+  .hero-overflow {
+    position: absolute; top: 14px; right: 118px; z-index: 3;
+  }
+  .hero-overflow > button.more {
+    width: 32px; height: 32px; border-radius: 10px;
+    border: 1px solid rgba(233,231,188,.35); background: rgba(0,0,0,.16);
+    color: #e9e7bc; font: inherit; font-weight: 700; font-size: 1.1rem;
+    cursor: pointer; line-height: 1;
+  }
+  .hero-menu {
+    position: absolute; right: 0; top: 38px; min-width: 148px;
+    background: #f6f4ed; border-radius: 12px; padding: 6px;
+    box-shadow: 0 12px 28px rgba(0,0,0,.25); display: none;
+  }
+  .hero-menu.open { display: block; }
+  .hero-menu button {
+    display: block; width: 100%; text-align: left; border: none; background: transparent;
+    font: inherit; font-size: 0.82rem; font-weight: 650; color: var(--ink);
+    padding: 10px 12px; border-radius: 8px; cursor: pointer;
+  }
+  .hero-menu button:hover { background: #e7efe9; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="notch" aria-hidden="true"></div>
+  <div class="status"><span>9:41</span><span>●●●▮</span></div>
+  <div class="scroll">
+    <div class="topbar">
+      <div class="brand">Heli<span>-</span>Pad</div>
+      <div class="top-actions">
+        <div class="caregiver"><span class="av">D</span> Dad ⇄</div>
+        <button class="icon-btn" type="button" aria-label="Sync">↑</button>
+        <button class="icon-btn quiet" type="button" aria-label="Alerts"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9"/><path d="M10 20a2 2 0 0 0 4 0" stroke-linecap="round"/></svg></button>
+      </div>
+    </div>
+
+    <p class="date-line" id="date-line">Today · Mon Aug 3</p>
+    <div class="week" id="week" aria-label="Week"></div>
+    <div id="hero-mount"></div>
+    <div class="rest-head"><h2>The rest of the day</h2><span id="rest-count">0 remaining</span></div>
+    <div class="facets" id="care-facets" aria-label="Caregiver filter"></div>
+    <div class="facets secondary" id="kid-facets" hidden aria-hidden="true" aria-label="Child filter"></div>
+    <div id="rest-mount"></div>
+  </div>
+
+  <nav class="nav" aria-label="Primary">
+    <button type="button"><span class="ico go"></span>Go</button>
+    <button type="button" class="on" aria-current="page"><span class="ico today"></span>Today</button>
+    <button type="button"><span class="ico next"></span>Next</button>
+    <button type="button"><span class="ico plan"></span>Plan</button>
+  </nav>
+
+  <div class="scrim" id="scrim"></div>
+  <div class="toast" id="toast" role="status"></div>
+  <div class="sheet edit" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="handle"></div>
+    <div id="step-edit">
+      <h3 id="sheet-title">Edit handoff</h3>
+      <p class="sub" id="sheet-sub"></p>
+      <div class="field-read" id="read-body"></div>
+      <div class="field-edit">
+        <div class="field">
+          <label>Leave by</label>
+          <div class="stepper">
+            <button type="button" id="dec" aria-label="Minus 5 minutes">−5</button>
+            <div class="val" id="leave-val">2:55</div>
+            <button type="button" id="inc" aria-label="Plus 5 minutes">+5</button>
+          </div>
+          <div class="chips" id="leave-chips"></div>
+        </div>
+        <div class="field">
+          <label>Who’s driving</label>
+          <div class="drivers" id="drivers">
+            <button type="button" data-d="dad">Dad</button>
+            <button type="button" data-d="mom">Mom</button>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="sheet-done" id="sheet-done">Done</button>
+    </div>
+    <div id="step-notify" class="step-hidden">
+      <h3>Tell the crew</h3>
+      <p class="sub">Change that affects someone else</p>
+      <div class="change-summary" id="change-summary"></div>
+      <div class="warn-overlap step-hidden" id="overlap-warn"></div>
+      <div class="field">
+        <label>Who gets told</label>
+        <div class="pings" id="pings"></div>
+      </div>
+      <button type="button" class="sheet-done" id="btn-send">Send</button>
+      <button type="button" class="ghost-silent" id="btn-silent">Don’t notify</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const NOW = { h: 14, m: 55 }; // lab clock 2:55 PM — leave-now demo (full terracotta)
+  const DRIVER_LABEL = { dad: 'Dad takes this one', mom: 'Mom takes this one' };
+  const DRIVER_NAME = { dad: 'Dad', mom: 'Mom' };
+  let VIEWER = 'dad';
+  const TODAY = '2026-08-03';
+  const DAYS = [
+    { id: '2026-08-03', label: 'Today', n: 3, name: 'Mon Aug 3' },
+    { id: '2026-08-04', label: 'Tue', n: 4, name: 'Tue Aug 4' },
+    { id: '2026-08-05', label: 'Wed', n: 5, name: 'Wed Aug 5' },
+    { id: '2026-08-06', label: 'Thu', n: 6, name: 'Thu Aug 6' },
+    { id: '2026-08-07', label: 'Fri', n: 7, name: 'Fri Aug 7' },
+    { id: '2026-08-08', label: 'Sat', n: 8, name: 'Sat Aug 8' },
+    { id: '2026-08-09', label: 'Sun', n: 9, name: 'Sun Aug 9' }
+  ];
+  let selectedDay = TODAY;
+  let careFilter = 'all'; // all | mom | dad
+  let kidFilter = 'all';  // all | Maya | Leo | ...
+
+  let trips = [
+    {
+      id: 'maya-pickup',
+      day: '2026-08-03',
+      kid: 'Maya', stamp: 'M',
+      activity: 'Football pickup',
+      origin: 'Warren Plant', dest: 'North Athletic Field',
+      leaveBy: '14:55', driveMin: 13, bufferMin: 12,
+      arriveBy: '15:20',
+      driver: 'dad',
+      kind: 'handoff',
+      group: 'go'
+    },
+    {
+      id: 'maya-soccer',
+      day: '2026-08-03',
+      kid: 'Maya', stamp: 'M',
+      activity: 'Soccer', place: 'Riverside',
+      leaveBy: '16:40', driveMin: 18, bufferMin: 10,
+      arriveBy: '17:08',
+      driver: 'dad',
+      kind: 'trip',
+      group: 'go'
+    },
+    {
+      id: 'leo-clinic',
+      day: '2026-08-03',
+      kid: 'Leo', stamp: 'L',
+      activity: 'Dr. Patel', place: 'Oak Clinic',
+      leaveBy: '16:55', driveMin: 22, bufferMin: 8,
+      arriveBy: '17:25',
+      driver: 'mom',
+      kind: 'trip',
+      group: 'go'
+    },
+    {
+      id: 'leo-practice-tue',
+      day: '2026-08-04',
+      kid: 'Leo', stamp: 'L',
+      activity: 'Soccer practice', place: 'Riverside',
+      origin: 'Home', dest: 'Riverside',
+      leaveBy: '16:10', driveMin: 15, bufferMin: 10,
+      arriveBy: '16:35',
+      driver: 'dad',
+      kind: 'trip',
+      group: 'go'
+    },
+    {
+      id: 'maya-dentist-wed',
+      day: '2026-08-05',
+      kid: 'Maya', stamp: 'M',
+      activity: 'Dentist', place: 'Bright Smiles',
+      origin: 'Warren Plant', dest: 'Bright Smiles',
+      leaveBy: '14:30', driveMin: 20, bufferMin: 8,
+      arriveBy: '14:58',
+      driver: 'mom',
+      kind: 'trip',
+      group: 'go'
+    },
+    {
+      id: 'dinner-pasta',
+      day: '2026-08-03',
+      kid: '', stamp: 'D',
+      activity: 'Dinner · pasta', place: 'Home',
+      origin: 'Home', dest: 'Home',
+      leaveBy: '17:30', driveMin: 0, bufferMin: 0,
+      arriveBy: '18:00',
+      driver: 'mom',
+      kind: 'dinner',
+      group: 'dinner'
+    },
+    {
+      id: 'home-laundry',
+      day: '2026-08-03',
+      kid: '', stamp: 'H',
+      activity: 'Start laundry', place: 'Home',
+      origin: 'Home', dest: 'Home',
+      leaveBy: '19:00', driveMin: 0, bufferMin: 0,
+      arriveBy: '19:00',
+      driver: 'dad',
+      kind: 'home',
+      group: 'home'
+    },
+    {
+      id: 'home-pack-bags',
+      day: '2026-08-03',
+      kid: 'Maya', stamp: 'M',
+      activity: 'Pack soccer bag', place: 'Home',
+      origin: 'Home', dest: 'Home',
+      leaveBy: '15:45', driveMin: 0, bufferMin: 0,
+      arriveBy: '15:45',
+      driver: 'dad',
+      kind: 'home',
+      group: 'home'
+    }
+  ];
+
+  let editId = null;
+  let sheetMode = 'edit';
+  let driverBefore = null;
+  let leaveBefore = null;
+  let toastTimer = null;
+
+  function parseHM(s) {
+    const [h, m] = s.split(':').map(Number);
+    return h * 60 + m;
+  }
+  function fmtHM(mins) {
+    const h = Math.floor(mins / 60) % 24, m = mins % 60;
+    const hr = ((h + 11) % 12) + 1;
+    return hr + ':' + String(m).padStart(2, '0');
+  }
+  function fmtHMAmpm(mins) {
+    const h = Math.floor(mins / 60) % 24, m = mins % 60;
+    const am = h < 12;
+    const hr = ((h + 11) % 12) + 1;
+    return hr + ':' + String(m).padStart(2, '0') + ' ' + (am ? 'AM' : 'PM');
+  }
+  function nowMins() { return NOW.h * 60 + NOW.m; }
+  function isBackup(t) { return t.driver !== VIEWER; }
+  function leaveIn(t) { return parseHM(t.leaveBy) - nowMins(); }
+  function urgency(t) {
+    const d = leaveIn(t);
+    if (d < 0 || isBackup(t) && d < 25) return d < 0 ? 'late' : (isBackup(t) ? 'backup' : 'soon');
+    if (d <= 30) return 'soon';
+    return 'later';
+  }
+  function rank(t) {
+    const u = urgency(t);
+    if (u === 'late' || (isBackup(t) && leaveIn(t) < 40)) return 3;
+    if (u === 'soon' || u === 'backup') return 2;
+    return 1;
+  }
+  function pickHero(list) {
+    // Hero = your next departure on this profile (not someone else's drive)
+    const mine = list.filter(t => !isBackup(t));
+    const pool = mine.length ? mine : list;
+    return [...pool].sort((a, b) => {
+      const r = rank(b) - rank(a);
+      if (r) return r;
+      return parseHM(a.leaveBy) - parseHM(b.leaveBy);
+    })[0];
+  }
+  function sortLater(list, heroId) {
+    return list.filter(t => t.id !== heroId).sort((a, b) => parseHM(a.leaveBy) - parseHM(b.leaveBy));
+  }
+
+  function statusCopy(t) {
+    const d = leaveIn(t);
+    if (isBackup(t)) return { text: 'You’re the backup', warn: true };
+    if (d < 0) return { text: 'Leaving late', warn: true };
+    if (d === 0) return { text: 'Leave now', warn: true }; // terracotta dial, no pulse
+    if (d <= 20) return { text: 'You have time', warn: false };
+    return { text: 'On track', warn: false };
+  }
+  function leaveHeadline(t) {
+    const d = leaveIn(t);
+    if (d < 0) return 'Leave now · <em>' + Math.abs(d) + '</em> min late';
+    if (d === 0) return 'Leave now';
+    return 'Leave in <em>' + d + '</em> min';
+  }
+
+  function dialTone(t) {
+    const d = leaveIn(t);
+    // leave-now sits between soon and late for dial fill only
+    if (d < 0) return 'late';
+    if (d === 0) return 'now';
+    const u = urgency(t);
+    if (u === 'late' || (isBackup(t) && d < 25)) return 'late';
+    if (u === 'soon' || u === 'backup') return 'soon';
+    return 'later';
+  }
+  function dialMarkup(t, settle) {
+    const d = leaveIn(t);
+    const tone = dialTone(t);
+    const R = 54, C = 2 * Math.PI * R;
+    // Full ring = ~60 min window; past leave = empty/terracotta remnant
+    const windowMin = 60;
+    let frac;
+    if (d < 0) frac = 0.08; // late: thin remnant arc
+    else if (d === 0) frac = 1; // leave-now: full ring + now tone
+    else frac = Math.max(0.08, Math.min(1, d / windowMin));
+    const offset = C * (1 - frac);
+    const abs = Math.abs(d);
+    const num = d < 0 ? abs : (d === 0 ? 0 : d);
+    const unit = d < 0 ? 'min late' : (d === 0 ? 'now' : 'min');
+    const settleCls = settle ? ' settle' : '';
+    // Dial = leave-in only; leave-by lives once on the spine (no duplicate)
+    return `
+      <div class="dial-wrap">
+        <div class="dial tone-${tone}${settleCls}" aria-hidden="true">
+          <svg viewBox="0 0 120 120">
+            <circle class="track" cx="60" cy="60" r="${R}"/>
+            <circle class="arc" cx="60" cy="60" r="${R}"
+              stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"/>
+          </svg>
+          <div class="dial-core">
+            <div class="num">${num}</div>
+            <div class="unit">${unit}</div>
+          </div>
+        </div>
+      </div>`;
+  }
+  function bufferCopy(t) {
+    const d = leaveIn(t);
+    if (d === 0) return 'Depart now · ' + t.driveMin + ' min drive';
+    if (d < 0) return 'Already past leave-by · ' + t.driveMin + ' min trip.';
+    return 'A ' + t.driveMin + ' min trip, with ' + t.bufferMin + ' min to spare when you arrive.';
+  }
+  function whoLine(t) {
+    if (isBackup(t)) {
+      const base = t.kid ? (t.kid + ' · ' + t.activity) : t.activity;
+      return base + ' · you’re the backup';
+    }
+    return t.kid ? (t.kid + ' · ' + t.activity) : t.activity;
+  }
+
+  let playSettle = true;
+  let lastBackup = null;
+
+  function renderHero(t) {
+    const st = statusCopy(t);
+    const leaveM = parseHM(t.leaveBy);
+    const arriveM = parseHM(t.arriveBy);
+    const backup = isBackup(t);
+    const settle = playSettle && (st.warn || backup || lastBackup !== backup);
+    const markCls = 'mark' + (backup ? ' backup' : '') + (settle && backup ? ' ring-draw' : '');
+    return `
+      <article class="hero" aria-label="${t.kid} handoff">
+        <div class="hero-top">
+          <span class="eyebrow">Your next handoff</span>
+          <span class="status-pill${st.warn ? ' warn' : ''}">● ${st.text}</span>
+        </div>
+        <div class="hero-overflow">
+          <button type="button" class="more" data-overflow="${t.id}" aria-label="More actions" aria-haspopup="true">⋯</button>
+          <div class="hero-menu" role="menu">
+            <button type="button" role="menuitem" data-act-complete="${t.id}">Complete</button>
+            <button type="button" role="menuitem" data-act-snooze="${t.id}">+10 min</button>
+          </div>
+        </div>
+        ${dialMarkup(t, settle)}
+        <p class="buffer">${bufferCopy(t)}</p>
+        <div class="who-row">
+          <div class="${markCls}" aria-hidden="true">${t.stamp}</div>
+          <div class="txt">${whoLine(t)}<small>${t.kind === 'handoff' ? 'Handoff' : 'Trip'}</small></div>
+        </div>
+        <div class="spine">
+          <div class="leg leave">
+            <div class="dot"></div>
+            <div class="place">${t.origin}</div>
+            <div class="when">${fmtHMAmpm(leaveM)}<small>leave by</small></div>
+          </div>
+          <div class="leg" style="grid-template-columns: 14px 1fr; margin: -2px 0">
+            <div class="rail"></div><div></div>
+          </div>
+          <div class="leg arrive">
+            <div class="dot end"></div>
+            <div class="place">${t.dest || t.place}<small>Handoff</small></div>
+            <div class="when">${fmtHMAmpm(arriveM)}<small>arrive by</small></div>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn-primary" data-act="directions">Directions</button>
+          <button type="button" class="btn-ghost" data-act="edit" data-id="${t.id}">Edit</button>
+        </div>
+      </article>`;
+  }
+
+  function renderRow(t) {
+    const soon = urgency(t) === 'soon' || urgency(t) === 'backup';
+    const place = t.place || t.dest || '';
+    const title = t.kid ? (t.kid + ' · ' + t.activity) : t.activity;
+    const sub = [place, isBackup(t) ? 'backup' : null].filter(Boolean).join(' · ');
+    const stamp = t.stamp || (t.kid ? t.kid[0] : '·');
+    const g = groupOf(t);
+    // soon color only on go rows — dinner/home keep their group tones
+    const soonCls = (soon && g === 'go') ? ' soon' : '';
+    const soonStamp = (soon && g === 'go') ? ' soon-ink' : '';
+    return `
+      <button type="button" class="row" data-id="${t.id}" data-group="${g}">
+        <div class="time${soonCls}">${fmtHM(parseHM(t.leaveBy))}</div>
+        <div class="meta">${title}<small>${sub}</small></div>
+        <div class="stamp${soonStamp}" aria-hidden="true">${stamp}</div>
+      </button>`;
+  }
+
+  function dayTrips() {
+    return trips.filter(t => t.day === selectedDay);
+  }
+
+  function paintWeek() {
+    const el = document.getElementById('week');
+    if (!el) return;
+    el.innerHTML = DAYS.map(d => {
+      const on = d.id === selectedDay ? ' on' : '';
+      return `<button type="button" class="d${on}" data-day="${d.id}" aria-pressed="${d.id===selectedDay}">${d.label}<b>${d.n}</b></button>`;
+    }).join('');
+    const meta = DAYS.find(d => d.id === selectedDay);
+    const dateLine = document.getElementById('date-line');
+    if (dateLine && meta) {
+      // Date line always mirrors selected week day
+      if (meta.id === TODAY) {
+        dateLine.textContent = 'Today · ' + meta.name; // Today · Mon Aug 3
+      } else {
+        // "Tue Aug 4" → "Tue · Aug 4"
+        dateLine.textContent = meta.name.replace(/^([A-Za-z]+)\s+/, '$1 · ');
+      }
+    }
+    const restHead = document.querySelector('.rest-head h2');
+    if (restHead) {
+      restHead.textContent = (meta && meta.id === TODAY) ? 'The rest of the day' : 'Day ahead';
+    }
+  }
+
+  function paintFacets(list) {
+    const careEl = document.getElementById('care-facets');
+    const kidEl = document.getElementById('kid-facets');
+    if (careEl) {
+      const cares = [
+        { id: 'all', label: 'All' },
+        { id: 'mom', label: 'Mom' },
+        { id: 'dad', label: 'Dad' }
+      ];
+      careEl.innerHTML = cares.map(c =>
+        `<button type="button" class="facet${careFilter===c.id?' on':''}" data-care="${c.id}">${c.label}</button>`
+      ).join('');
+    }
+        if (kidEl) {
+      // Kid row collapsed — dial stays above the fold (Lena soft)
+      kidEl.innerHTML = '';
+      kidEl.setAttribute('hidden', '');
+      kidEl.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  function filterRest(later) {
+    return later.filter(t => {
+      if (careFilter !== 'all' && t.driver !== careFilter) return false;
+      if (kidFilter !== 'all' && t.kid !== kidFilter) return false;
+      return true;
+    });
+  }
+
+  const REST_GROUPS = [
+    { id: 'go', title: 'Places to go' },
+    { id: 'dinner', title: 'Dinner plan' },
+    { id: 'home', title: 'At home' }
+  ];
+
+  function groupOf(t) {
+    return t.group || (t.kind === 'dinner' ? 'dinner' : (t.kind === 'home' ? 'home' : 'go'));
+  }
+
+  function renderGroupedRest(later) {
+    const filtered = filterRest(later);
+    const blocks = [];
+    for (const g of REST_GROUPS) {
+      const items = filtered.filter(t => groupOf(t) === g.id);
+      if (!items.length) continue; // empty groups collapse
+      blocks.push(
+        `<section class="rest-group" data-group="${g.id}">` +
+        `<h3>${g.title}</h3>` +
+        items.map(renderRow).join('') +
+        `</section>`
+      );
+    }
+    if (!blocks.length) {
+      return '<p style="color:var(--muted);font-size:0.8rem;padding:8px 4px">No tasks for this filter.</p>';
+    }
+    return blocks.join('');
+  }
+
+  function render() {
+    paintWeek();
+    const list = dayTrips();
+    const heroMount = document.getElementById('hero-mount');
+    const restMount = document.getElementById('rest-mount');
+    if (!list.length) {
+      heroMount.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;padding:12px 4px">Nothing on this day yet.</p>';
+      restMount.innerHTML = '';
+      paintFacets([]);
+      document.getElementById('rest-count').textContent = '0 remaining';
+      return;
+    }
+    // Hero: hottest Task overall for the day (go/dinner/home) — dial unchanged rules
+    const hero = pickHero(list);
+    const laterAll = sortLater(list, hero.id);
+    paintFacets(list);
+    const filteredCount = filterRest(laterAll).length;
+    restMount.innerHTML = renderGroupedRest(laterAll);
+    document.getElementById('rest-count').textContent = filteredCount + ' remaining';
+    lastBackup = isBackup(hero);
+
+    heroMount.innerHTML = renderHero(hero);
+    const editBtn = document.querySelector('[data-act="edit"]');
+    if (editBtn) editBtn.addEventListener('click', () => openSheet(hero.id, 'edit'));
+    document.querySelectorAll('.row').forEach(el => {
+      el.addEventListener('click', () => openSheet(el.dataset.id, 'read'));
+      wrapRowSwipe(el);
+    });
+    const heroArt = document.querySelector('#hero-mount .hero');
+    if (heroArt) { bindHeroOverflow(heroArt); wrapHeroSwipe(heroArt, hero.id); }
+  }
+
+  function showToast(title, detail, kind) {
+    const el = document.getElementById('toast');
+    el.innerHTML = title + (detail ? '<small>' + detail + '</small>' : '');
+    el.classList.toggle('informed', kind === 'informed' || !kind);
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      el.classList.remove('show');
+      el.classList.remove('informed');
+    }, 3200);
+  }
+
+  function findOverlaps(driverId, exceptId, leaveBy) {
+    const t0 = parseHM(leaveBy);
+    return trips.filter(t => t.id !== exceptId && t.driver === driverId && Math.abs(parseHM(t.leaveBy) - t0) <= 45);
+  }
+
+  function openSheet(id, mode) {
+    editId = id;
+    sheetMode = mode || 'edit';
+    const t = trips.find(x => x.id === id);
+    driverBefore = t.driver;
+    leaveBefore = t.leaveBy;
+    const sheet = document.getElementById('sheet');
+    document.getElementById('step-edit').classList.remove('step-hidden');
+    document.getElementById('step-notify').classList.add('step-hidden');
+    sheet.classList.toggle('edit', sheetMode === 'edit');
+    sheet.classList.toggle('read', sheetMode === 'read');
+    document.getElementById('sheet-title').textContent = sheetMode === 'read' ? 'Trip' : 'Edit handoff';
+    document.getElementById('sheet-sub').textContent = t.kid + ' · ' + t.activity;
+    document.getElementById('sheet-done').textContent = sheetMode === 'read' ? 'Close' : 'Done';
+
+    const leaveM = parseHM(t.leaveBy), arriveM = parseHM(t.arriveBy);
+    const who = isBackup(t) ? 'you’re the backup' : (DRIVER_LABEL[t.driver] || 'Assigned');
+    document.getElementById('read-body').innerHTML = `
+      <div class="read-block"><div class="k">Leave by</div><div class="v">${fmtHMAmpm(leaveM)}<small>${leaveHeadline(t).replace(/<\/?em>/g,'')}</small></div></div>
+      <div class="read-block"><div class="k">Arrive</div><div class="v">${fmtHMAmpm(arriveM)}<small>${t.dest || t.place || ''}</small></div></div>
+      <div class="read-block"><div class="k">Who’s driving</div><div class="v">${who}</div></div>
+      <button type="button" class="btn-ghost read-edit" id="read-to-edit">Edit</button>`;
+
+    document.getElementById('leave-val').textContent = fmtHM(parseHM(t.leaveBy));
+    document.getElementById('leave-chips').innerHTML = [-15,-5,5,15].map(d => {
+      const label = (d > 0 ? '+' : '') + d + ' min';
+      return `<button type="button" data-delta="${d}">${label}</button>`;
+    }).join('');
+    document.querySelectorAll('#drivers button').forEach(b => {
+      b.classList.toggle('on', b.dataset.d === t.driver);
+    });
+
+    document.getElementById('scrim').classList.add('open');
+    sheet.classList.add('open');
+    const rte = document.getElementById('read-to-edit');
+    if (rte) rte.onclick = () => openSheet(id, 'edit');
+  }
+  function closeSheet() {
+    document.getElementById('scrim').classList.remove('open');
+    document.getElementById('sheet').classList.remove('open');
+    editId = null;
+    sheetMode = 'edit';
+  }
+  function applyLeave(mins) {
+    const t = trips.find(x => x.id === editId);
+    mins = ((mins % (24*60)) + (24*60)) % (24*60);
+    t.leaveBy = String(Math.floor(mins/60)).padStart(2,'0') + ':' + String(mins%60).padStart(2,'0');
+    const arr = mins + t.driveMin + t.bufferMin;
+    t.arriveBy = String(Math.floor(arr/60)%24).padStart(2,'0') + ':' + String(arr%60).padStart(2,'0');
+    document.getElementById('leave-val').textContent = fmtHM(mins);
+    document.getElementById('leave-chips').innerHTML = [-15,-5,5,15].map(d => {
+      const label = (d > 0 ? '+' : '') + d + ' min';
+      return `<button type="button" data-delta="${d}">${label}</button>`;
+    }).join('');
+  }
+
+  document.getElementById('dec').onclick = () => {
+    const t = trips.find(x => x.id === editId);
+    applyLeave(parseHM(t.leaveBy) - 5);
+  };
+  document.getElementById('inc').onclick = () => {
+    const t = trips.find(x => x.id === editId);
+    applyLeave(parseHM(t.leaveBy) + 5);
+  };
+  document.getElementById('leave-chips').addEventListener('click', e => {
+    const b = e.target.closest('button[data-delta]');
+    if (!b || !editId) return;
+    const t = trips.find(x => x.id === editId);
+    applyLeave(parseHM(t.leaveBy) + Number(b.dataset.delta));
+  });
+  document.getElementById('drivers').addEventListener('click', e => {
+    const b = e.target.closest('button[data-d]');
+    if (!b) return;
+    const t = trips.find(x => x.id === editId);
+    t.driver = b.dataset.d;
+    playSettle = true;
+    document.querySelectorAll('#drivers button').forEach(x => x.classList.toggle('on', x===b));
+  });
+
+  function needsNotify(t) {
+    const leaveDelta = Math.abs(parseHM(t.leaveBy) - parseHM(leaveBefore));
+    return t.driver !== driverBefore || leaveDelta >= 10;
+  }
+
+  function showNotifyStep(t) {
+    const bits = [];
+    if (t.driver !== driverBefore) bits.push(DRIVER_NAME[t.driver] + ' drives ' + t.kid + ' · ' + t.activity);
+    if (Math.abs(parseHM(t.leaveBy) - parseHM(leaveBefore)) >= 10) bits.push('leave ' + fmtHM(parseHM(t.leaveBy)));
+    document.getElementById('change-summary').innerHTML =
+      bits.join(' · ') + '<small>Was: ' + DRIVER_NAME[driverBefore] + ' · leave ' + fmtHM(parseHM(leaveBefore)) + '</small>';
+
+    const overs = (t.driver !== driverBefore) ? findOverlaps(t.driver, t.id, t.leaveBy) : [];
+    const warn = document.getElementById('overlap-warn');
+    if (overs.length) {
+      const o = overs[0];
+      warn.textContent = DRIVER_NAME[t.driver] + ' also has ' + o.kid + ' · ' + o.activity + ' · leave ' + fmtHM(parseHM(o.leaveBy)) + ' — cards stay separate.';
+      warn.classList.remove('step-hidden');
+    } else {
+      warn.classList.add('step-hidden');
+    }
+
+    const who = new Set();
+    if (t.driver !== driverBefore) { who.add(driverBefore); who.add(t.driver); }
+    if (Math.abs(parseHM(t.leaveBy) - parseHM(leaveBefore)) >= 10 && t.driver === driverBefore) {
+      trips.filter(x => x.kid === t.kid && x.driver !== t.driver).forEach(x => who.add(x.driver));
+      who.add(t.driver === 'dad' ? 'mom' : 'dad');
+    }
+    overs.forEach(() => who.add(t.driver));
+
+    const pingEl = document.getElementById('pings');
+    pingEl.innerHTML = '';
+    [...who].forEach(id => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip on';
+      btn.dataset.id = id;
+      const askConfirm = overs.length && id === t.driver;
+      btn.textContent = askConfirm ? ('Ask ' + DRIVER_NAME[id] + ' to confirm') : DRIVER_NAME[id];
+      btn.onclick = () => btn.classList.toggle('on');
+      pingEl.appendChild(btn);
+    });
+
+    document.getElementById('step-edit').classList.add('step-hidden');
+    document.getElementById('step-notify').classList.remove('step-hidden');
+  }
+
+  function onNotifyStep() {
+    return !document.getElementById('step-notify').classList.contains('step-hidden');
+  }
+  function backToEditFromNotify() {
+    document.getElementById('step-notify').classList.add('step-hidden');
+    document.getElementById('step-edit').classList.remove('step-hidden');
+    document.getElementById('sheet-title').textContent = 'Edit handoff';
+    document.getElementById('sheet-done').textContent = 'Done';
+  }
+  function finishSheet(forceClose) {
+    // read mode close
+    if (sheetMode === 'read') { closeSheet(); render(); return; }
+
+    // Tell the crew: Escape backs to Edit — never advances
+    if (onNotifyStep()) {
+      if (forceClose) backToEditFromNotify();
+      return;
+    }
+
+    // Edit: Escape/scrim discards — never morph into Tell the crew
+    if (forceClose) {
+      // revert pending edits
+      if (editId && leaveBefore != null) {
+        const t = trips.find(x => x.id === editId);
+        if (t) {
+          t.driver = driverBefore;
+          t.leaveBy = leaveBefore;
+          const mins = parseHM(leaveBefore);
+          const arr = mins + t.driveMin + t.bufferMin;
+          t.arriveBy = String(Math.floor(arr/60)%24).padStart(2,'0') + ':' + String(arr%60).padStart(2,'0');
+        }
+      }
+      closeSheet();
+      render();
+      return;
+    }
+
+    if (sheetMode === 'edit' && editId) {
+      const t = trips.find(x => x.id === editId);
+      if (t && needsNotify(t)) {
+        showNotifyStep(t);
+        return;
+      }
+      showToast('Saved', 'No crew impact');
+    }
+    closeSheet();
+    render();
+  }
+
+  function completeNotify(silent) {
+    const t = trips.find(x => x.id === editId);
+    if (silent) showToast('Saved · silent', 'Family was not notified');
+    else {
+      const on = [...document.querySelectorAll('#pings .chip.on')].map(b => b.textContent);
+      showToast('Crew told', on.join(', ') || 'nobody');
+    }
+    playSettle = true;
+    console.log('[heli-notify]', { trip: t && t.id, silent, at: Date.now() });
+    document.getElementById('step-notify').classList.add('step-hidden');
+    document.getElementById('step-edit').classList.remove('step-hidden');
+    closeSheet();
+    render();
+  }
+
+  document.getElementById('sheet-done').onclick = () => finishSheet(false);
+  document.getElementById('btn-send').onclick = () => completeNotify(false);
+  document.getElementById('btn-silent').onclick = () => completeNotify(true);
+  document.getElementById('scrim').onclick = () => {
+    if (!document.getElementById('step-notify').classList.contains('step-hidden')) return;
+    finishSheet(true);
+  };
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (onNotifyStep()) backToEditFromNotify();
+    else finishSheet(true);
+  });
+
+  document.getElementById('care-facets').addEventListener('click', e => {
+    const b = e.target.closest('button[data-care]');
+    if (!b) return;
+    careFilter = b.dataset.care;
+    render();
+  });
+  document.getElementById('kid-facets').addEventListener('click', e => {
+    const b = e.target.closest('button[data-kid]');
+    if (!b) return;
+    kidFilter = b.dataset.kid;
+    render();
+  });
+  document.getElementById('week').addEventListener('click', e => {
+    const b = e.target.closest('button[data-day]');
+    if (!b) return;
+    selectedDay = b.dataset.day;
+    kidFilter = 'all';
+    playSettle = true;
+    render();
+  });
+
+
+  // --- Swipe peeks (Samira map): accelerate, never hide ---
+  const SWIPE_THRESH = 0.4; // 40% width
+
+  function snoozeTrip(id, mins) {
+    const t = trips.find(x => x.id === id);
+    if (!t) return;
+    // Open Edit path with leave bump so ≥10 still runs Tell-the-crew (Samira contract)
+    leaveBefore = t.leaveBy;
+    driverBefore = t.driver;
+    const next = parseHM(t.leaveBy) + mins;
+    t.leaveBy = String(Math.floor(next/60)%24).padStart(2,'0') + ':' + String(next%60).padStart(2,'0');
+    const arr = next + t.driveMin + t.bufferMin;
+    t.arriveBy = String(Math.floor(arr/60)%24).padStart(2,'0') + ':' + String(arr%60).padStart(2,'0');
+    editId = id;
+    sheetMode = 'edit';
+    // If crew-facing (≥10), morph to Tell-the-crew; else toast + render
+    if (needsNotify(t)) {
+      openSheet(id, 'edit');
+      // after sheet paints, jump to notify step
+      setTimeout(() => showNotifyStep(t), 0);
+    } else {
+      showToast('Snoozed +' + mins + ' min', t.kid ? (t.kid + ' · ' + t.activity) : t.activity);
+      playSettle = true;
+      render();
+    }
+  }
+
+  function completeTrip(id) {
+    const t = trips.find(x => x.id === id);
+    if (!t) return;
+    const label = t.kid ? (t.kid + ' · ' + t.activity) : t.activity;
+    trips = trips.filter(x => x.id !== id);
+    showToast('Completed', label + ' · undo 5s');
+    const snapshot = t;
+    const undoTimer = setTimeout(() => {}, 5000);
+    // simple undo: restore if toasted click — lab: auto-clear only
+    setTimeout(() => { /* committed */ }, 5000);
+    playSettle = true;
+    render();
+  }
+
+  function bindSwipe(el, opts) {
+    if (!el || el.dataset.swipeBound) return;
+    el.dataset.swipeBound = '1';
+    const track = el.closest('.swipe-track') || el.parentElement;
+    const peekComplete = track.querySelector('.swipe-peek.complete, .swipe-peek.row-complete');
+    const peekSnooze = track.querySelector('.swipe-peek.snooze, .swipe-peek.row-snooze');
+    let startX = 0, startY = 0, dx = 0, active = false, axis = null;
+
+    function width() { return track.clientWidth || 1; }
+
+    function onStart(x, y) {
+      startX = x; startY = y; dx = 0; active = true; axis = null;
+      el.classList.add('dragging');
+    }
+    function onMove(x, y) {
+      if (!active) return;
+      const adx = x - startX, ady = y - startY;
+      if (!axis) {
+        if (Math.abs(adx) < 8 && Math.abs(ady) < 8) return;
+        axis = Math.abs(adx) > Math.abs(ady) ? 'x' : 'y';
+      }
+      if (axis !== 'x') return;
+      dx = adx;
+      const w = width();
+      const pct = Math.min(1, Math.abs(dx) / w);
+      el.style.transform = 'translateX(' + dx + 'px)';
+      const armed = pct >= SWIPE_THRESH;
+      if (peekComplete) {
+        peekComplete.classList.toggle('show', dx > 12);
+        peekComplete.classList.toggle('armed', dx > 12 && armed);
+        peekComplete.style.opacity = dx > 12 ? String(Math.min(1, pct * 1.4)) : '0';
+      }
+      if (peekSnooze) {
+        peekSnooze.classList.toggle('show', dx < -12);
+        peekSnooze.classList.toggle('armed', dx < -12 && armed);
+        peekSnooze.style.opacity = dx < -12 ? String(Math.min(1, pct * 1.4)) : '0';
+      }
+    }
+    function onEnd() {
+      if (!active) return;
+      active = false;
+      el.classList.remove('dragging');
+      const w = width();
+      const fired = Math.abs(dx) >= w * SWIPE_THRESH && axis === 'x';
+      // Drag settle informs the gesture: commit slides through; cancel eases home
+      const settle = 'transform 280ms cubic-bezier(0.22, 0.85, 0.28, 1)';
+      if (fired) {
+        const dir = dx > 0 ? 1 : -1;
+        el.style.transition = settle;
+        el.style.transform = 'translateX(' + (dir * w * 0.12) + 'px)'; // brief commit overshoot
+        if (dx > 0 && opts.onComplete) opts.onComplete();
+        else if (dx < 0 && opts.onSnooze) opts.onSnooze();
+        setTimeout(() => {
+          el.style.transition = settle;
+          el.style.transform = 'translateX(0)';
+          if (peekComplete) { peekComplete.classList.remove('show', 'armed'); peekComplete.style.opacity = '0'; }
+          if (peekSnooze) { peekSnooze.classList.remove('show', 'armed'); peekSnooze.style.opacity = '0'; }
+          setTimeout(() => { el.style.transition = ''; }, 290);
+        }, 160);
+      } else {
+        el.style.transition = settle;
+        el.style.transform = 'translateX(0)';
+        if (peekComplete) { peekComplete.classList.remove('show', 'armed'); peekComplete.style.opacity = '0'; }
+        if (peekSnooze) { peekSnooze.classList.remove('show', 'armed'); peekSnooze.style.opacity = '0'; }
+        setTimeout(() => { el.style.transition = ''; }, 290);
+      }
+      dx = 0; axis = null;
+    }
+
+    el.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) return;
+      onStart(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+    el.addEventListener('touchmove', e => {
+      if (!active || e.touches.length !== 1) return;
+      onMove(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+    el.addEventListener('touchend', onEnd);
+    el.addEventListener('touchcancel', onEnd);
+
+    // mouse lab testing
+    el.addEventListener('mousedown', e => {
+      onStart(e.clientX, e.clientY);
+      const move = ev => onMove(ev.clientX, ev.clientY);
+      const up = () => { onEnd(); window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+    });
+  }
+
+  function bindHeroOverflow(root) {
+    if (!root) return;
+    const more = root.querySelector('[data-overflow]');
+    const menu = root.querySelector('.hero-menu');
+    if (!more || !menu || more.dataset.bound) return;
+    more.dataset.bound = '1';
+    more.addEventListener('click', e => {
+      e.stopPropagation();
+      menu.classList.toggle('open');
+    });
+    menu.querySelector('[data-act-complete]')?.addEventListener('click', e => {
+      e.stopPropagation();
+      menu.classList.remove('open');
+      completeTrip(more.dataset.overflow);
+    });
+    menu.querySelector('[data-act-snooze]')?.addEventListener('click', e => {
+      e.stopPropagation();
+      menu.classList.remove('open');
+      snoozeTrip(more.dataset.overflow, 10);
+    });
+    document.addEventListener('click', () => menu.classList.remove('open'));
+  }
+
+  function wrapHeroSwipe(heroEl, tripId) {
+    if (!heroEl || heroEl.closest('.swipe-track')) return;
+    const track = document.createElement('div');
+    track.className = 'swipe-track hero-track';
+    track.innerHTML = '<div class="swipe-peek complete">Complete</div><div class="swipe-peek snooze">+10 min</div>';
+    heroEl.parentNode.insertBefore(track, heroEl);
+    track.appendChild(heroEl);
+    heroEl.classList.add('swipe-surface');
+    bindSwipe(heroEl, {
+      onComplete: () => completeTrip(tripId),
+      onSnooze: () => snoozeTrip(tripId, 10)
+    });
+  }
+
+  function wrapRowSwipe(rowEl) {
+    if (!rowEl || rowEl.closest('.swipe-track')) return;
+    const id = rowEl.dataset.id;
+    const track = document.createElement('div');
+    track.className = 'swipe-track';
+    track.style.marginBottom = '10px';
+    track.innerHTML = '<div class="swipe-peek row-complete complete">Complete</div><div class="swipe-peek row-snooze snooze">+10 min</div>';
+    rowEl.parentNode.insertBefore(track, rowEl);
+    track.appendChild(rowEl);
+    rowEl.classList.add('swipe-surface');
+    rowEl.style.marginBottom = '0';
+    bindSwipe(rowEl, {
+      onComplete: () => completeTrip(id),
+      onSnooze: () => snoozeTrip(id, 10)
+    });
+  }
+
+  function bindSheetSwipeDown() {
+    const sheet = document.getElementById('sheet');
+    if (!sheet || sheet.dataset.swipeDown) return;
+    sheet.dataset.swipeDown = '1';
+    let startY = 0, dy = 0, active = false;
+    sheet.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) return;
+      startY = e.touches[0].clientY; dy = 0; active = true;
+    }, { passive: true });
+    sheet.addEventListener('touchmove', e => {
+      if (!active) return;
+      dy = e.touches[0].clientY - startY;
+      if (dy > 0) sheet.style.transform = 'translateY(' + Math.min(dy, 160) + 'px)';
+    }, { passive: true });
+    sheet.addEventListener('touchend', () => {
+      if (!active) return;
+      active = false;
+      sheet.style.transition = 'transform .22s ease-out';
+      if (dy > 80) {
+        // same as Escape: notify → Edit; edit → discard
+        finishSheet(true);
+      }
+      sheet.style.transform = '';
+      setTimeout(() => { sheet.style.transition = ''; }, 240);
+      dy = 0;
+    });
+  }
+
+
+  bindSheetSwipeDown();
+
+  (function bindCaregiverSwipe() {
+    const pill = document.querySelector('.caregiver');
+    if (!pill || pill.dataset.swipe) return;
+    pill.dataset.swipe = '1';
+    pill.style.cursor = 'grab';
+    let sx = 0, dx = 0, active = false;
+    const paint = () => {
+      const v = window.__heliViewer || VIEWER;
+      const av = pill.querySelector('.av');
+      if (av) av.textContent = v === 'dad' ? 'D' : 'M';
+      // text node after av
+      const label = v === 'dad' ? 'Dad' : 'Mom';
+      pill.innerHTML = '<span class="av">' + (v === 'dad' ? 'D' : 'M') + '</span> ' + label + ' ⇄';
+    };
+    const flip = () => {
+      const cur = window.__heliViewer || VIEWER;
+      window.__heliViewer = cur === 'dad' ? 'mom' : 'dad';
+      VIEWER = window.__heliViewer;
+      paint();
+      showToast('Viewer', VIEWER === 'dad' ? 'Dad' : 'Mom');
+      playSettle = true;
+      render();
+      bindCaregiverSwipe(); // rebind after innerHTML wipe
+    };
+    pill.addEventListener('touchstart', e => { if (e.touches.length===1){ sx=e.touches[0].clientX; dx=0; active=true; } }, {passive:true});
+    pill.addEventListener('touchmove', e => { if(active&&e.touches.length===1) dx=e.touches[0].clientX-sx; }, {passive:true});
+    pill.addEventListener('touchend', () => { if(!active)return; active=false; if(Math.abs(dx)>40) flip(); dx=0; });
+    pill.addEventListener('click', e => { /* tap remains discoverable */ flip(); });
+  })();
+
+  window.HeliPadToday = { pickHero, sortLater, trips: () => trips, selectedDay: () => selectedDay };
+  render();
+})();
+</script>
+</body>
+</html>
