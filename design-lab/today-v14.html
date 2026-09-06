@@ -575,11 +575,35 @@
   .rest-group[data-group="dinner"] .row .time {
     font-size: 1.05rem; color: #9a6528; font-weight: 600;
   }
-  .rest-group[data-group="dinner"] .row .stamp {
+  .rest-group[data-group="dinner"] .row .stamp,
+  .row .stamp.meal {
     border-radius: 999px;
     border-color: rgba(154,101,40,.35);
     color: #9a6528;
     background: rgba(233,231,188,.45);
+    position: relative;
+    font-size: 0; /* no letter */
+  }
+  /* Plate / meal mark — rim + flat (not a Dad “D”) */
+  .rest-group[data-group="dinner"] .row .stamp::before,
+  .row .stamp.meal::before {
+    content: "";
+    display: block;
+    width: 14px; height: 14px;
+    border: 1.6px solid currentColor;
+    border-radius: 50%;
+    box-sizing: border-box;
+  }
+  .rest-group[data-group="dinner"] .row .stamp::after,
+  .row .stamp.meal::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 7px; height: 1.5px;
+    margin: -0.75px 0 0 -3.5px;
+    background: currentColor;
+    border-radius: 1px;
+    opacity: 0.85;
   }
   /* At home — quietest, flat, no trip chrome */
   .rest-group[data-group="home"] h3 {
@@ -807,7 +831,7 @@
     {
       id: 'dinner-pasta',
       day: '2026-08-03',
-      kid: '', stamp: 'D',
+      kid: '', stamp: '',
       activity: 'Dinner · pasta', place: 'Home',
       origin: 'Home', dest: 'Home',
       leaveBy: '17:30', driveMin: 0, bufferMin: 0,
@@ -950,7 +974,7 @@
   }
   function bufferCopy(t) {
     const d = leaveIn(t);
-    if (d === 0) return 'Depart now · ' + t.driveMin + ' min drive';
+    if (d === 0) return 'Depart now · ' + t.driveMin + ' min trip';
     if (d < 0) return 'Already past leave-by · ' + t.driveMin + ' min trip.';
     return 'A ' + t.driveMin + ' min trip, with ' + t.bufferMin + ' min to spare when you arrive.';
   }
@@ -1018,8 +1042,10 @@
     const place = t.place || t.dest || '';
     const title = t.kid ? (t.kid + ' · ' + t.activity) : t.activity;
     const sub = [place, isBackup(t) ? 'backup' : null].filter(Boolean).join(' · ');
-    const stamp = t.stamp || (t.kid ? t.kid[0] : '·');
     const g = groupOf(t);
+    // Dinner: plate mark (never a letter — “D” read as Dad)
+    const stamp = g === 'dinner' ? '' : (t.stamp || (t.kid ? t.kid[0] : '·'));
+    const stampCls = g === 'dinner' ? ' meal' : '';
     // soon color only on go rows — dinner/home keep their group tones
     const soonCls = (soon && g === 'go') ? ' soon' : '';
     const soonStamp = (soon && g === 'go') ? ' soon-ink' : '';
@@ -1027,7 +1053,7 @@
       <button type="button" class="row" data-id="${t.id}" data-group="${g}">
         <div class="time${soonCls}">${fmtHM(parseHM(t.leaveBy))}</div>
         <div class="meta">${title}<small>${sub}</small></div>
-        <div class="stamp${soonStamp}" aria-hidden="true">${stamp}</div>
+        <div class="stamp${soonStamp}${stampCls}" aria-hidden="true">${stamp}</div>
       </button>`;
   }
 
