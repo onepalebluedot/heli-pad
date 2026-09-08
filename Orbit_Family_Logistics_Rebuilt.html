@@ -5286,7 +5286,7 @@
 
           <div class="topbar-controls">
             <!-- Active Caregiver Profile Switcher Button (One-tap cycle button) -->
-            <button class="topbar-profile-btn" id="topbarProfileBtn" title="Switch active caregiver profile (Mom, Dad, Nani, Grandma, All)">
+            <button class="topbar-profile-btn" id="topbarProfileBtn" title="Switch active caregiver profile">
               <span class="user-avatar-dot" id="userBadgeIcon">M</span>
               <span id="topbarProfileName">Mom</span>
               <span class="profile-switch-indicator">⇄</span>
@@ -5362,25 +5362,25 @@
             <div class="pin school" data-place="Oak Ridge Elementary"><span><i data-lucide="school" aria-hidden="true"></i></span></div>
             <div class="pin field" data-place="Lakeside Sports Complex"><span><i data-lucide="trophy" aria-hidden="true"></i></span></div>
             <div class="map-overlay">
-              <div class="map-pill">Route Radar · Normal</div>
-              <div class="map-pill" id="mapEta">24 min total</div>
+              <div class="map-pill">Map illustration · preview</div>
+              <div class="map-pill" id="mapEta">Sample route estimates</div>
             </div>
           </div>
 
           <div class="section-title">
-            <h2>Saved Venues & Buffers</h2>
+            <h2>Saved places</h2>
             <button class="section-action-btn" data-open="location">+ Add Venue</button>
           </div>
           <div class="card location-list" id="locationList"></div>
 
           <div class="card slider-card" style="margin-top:14px;">
             <div class="slider-head">
-              <b>Departure Reliability</b>
-              <output id="confidenceOut">94%</output>
+              <b>Arrival buffer</b>
+              <output id="confidenceOut">12 min</output>
             </div>
-            <p class="slider-copy">Calculated from parking turnaround, venue loading buffer, and traffic margin.</p>
-            <input id="confidenceSlider" type="range" min="60" max="99" value="94" />
-            <button class="button-primary" style="margin-top:14px" id="openMapsBtn">Open in Maps</button>
+            <p class="slider-copy">Shared with Go, Plan and Settings. Map distances use sample routes; the illustration is not live navigation.</p>
+            <input id="confidenceSlider" aria-label="Arrival buffer in minutes" type="range" min="0" max="45" value="12" />
+            <button class="button-primary" style="margin-top:14px" id="openMapsBtn">View today’s route in Go</button>
           </div>
         </div>
 
@@ -5709,6 +5709,8 @@
   </main>
 </div>
 
+<script src="app-store.js?v=1"></script>
+<script src="plan-core.js?v=10"></script>
 <script>
   const STORAGE_KEY = 'heli-pad-events-v7';
   const LOCATION_KEY = 'heli-pad-locations-v7';
@@ -5718,7 +5720,7 @@
 
   const APP_ICON_ALIASES = {
     partly: 'cloud-sun', rain: 'cloud-rain', storm: 'cloud-lightning', people: 'users-round',
-    child: 'user-round', pin: 'map-pin', school: 'school', ball: 'circle-dot',
+    arrow:'arrow-right', child: 'user-round', pin: 'map-pin', school: 'school', ball: 'circle-dot',
     music: 'music-2', care: 'briefcase-medical', play: 'palette', meal: 'utensils',
     pencil: 'pencil', calendar: 'calendar-days', navigate: 'navigation',
     Drive: 'car-front', Walk: 'person-standing', Carpool: 'users-round',
@@ -5899,29 +5901,14 @@
     'Kroger Pickup':{'Home':11,'Product Office':15,'Warren Plant':17,'Oak Ridge Elementary':4,'Lakeside Sports Complex':12,'North Athletic Field':14,'Pediatric Clinic':10,'Community Center':7,'Downtown Square':8,'Kroger Pickup':0}
   };
 
-  function saveState(){
-    localStorage.setItem(STORAGE_KEY,JSON.stringify(state.eventsByDay));
-    localStorage.setItem(LOCATION_KEY,JSON.stringify(state.locations));
-    localStorage.setItem(TEMPLATES_KEY,JSON.stringify(state.templates));
-    localStorage.setItem(RULES_KEY,JSON.stringify(state.smartRules));
-    localStorage.setItem(SETTINGS_KEY,JSON.stringify({
-      buffer:state.buffer,
-      synced:state.synced,
-      trafficMode:state.trafficMode,
-      dinnerProtection:state.dinnerProtection,
-      currentUser:state.currentUser,
-      mockTime:state.mockTime,
-      parentLocations:state.parentLocations,
-      people:state.people,
-      homeAddress:state.homeAddress,
-      homePlaceName:state.homePlaceName,
-      timeZone:state.timeZone,
-      notifyLeaveBy:state.notifyLeaveBy,
-      notifyDriverNeeded:state.notifyDriverNeeded,
-      notifyCrew:state.notifyCrew,
-      connections:state.connections
-    }));
-  }
+  const AppStore = AppStoreFactory.create(state, {
+    storage:localStorage,
+    keys:{events:STORAGE_KEY,locations:LOCATION_KEY,templates:TEMPLATES_KEY,rules:RULES_KEY,settings:SETTINGS_KEY},
+    routes:routeMatrix,defaultLocations,
+    render:()=>{renderAll();renderSettings();}
+  });
+  window.AppStore=AppStore;
+  function saveState(){ AppStore.save(); }
 
   function toast(msg){
     const el=$('#toast');
@@ -5963,8 +5950,7 @@
 
   /* Real-time Day Index (0 = Monday .. 6 = Sunday) */
   function getRealDayIndex(){
-    const jsDay=new Date().getDay();
-    return (jsDay+6)%7;
+    return AppStore.clock().day;
   }
 
   function getTodayIndex(){
@@ -5981,8 +5967,7 @@
   /* Current Time: real machine time by default, or simulated test time */
   function getNowMinutes(){
     if(state.mockTime) return timeToMinutes(state.mockTime);
-    const d=new Date();
-    return d.getHours()*60 + d.getMinutes();
+    return AppStore.clock().minutes;
   }
 
   function updateClockDisplay(){
@@ -5991,16 +5976,16 @@
     if(state.mockTime){
       el.textContent=`${formatTime(state.mockTime)} (Sim)`;
     } else {
-      const d=new Date();
-      const h=d.getHours()%12||12;
-      const m=String(d.getMinutes()).padStart(2,'0');
-      const p=d.getHours()>=12?'PM':'AM';
+      const minutes=AppStore.clock().minutes;
+      const h=Math.floor(minutes/60)%12||12;
+      const m=String(minutes%60).padStart(2,'0');
+      const p=minutes>=720?'PM':'AM';
       el.textContent=`${h}:${m} ${p}`;
     }
   }
 
   function travelMinutes(origin,destination){
-    return routeMatrix[origin]?.[destination] ?? routeMatrix.Home[destination] ?? 18;
+    return AppStore.travel(origin,destination,getNowMinutes());
   }
 
   function sortedEvents(day=state.activeDay){
@@ -6014,7 +5999,7 @@
   function initialDriverState(){
     const out = {};
     for(const p of (state.people || []).filter(x => x.kind === 'caregiver')){
-      out[p.name] = {position:state.parentLocations[p.name] || 'Home',
+      out[p.name] = {position:state.parentLocations[p.name] || AppStore.home(),
                      availableAt:0, lastEvent:null, driveMinutes:0};
     }
     return out;
@@ -6038,89 +6023,14 @@
   /* =========================================================
      SMART DRIVER RECOMMENDATION SYSTEM (DISTANCE & AVAILABILITY)
      ========================================================= */
-  function evaluateDriverForEvent(name, event, drivers, allEvents){
-    const driver = drivers[name] || {position: state.parentLocations[name] || 'Home', availableAt: 0, lastEvent: null, driveMinutes: 0};
-    const startMin = timeToMinutes(event.time);
-    const rawEnd = timeToMinutes(event.endTime);
-    const endMin = rawEnd <= startMin ? rawEnd + 1440 : rawEnd;
-    const buffer = state.buffer || 12;
-
-    // Check caregiver's prior location today
-    const priorEvents = (allEvents || []).filter(e => e.owner === name && !e.done && timeToMinutes(e.endTime) <= startMin);
-    let origin = state.parentLocations[name] || 'Home';
-    let availableAt = 0;
-    if(priorEvents.length > 0){
-      const lastPrior = priorEvents[priorEvents.length - 1];
-      origin = lastPrior.location;
-      availableAt = timeToMinutes(lastPrior.endTime);
-    }
-
-    const eta = travelMinutes(origin, event.location);
-    const departBy = startMin - eta - buffer;
-
-    // Availability: check overlap with another commitment
-    const conflictEvent = (allEvents || []).find(e => {
-      if(e.id === event.id || e.owner !== name || e.done) return false;
-      const s = timeToMinutes(e.time);
-      const eEnd = timeToMinutes(e.endTime) <= s ? timeToMinutes(e.endTime) + 1440 : timeToMinutes(e.endTime);
-      return s < endMin && eEnd > (departBy < 0 ? 0 : departBy);
-    });
-
-    // Distance & Delay Assessment
-    // Check if caregiver's prior commitment would cause them to arrive late, or if distance is excessive (>= 22 min drive)
-    const arrivesFromPrior = availableAt > 0 ? (availableAt + eta) : 0;
-    const priorDelay = availableAt > 0 && arrivesFromPrior > startMin;
-    const priorDelayMinutes = Math.max(0, arrivesFromPrior - startMin);
-    const isFarDistance = eta >= 22; // Far commute (22+ min) poses transit delay risk for timely school pickup
-
-    const causesDelay = priorDelay || isFarDistance;
-    const delayMinutes = priorDelayMinutes;
-
-    const isBackup = ['Nani', 'Grandma'].includes(name);
-    let status = 'available';
-    let reason = `${eta} min drive from ${origin}`;
-    let badgeLabel = isBackup ? 'Backup available' : 'Available';
-    let badgeClass = 'avail';
-
-    if(conflictEvent){
-      status = 'conflict';
-      reason = `Schedule overlap with ${conflictEvent.title} (${formatTime(conflictEvent.time)})`;
-      badgeLabel = 'Busy / overlap';
-      badgeClass = 'conflict';
-    } else if(priorDelay){
-      status = 'delay';
-      reason = `Prior activity ends late · Arrives ${priorDelayMinutes}m after pickup`;
-      badgeLabel = 'Causes delay';
-      badgeClass = 'delay';
-    } else if(isFarDistance){
-      status = 'delay';
-      reason = `Too far (${eta} min drive from ${origin}) · Risk of pickup delay`;
-      badgeLabel = 'Far · delay risk';
-      badgeClass = 'delay';
-    } else {
-      reason = `${eta} min drive from ${origin} · Free & on time`;
-    }
-
-    return {
-      name,
-      origin,
-      eta,
-      departBy,
-      availableAt,
-      causesDelay,
-      delayMinutes,
-      hasConflict: Boolean(conflictEvent),
-      conflictEvent,
-      isBackup,
-      status,
-      badgeLabel,
-      badgeClass,
-      reason
-    };
+  function evaluateDriverForEvent(name,event,drivers,allEvents){
+    const date=PlanCore.dateAdd(PlanCore.BASE_WEEK,state.activeDay);
+    const c=PlanCore.candidate({...event,date:event.date||date},name,(allEvents||[]).map(e=>({...e,date:e.date||date})),AppStore.planningOptions());
+    return {...c,departBy:c.unknown?null:c.leave,availableAt:0,causesDelay:c.unknown||c.conflict,delayMinutes:Math.max(0,-(c.slack||0)),hasConflict:c.conflict,isBackup:!['Mother','Father'].includes(AppStore.people('caregiver').find(p=>p.name===name)?.relationship),status:c.conflict?'conflict':c.unknown?'delay':'available',badgeLabel:c.conflict?'Busy / overlap':c.unknown?'Check route':'Available',badgeClass:c.conflict?'conflict':c.unknown?'delay':'avail'};
   }
 
   function getSmartDriverRecommendation(event, drivers, allEvents){
-    const candidates = ['Mom', 'Dad', 'Nani', 'Grandma'].map(name => 
+    const candidates = AppStore.caregivers().map(name =>
       evaluateDriverForEvent(name, event, drivers, allEvents)
     );
 
@@ -6135,13 +6045,13 @@
       });
       best = viable[0];
     } else {
-      const noConflict = candidates.filter(c => !c.hasConflict);
+      const noConflict = candidates.filter(c => !c.hasConflict && !c.unknown);
       if(noConflict.length > 0){
         noConflict.sort((a,b) => a.delayMinutes - b.delayMinutes || a.eta - b.eta);
         best = noConflict[0];
       } else {
         candidates.sort((a,b) => a.eta - b.eta);
-        best = candidates[0];
+        best = candidates.find(c=>!c.unknown&&!c.hasConflict)||null;
       }
     }
 
@@ -6157,87 +6067,17 @@
   }
 
   function calculateDayPlan(day=state.activeDay){
-    const drivers=initialDriverState();
-    const plan=[];
-    const dayEvents = sortedEvents(day);
-
-    for(const event of dayEvents){
-      // Family event or stay-at-home
-      if(event.owner==='Family' || event.mode==='Home' || event.location==='Home'){
-        const isHome = event.mode==='Home' || event.location==='Home';
-        const eta = isHome ? 0 : travelMinutes('Home', event.location);
-        const start = timeToMinutes(event.time);
-        const departBy = start - eta - (eta > 0 ? state.buffer : 0);
-        plan.push({
-          ...event,
-          lead:event.owner || 'TBD',
-          origin:'Home',
-          eta,
-          departBy,
-          slack:null,
-          conflict:null,
-          previousEvent:null
-        });
-        // Non-travel tasks still belong to their assignee and reserve their time.
-        if (drivers[event.owner]) {
-          drivers[event.owner].position = event.location;
-          drivers[event.owner].availableAt = timeToMinutes(event.endTime);
-          drivers[event.owner].lastEvent = event;
-          drivers[event.owner].driveMinutes += eta;
-        }
-        continue;
-      }
-
-      // TBD / Unassigned driver event
-      if(event.owner==='TBD' || event.owner==='Unassigned'){
-        const recommendation = getSmartDriverRecommendation(event, drivers, dayEvents);
-        const best = recommendation.bestCandidate;
-        const eta = best ? best.eta : 15;
-        const origin = best ? best.origin : (state.parentLocations.Mom || 'Home');
-        const start = timeToMinutes(event.time);
-        const departBy = start - eta - state.buffer;
-
-        plan.push({
-          ...event,
-          lead:'TBD',
-          owner:'TBD',
-          needsDriver:true,
-          smartRecommendation:recommendation,
-          origin,
-          eta,
-          departBy,
-          slack:null,
-          conflict:null,
-          previousEvent:null
-        });
-        continue;
-      }
-
-      // Assigned driver (Mom, Dad, Nani, Grandma)
-      const owner = event.owner;
-      const detail = candidateDetails(event, owner, drivers);
-      let conflict = null;
-      if(detail.overlap){
-        conflict = `${Math.abs(detail.slack)} min overlap with ${detail.lastEvent?.title||'prior activity'}`;
-      }
-      const planned = {
-        ...event,
-        lead:owner,
-        origin:detail.origin,
-        eta:detail.eta,
-        departBy:detail.departBy,
-        slack:detail.slack,
-        conflict,
-        previousEvent:detail.lastEvent
-      };
-      plan.push(planned);
-      if(drivers[owner]){
-        drivers[owner].position = event.location;
-        drivers[owner].availableAt = timeToMinutes(event.endTime);
-        drivers[owner].lastEvent = event;
-        drivers[owner].driveMinutes += detail.eta;
-      }
-    }
+    const options=AppStore.planningOptions();
+    const date=PlanCore.dateAdd(PlanCore.BASE_WEEK,day);
+    const events=sortedEvents(day).map(e=>({...e,date}));
+    const plan=PlanCore.analyze(events,options).map(e=>({
+      ...e,lead:e.owner,needsDriver:PlanCore.unassigned(e),
+      origin:e.detail.origin,eta:e.detail.eta,routeUnknown:e.detail.unknown,
+      departBy:e.detail.unknown||isAllDay(e)?null:e.detail.leave,
+      slack:e.detail.slack,conflict:e.detail.conflict?e.detail.reason:null,previousEvent:null
+    }));
+    const drivers=Object.fromEntries(AppStore.caregivers().map(name=>[name,{position:state.parentLocations[name]||AppStore.home(),driveMinutes:0,availableAt:0,lastEvent:null}]));
+    for(const e of plan)if(drivers[e.owner]){const d=drivers[e.owner];d.position=e.location;d.driveMinutes+=e.eta||0;d.availableAt=PlanCore.mins(e.endTime);d.lastEvent=e;}
     return {plan,drivers};
   }
 
@@ -6247,7 +6087,7 @@
     for(const event of events){
       if(event.owner==='Family'||event.mode==='Home'||event.location==='Home')continue;
       if(['Nani','Grandma','TBD'].includes(event.owner))continue;
-      const choices=['Mom','Dad'].map(name=>candidateDetails(event,name,drivers)).sort((a,b)=>a.score-b.score);
+      const choices=AppStore.caregivers().map(name=>candidateDetails(event,name,drivers)).sort((a,b)=>a.score-b.score);
       const best=choices[0];
       event.owner=best.name;
       event.color=ownerColor(best.name);
@@ -6273,7 +6113,7 @@
     const suggestions=[];
     const tbdEvent=plan.find(e=>e.needsDriver);
     if(tbdEvent){
-      const bestName = tbdEvent.smartRecommendation?.bestCandidate?.name || 'Dad';
+      const bestName = tbdEvent.smartRecommendation?.bestCandidate?.name || AppStore.caregivers()[0] || 'Caregiver';
       suggestions.push({
         id:`assign-${tbdEvent.id}`,
         title:`Assign Driver for ${tbdEvent.title}`,
@@ -6750,13 +6590,13 @@
               <div class="disclosure-meta-row">
                 <div class="d-meta-item">
                   <span>${appIcon('clock-3')}</span>
-                  <span>${isTBD ? `Recommended: ${bestRec?.name || 'Dad'} is closest (${bestRec?.origin || 'Work'})` : `${slackCopy}${e.departBy !== null ? ` · buffer ${state.buffer} min` : ''}`}</span>
+                  <span>${isTBD ? `Recommended: ${bestRec?.name || 'Choose a caregiver'} is closest (${bestRec?.origin || 'Work'})` : `${slackCopy}${e.departBy !== null ? ` · buffer ${state.buffer} min` : ''}`}</span>
                 </div>
               </div>
 
               <!-- Detail Action Drawer -->
               <div class="disclosure-actions-row">
-                ${isTBD ? `<button class="disclosure-cta-btn" onclick="event.stopPropagation(); openDriverAssignModal(${e.id})">${appIcon('zap')} Assign Driver (${bestRec?.name || 'Dad'} suggested)</button>` : ''}
+                ${isTBD ? `<button class="disclosure-cta-btn" onclick="event.stopPropagation(); openDriverAssignModal(${e.id})">${appIcon('zap')} Assign Driver (${bestRec?.name || 'Choose a caregiver'} suggested)</button>` : ''}
                 <div class="disclosure-btns-right">
                   <button class="d-action-btn" onclick="event.stopPropagation(); editEvent(${e.id})">${appIcon('pencil')} Edit Details</button>
                   <button class="d-action-btn delete" onclick="event.stopPropagation(); deleteEvent(${e.id})">${appIcon('trash-2')} Delete</button>
@@ -6777,24 +6617,32 @@
       <div class="location">
         <div class="location-icon">${appIcon(l.icon || 'map-pin')}</div>
         <div class="location-copy">
-          <b>${l.name}</b>
-          <span>${l.address}</span>
+          <b>${goEsc(l.name)}</b>
+          <span>${goEsc(l.address)}</span>
         </div>
-        <div class="eta">${travelMinutes('Home',l.name)} min</div>
+        <div class="eta">${AppStore.travel(AppStore.home(),l.name,getNowMinutes())===null?'Check route':AppStore.travel(AppStore.home(),l.name,getNowMinutes())+' min'}</div>
       </div>
     `).join('');
-    $('#activityLocation').innerHTML=state.locations.map(l=>`<option>${l.name}</option>`).join('');
+
+  }
+
+  function renderMapSummary(){
+    const {plan}=calculateDayPlan(getTodayIndex());
+    const trips=plan.filter(e=>PlanCore.needsTravel(e)&&!e.done);
+    const missing=trips.filter(e=>e.routeUnknown).length;
+    $('#mapEta').textContent=`${trips.reduce((sum,e)=>sum+(e.eta||0),0)} min estimated today${missing?` · ${missing} routes to check`:''}`;
+    $('#confidenceSlider').value=state.buffer;$('#confidenceOut').textContent=`${state.buffer} min`;
+    const places=[AppStore.home(),...new Set(trips.map(e=>e.location).filter(n=>n!==AppStore.home()&&state.locations.some(l=>l.name===n)))];
+    $$('.pin').forEach((pin,i)=>{pin.hidden=!places[i];pin.dataset.place=places[i]||'';pin.title=places[i]||'';pin.setAttribute('aria-label',places[i]||'');});
   }
 
   function renderParentLocationControls(){
-    ['Mom','Dad'].forEach(name=>{
-      const select=$(`#${name.toLowerCase()}LocationSelect`);
+    AppStore.caregivers().forEach(name=>{
+      const select=document.getElementById(`${name.toLowerCase()}LocationSelect`);
       if(!select)return;
-      select.innerHTML=state.locations.map(l=>`<option ${state.parentLocations[name]===l.name?'selected':''}>${l.name}</option>`).join('');
+      select.innerHTML=state.locations.map(l=>`<option value="${goEsc(l.name)}" ${state.parentLocations[name]===l.name?'selected':''}>${goEsc(l.name)}</option>`).join('');
       select.onchange=e=>{
-        state.parentLocations[name]=e.target.value;
-        saveState();
-        renderAll();
+        AppStore.setBases({...state.parentLocations,[name]:e.target.value});
         toast(`${name} starting point updated to ${e.target.value}`);
       };
     });
@@ -6806,139 +6654,8 @@
      saved locations & templates, kids weekly activity statistics.
      ========================================================================== */
 
-  // Workload computation for Mom and Dad
-  function calcFamilyWorkload(scope = 'week'){
-    let momTasks = 0, dadTasks = 0;
-    let momDrive = 0, dadDrive = 0;
-
-    const daysToCount = (scope === 'today') ? [state.todayIndex] : [0, 1, 2, 3, 4, 5, 6];
-    for(const d of daysToCount){
-      const { plan } = calculateDayPlan(d);
-      for(const e of plan){
-        if(e.lead === 'Mom'){
-          momTasks++;
-          momDrive += (e.eta || 0);
-        } else if(e.lead === 'Dad'){
-          dadTasks++;
-          dadDrive += (e.eta || 0);
-        }
-      }
-    }
-    const totalTasks = momTasks + dadTasks;
-    const momPct = totalTasks > 0 ? Math.round((momTasks / totalTasks) * 100) : 50;
-    const dadPct = 100 - momPct;
-
-    return {
-      momTasks,
-      dadTasks,
-      momDrive,
-      dadDrive,
-      totalTasks,
-      momPct,
-      dadPct,
-      scope
-    };
-  }
-
-  // Draw Balance Dial SVG
-  function drawBalanceDialSvg(w){
-    const R = 54;
-    const C = 2 * Math.PI * R; // ~339.29
-    const momArc = (w.momPct / 100) * C;
-    const dadArc = C - momArc;
-
-    const angleRad = (w.momPct / 100) * 2 * Math.PI;
-    const beadX = 74 + R * Math.cos(angleRad);
-    const beadY = 74 + R * Math.sin(angleRad);
-
-    let ticks = '';
-    for(let i = 0; i < 12; i++){
-      const a = (i / 12) * 2 * Math.PI;
-      const x1 = 74 + (R - 5) * Math.cos(a);
-      const y1 = 74 + (R - 5) * Math.sin(a);
-      const x2 = 74 + (R - 1) * Math.cos(a);
-      const y2 = 74 + (R - 1) * Math.sin(a);
-      const major = i % 3 === 0;
-      ticks += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#ffffff${major ? '40' : '20'}" stroke-width="${major ? 2 : 1.2}" stroke-linecap="round"/>`;
-    }
-
-    return `
-      <svg viewBox="0 0 148 148">
-        <circle cx="74" cy="74" r="${R}" fill="none" stroke="#ffffff1f" stroke-width="9"/>
-        <circle cx="74" cy="74" r="${R}" fill="none" stroke="${goPersonInk('Mom')}" stroke-width="9"
-          stroke-dasharray="${momArc} ${C}" stroke-dashoffset="0" stroke-linecap="round"/>
-        <circle cx="74" cy="74" r="${R}" fill="none" stroke="${goPersonInk('Dad')}" stroke-width="9"
-          stroke-dasharray="${dadArc} ${C}" stroke-dashoffset="-${momArc}" stroke-linecap="round"/>
-        ${ticks}
-        <circle cx="${beadX.toFixed(1)}" cy="${beadY.toFixed(1)}" r="4.5" fill="#fffef8" stroke="#235746" stroke-width="1.5" style="filter:drop-shadow(0 0 4px #ffffff99);"/>
-      </svg>
-      <div class="fam-dial-center">
-        <div class="fam-dial-ratio">${w.momTasks}:${w.dadTasks}</div>
-        <div class="fam-dial-sub">Tasks Split</div>
-      </div>
-    `;
-  }
-
-  function renderFamilyHero(){
-    const el = $('#famHeroCard');
-    if(!el) return;
-    const w = calcFamilyWorkload(state.familyBalanceScope);
-
-    const statusHtml = `<span>${w.momTasks + w.dadTasks} tasks shared by Mom and Dad</span>`;
-
-    el.innerHTML = `
-      <div class="fam-hero-head">
-        <div class="fam-hero-eyebrow">Caregiver workload</div>
-        <div class="fam-hero-toggle">
-          <button type="button" class="${state.familyBalanceScope === 'week' ? 'active' : ''}" aria-pressed="${state.familyBalanceScope === 'week'}" onclick="window.famSetBalanceScope('week')">This Week</button>
-          <button type="button" class="${state.familyBalanceScope === 'today' ? 'active' : ''}" aria-pressed="${state.familyBalanceScope === 'today'}" onclick="window.famSetBalanceScope('today')">Today</button>
-        </div>
-      </div>
-      <div class="fam-hero-body">
-        <div class="fam-dial-wrap">
-          ${drawBalanceDialSvg(w)}
-        </div>
-        <div class="fam-split-col">
-          <div class="fam-split-row">
-            <div class="fam-split-row-top">
-              <div class="fam-split-caregiver">
-                <span class="go-mark" style="background:${goPersonBg('Mom')};color:${goPersonText('Mom')};">M</span>
-                <span>Mom</span>
-              </div>
-              <div class="fam-split-counts">
-                ${w.momTasks}<span>tasks</span> · ${w.momDrive}<span>m</span>
-              </div>
-            </div>
-            <div class="fam-split-track">
-              <div class="fam-split-fill" style="width:${w.momPct}%;background:${goPersonInk('Mom')};"></div>
-            </div>
-          </div>
-          <div class="fam-split-row">
-            <div class="fam-split-row-top">
-              <div class="fam-split-caregiver">
-                <span class="go-mark" style="background:${goPersonBg('Dad')};color:${goPersonText('Dad')};">D</span>
-                <span>Dad</span>
-              </div>
-              <div class="fam-split-counts">
-                ${w.dadTasks}<span>tasks</span> · ${w.dadDrive}<span>m</span>
-              </div>
-            </div>
-            <div class="fam-split-track">
-              <div class="fam-split-fill" style="width:${w.dadPct}%;background:${goPersonInk('Dad')};"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="fam-hero-status">${statusHtml}</div>
-
-    `;
-    window.refreshAppIcons();
-  }
-
-  window.famSetBalanceScope = function(scope){
-    state.familyBalanceScope = scope;
-    renderFamilyHero();
-  };
+  function renderFamilyHero(){ window.FamilyHub?.renderHero(); }
+  window.famSetBalanceScope = function(scope){state.familyBalanceScope=scope;renderFamilyHero();};
 
   function renderFamilyScope(){
     const segs = $$('#famScope .fam-scope-seg');
@@ -6955,301 +6672,13 @@
     });
   }
 
-  // Kids Weekly Statistics calculation
-  function calcKidsWeeklyStats(kidFilter = 'All'){
-    let totalMinutes = 0;
-    let totalEvents = 0;
-    let transitTrips = 0;
-    const dayCounts = [0, 0, 0, 0, 0, 0, 0];
-    const catMinutes = { Sports: 0, Arts: 0, School: 0, Health: 0, Family: 0 };
-    const driverTrips = { Mom: 0, Dad: 0, Nani: 0, Grandma: 0, Other: 0 };
-
-    const kidTotals = {
-      Maya: { minutes: 0, events: 0, momDrives: 0, dadDrives: 0 },
-      Soni: { minutes: 0, events: 0, momDrives: 0, dadDrives: 0 },
-      Noah: { minutes: 0, events: 0, momDrives: 0, dadDrives: 0 }
-    };
-
-    for(let d = 0; d < 7; d++){
-      const { plan } = calculateDayPlan(d);
-      for(const e of plan){
-        const kidsInEvent = e.kids || [e.kid];
-        const hasMaya = kidsInEvent.includes('Maya') || e.kid === 'All';
-        const hasSoni = kidsInEvent.includes('Soni') || e.kid === 'All';
-        const hasNoah = kidsInEvent.includes('Noah') || e.kid === 'All';
-
-        const matchesFilter = (kidFilter === 'All') ||
-          kidsInEvent.includes(kidFilter) ||
-          e.kid === 'All' ||
-          e.kid === kidFilter;
-
-        const dur = Math.max(15, (e.endTime ? timeToMinutes(e.endTime) : timeToMinutes(e.time) + 60) - timeToMinutes(e.time));
-
-        const t = (e.title + ' ' + e.location).toLowerCase();
-        let cat = 'Family';
-        if(t.includes('soccer') || t.includes('football') || t.includes('skate') || t.includes('swim') || t.includes('sports') || t.includes('gymnastics')){
-          cat = 'Sports';
-        } else if(t.includes('piano') || t.includes('music') || t.includes('robotics') || t.includes('art')){
-          cat = 'Arts';
-        } else if(t.includes('school') || t.includes('drop-off') || t.includes('science fair')){
-          cat = 'School';
-        } else if(t.includes('clinic') || t.includes('dental') || t.includes('pediatric') || t.includes('doctor')){
-          cat = 'Health';
-        }
-
-        if(hasMaya){
-          kidTotals.Maya.minutes += dur;
-          kidTotals.Maya.events++;
-          if(e.lead === 'Mom') kidTotals.Maya.momDrives++;
-          if(e.lead === 'Dad') kidTotals.Maya.dadDrives++;
-        }
-        if(hasSoni){
-          kidTotals.Soni.minutes += dur;
-          kidTotals.Soni.events++;
-          if(e.lead === 'Mom') kidTotals.Soni.momDrives++;
-          if(e.lead === 'Dad') kidTotals.Soni.dadDrives++;
-        }
-        if(hasNoah){
-          kidTotals.Noah.minutes += dur;
-          kidTotals.Noah.events++;
-          if(e.lead === 'Mom') kidTotals.Noah.momDrives++;
-          if(e.lead === 'Dad') kidTotals.Noah.dadDrives++;
-        }
-
-        if(matchesFilter){
-          totalMinutes += dur;
-          totalEvents++;
-          dayCounts[d]++;
-          catMinutes[cat] += dur;
-          if(e.mode === 'Drive' && e.location !== 'Home'){
-            transitTrips++;
-            if(driverTrips[e.lead] !== undefined) driverTrips[e.lead]++;
-            else driverTrips.Other++;
-          }
-        }
-      }
-    }
-
-    let peakDayIdx = 0, maxDayCount = 0;
-    dayCounts.forEach((c, i) => {
-      if(c > maxDayCount){
-        maxDayCount = c;
-        peakDayIdx = i;
-      }
-    });
-
-    const totalHours = (totalMinutes / 60).toFixed(1);
-    const catSportsHours = (catMinutes.Sports / 60).toFixed(1);
-    const catArtsHours = (catMinutes.Arts / 60).toFixed(1);
-    const catSchoolHours = (catMinutes.School / 60).toFixed(1);
-    const catOtherHours = ((catMinutes.Health + catMinutes.Family) / 60).toFixed(1);
-
-    const safeMin = Math.max(1, totalMinutes);
-    const catPct = {
-      Sports: Math.round((catMinutes.Sports / safeMin) * 100),
-      Arts: Math.round((catMinutes.Arts / safeMin) * 100),
-      School: Math.round((catMinutes.School / safeMin) * 100),
-      Other: Math.max(0, 100 - Math.round((catMinutes.Sports / safeMin) * 100) - Math.round((catMinutes.Arts / safeMin) * 100) - Math.round((catMinutes.School / safeMin) * 100))
-    };
-
-    return {
-      totalHours,
-      totalEvents,
-      transitTrips,
-      peakDayName: dayNames[peakDayIdx],
-      peakDayCount: `${maxDayCount} stops`,
-      catHours: { Sports: catSportsHours, Arts: catArtsHours, School: catSchoolHours, Other: catOtherHours },
-      catPct,
-      kidTotals
-    };
-  }
-
-  function renderFamilyKidsStats(){
-    const stats = calcKidsWeeklyStats(state.familyKidStatsFilter);
-
-    const kidsList = [
-      { id: 'All', name: 'All Kids', icon: appIcon('users-round') },
-      { id: 'Maya', name: 'Maya', icon: appIcon('palette') },
-      { id: 'Soni', name: 'Soni', icon: appIcon('backpack') },
-      { id: 'Noah', name: 'Noah', icon: appIcon('trophy') }
-    ];
-
-    const chipsHtml = kidsList.map(k => `
-      <button type="button" class="fam-chip ${state.familyKidStatsFilter === k.id ? 'active' : ''}"
-        aria-pressed="${state.familyKidStatsFilter === k.id}"
-        onclick="window.famSetKidStatsFilter('${k.id}')">
-        <em>${k.icon}</em>
-        <span>${k.name}</span>
-      </button>
-    `).join('');
-
-    const kidCardsHtml = ['Maya', 'Soni', 'Noah'].map(name => {
-      const data = stats.kidTotals[name];
-      const hours = (data.minutes / 60).toFixed(1);
-      const icon = kidIcons[name] || appIcon('user-round');
-      const totRides = data.momDrives + data.dadDrives;
-      const momPct = totRides > 0 ? Math.round((data.momDrives / totRides) * 100) : 50;
-      const dadPct = 100 - momPct;
-      return `
-        <div class="fam-kid-card">
-          <div class="fam-kid-avatar">${icon}</div>
-          <div class="fam-kid-info">
-            <h4 class="fam-kid-name">${name}</h4>
-            <div class="fam-kid-stat-line">${hours} hrs · ${data.events} scheduled sessions</div>
-          </div>
-          <div class="fam-kid-driver-pill">M ${momPct}% · D ${dadPct}%</div>
-        </div>
-      `;
-    }).join('');
-
-    return `
-      <div class="fam-panel-head">
-        <h2>Kids' Weekly Activities & Stats</h2>
-        <span class="go-eyebrow">7-Day Aggregate</span>
-      </div>
-
-      <div class="fam-kids-chips">
-        ${chipsHtml}
-      </div>
-
-      <div class="fam-metric-grid">
-        <div class="fam-metric-card">
-          <div class="fam-metric-label">Active Time</div>
-          <div class="fam-metric-val">${stats.totalHours} <small style="font-size:13px;font-weight:650;">hrs</small></div>
-          <div class="fam-metric-sub">Scheduled program window</div>
-        </div>
-        <div class="fam-metric-card">
-          <div class="fam-metric-label">Total Sessions</div>
-          <div class="fam-metric-val">${stats.totalEvents} <small style="font-size:13px;font-weight:650;">stops</small></div>
-          <div class="fam-metric-sub">Across 7 days of schedule</div>
-        </div>
-        <div class="fam-metric-card">
-          <div class="fam-metric-label">Transit Coverage</div>
-          <div class="fam-metric-val">${stats.transitTrips} <small style="font-size:13px;font-weight:650;">rides</small></div>
-          <div class="fam-metric-sub">100% covered by parents</div>
-        </div>
-        <div class="fam-metric-card">
-          <div class="fam-metric-label">Busiest Day</div>
-          <div class="fam-metric-val" style="font-size:18px;">${stats.peakDayName}</div>
-          <div class="fam-metric-sub">${stats.peakDayCount} scheduled</div>
-        </div>
-      </div>
-
-      <div class="fam-cat-box">
-        <div class="fam-metric-label" style="margin-bottom:0;">Activity Distribution by Category</div>
-        <div class="fam-cat-bar">
-          <div class="fam-cat-seg" style="width:${stats.catPct.Sports}%;background:#7fa375;" title="Sports: ${stats.catHours.Sports}h (${stats.catPct.Sports}%)"></div>
-          <div class="fam-cat-seg" style="width:${stats.catPct.Arts}%;background:#bda170;" title="Arts & Music: ${stats.catHours.Arts}h (${stats.catPct.Arts}%)"></div>
-          <div class="fam-cat-seg" style="width:${stats.catPct.School}%;background:#7f9fad;" title="School: ${stats.catHours.School}h (${stats.catPct.School}%)"></div>
-          <div class="fam-cat-seg" style="width:${stats.catPct.Other}%;background:#c2ba6b;" title="Other: ${stats.catHours.Other}h (${stats.catPct.Other}%)"></div>
-        </div>
-        <div class="fam-cat-legend">
-          <div class="fam-cat-item">
-            <span class="fam-cat-dot" style="background:#7fa375;"></span>
-            <span>Sports</span>
-            <span>${stats.catHours.Sports}h</span>
-          </div>
-          <div class="fam-cat-item">
-            <span class="fam-cat-dot" style="background:#bda170;"></span>
-            <span>Arts & Music</span>
-            <span>${stats.catHours.Arts}h</span>
-          </div>
-          <div class="fam-cat-item">
-            <span class="fam-cat-dot" style="background:#7f9fad;"></span>
-            <span>Academics</span>
-            <span>${stats.catHours.School}h</span>
-          </div>
-          <div class="fam-cat-item">
-            <span class="fam-cat-dot" style="background:#c2ba6b;"></span>
-            <span>Family & Social</span>
-            <span>${stats.catHours.Other}h</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="fam-metric-label" style="margin:14px 2px 8px;">Child Activity Intensity & Driver Split</div>
-      <div class="fam-kids-cards">
-        ${kidCardsHtml}
-      </div>
-    `;
-  }
-
-  window.famSetKidStatsFilter = function(id){
-    state.familyKidStatsFilter = id;
-    state.familyActivePanel = 'kids';
-    renderFamilyScope();
-    renderFamilyPanel();
-  };
+  function renderFamilyKidsStats(){ return window.FamilyHub?.kidsStats() || ''; }
+  window.famSetKidStatsFilter=function(name){state.familyKidStatsFilter=name;renderFamilyPanel();};
 
   function renderFamilyLocations(){ return window.FamilyHub?.locations() || ''; }
   function renderFamilyTemplates(){ return window.FamilyHub?.templates() || ''; }
 
-  function renderFamilyCrew(){
-    const weeklyDrive = { Mom: 0, Dad: 0, Nani: 0, Grandma: 0 };
-    for(let day = 0; day < 7; day++){
-      const { plan } = calculateDayPlan(day);
-      plan.forEach(e => {
-        if(weeklyDrive[e.lead] !== undefined) weeklyDrive[e.lead] += e.eta;
-      });
-    }
-
-    const crew = [
-      { name: 'Mom', role: `${state.parentLocations.Mom} · Primary`, mins: weeklyDrive.Mom, init: 'M' },
-      { name: 'Dad', role: `${state.parentLocations.Dad} · Primary`, mins: weeklyDrive.Dad, init: 'D' },
-      { name: 'Nani', role: 'Secondary Caregiver · Piano Backup', mins: weeklyDrive.Nani, init: 'N' },
-      { name: 'Grandma', role: 'Secondary Caregiver · Friday Early Pickup', mins: weeklyDrive.Grandma, init: 'G' }
-    ];
-
-    const crewCardsHtml = crew.map(c => `
-      <div class="fam-crew-card">
-        <div class="go-mark" style="background:${goPersonBg(c.name)};color:${goPersonText(c.name)};border-color:${goPersonInk(c.name)}55;">${c.init}</div>
-        <h3 class="fam-crew-name">${c.name}</h3>
-        <div class="fam-crew-role">${c.role}</div>
-        <div class="fam-crew-mins">${c.mins} drive min this week</div>
-      </div>
-    `).join('');
-
-    const rulesHtml = state.smartRules.map(r => `
-      <div class="fam-rule-row">
-        <div class="fam-rule-copy">
-          <b>${r.title}</b>
-          <span>${r.desc}</span>
-        </div>
-        <button type="button" class="fam-toggle" aria-checked="${r.active ? 'true' : 'false'}"
-          onclick="window.famToggleRule('${r.id}')" aria-label="Toggle ${r.title}"></button>
-      </div>
-    `).join('');
-
-    return `
-      <div class="fam-panel-head">
-        <h2>Caregiver Roster</h2>
-        <span class="go-eyebrow">Active Crew</span>
-      </div>
-      <div class="fam-crew-grid">
-        ${crewCardsHtml}
-      </div>
-
-      <div class="fam-panel-head" style="margin-top:16px;">
-        <h2>Caregiver Smart Rules</h2>
-        <span class="go-eyebrow">Automation</span>
-      </div>
-      <div class="fam-rules-box">
-        <div class="fam-rules-list">
-          ${rulesHtml}
-        </div>
-      </div>
-    `;
-  }
-
-  window.famToggleRule = function(ruleId){
-    const rule = state.smartRules.find(r => r.id === ruleId);
-    if(rule){
-      rule.active = !rule.active;
-      saveState();
-      renderFamilyPanel();
-      toast(`Rule "${rule.title}" ${rule.active ? 'activated' : 'paused'}`);
-    }
-  };
+  function renderFamilyCrew(){ return window.FamilyHub?.crew() || ''; }
 
   function renderFamilyPanel(){
     const el = $('#famPanel');
@@ -7302,9 +6731,9 @@
   /* Who is in this family is a setting, not a constant. Events store people by
      name, so a rename has to sweep the schedule too - see goRenamePerson(). */
   const GO_PALETTE = ['#c75f45', '#397cad', '#8f55a0', '#3f806e', '#a8672b', '#5a6ea8', '#8a6d3b'];
-  function goPeople(){ return state.people || []; }
-  function goCaregiverList(){ return goPeople().filter(p => p.kind === 'caregiver'); }
-  function goChildList(){ return goPeople().filter(p => p.kind === 'child'); }
+  function goPeople(){ return AppStore.people(); }
+  function goCaregiverList(){ return AppStore.people('caregiver'); }
+  function goChildList(){ return AppStore.people('child'); }
   Object.defineProperty(window, 'GO_CREW', {get: () => goCaregiverList().map(p => p.name)});
   Object.defineProperty(window, 'GO_KIDS', {get: () => goChildList().map(p => p.name)});
 
@@ -7406,6 +6835,9 @@
   // The departure is derived, so it belongs with the other derived detail in
   // the row body rather than competing with the schedule down the left edge.
   function goLeaveLabel(e){
+    if(e.routeUnknown)return 'Route needs checking';
+    const dinner=e.risks?.find(r=>r.type==='dinner');
+    if(dinner)return dinner.label;
     if(goNoTravel(e)) return '';
     const d = goSafeDepart(e);
     return d === null ? '' : `Leave ${formatTime(minutesToTime(d))}`;
@@ -7421,8 +6853,8 @@
   }
 
   function goKidsOf(e){
-    if(e.kids && Array.isArray(e.kids) && e.kids.length) return e.kids;
-    return e.kid ? e.kid.split(',').map(s => s.trim()) : ['All'];
+    if(Array.isArray(e.kids)) return e.kids;
+    return e.kid ? e.kid.split(',').map(s => s.trim()) : [];
   }
 
   /* Explicit state matrix - every branch has a defined dial rendering. */
@@ -7468,13 +6900,13 @@
     Mom:'#f3c3b4', Dad:'#bad8f1', Nani:'#ddc2e9', Grandma:'#bfe0d4',
     Family:'#f1d98f', TBD:'#f0c69f', Unassigned:'#f0c69f'
   };
-  function goPersonBg(name){ return GO_PERSON[name] || '#e5eadb'; }
+  function goPersonBg(name){ return (AppStore.people().find(p=>p.name===name)?.color ? AppStore.color(name)+'22' : null) || GO_PERSON[name] || '#e5eadb'; }
 
   const GO_PERSON_TEXT = {
     Mom:'#7b2f20', Dad:'#174f7a', Nani:'#663879', Grandma:'#225d4d',
     Family:'#694900', TBD:'#7c3f17', Unassigned:'#7c3f17'
   };
-  function goPersonText(name){ return GO_PERSON_TEXT[name] || '#314b37'; }
+  function goPersonText(name){ return AppStore.people().some(p=>p.name===name)?AppStore.color(name):GO_PERSON_TEXT[name] || '#314b37'; }
 
   /* The pale identity grounds are deliberately quiet behind a dark initial, so
      they cannot also carry a bar on an ivory track. These are the same hues at
@@ -7483,11 +6915,11 @@
     Mom:'#c75f45', Dad:'#397cad', Nani:'#8f55a0', Grandma:'#3f806e',
     Family:'#b08313', TBD:'#bf6c2c', Unassigned:'#bf6c2c'
   };
-  function goPersonInk(name){ return GO_PERSON_INK[name] || '#93a58f'; }
+  function goPersonInk(name){ return AppStore.people().some(p=>p.name===name)?AppStore.color(name):GO_PERSON_INK[name] || '#93a58f'; }
 
   /* Cook / lead / at-home stops have no route. Their reference time is the
      start, not a departure, and the route bar collapses to a single mark. */
-  function goNoTravel(e){ return isAllDay(e) || e.mode === 'Home' || !e.eta; }
+  function goNoTravel(e){ return isAllDay(e) || e.mode === 'Home' || e.eta === 0; }
 
   /* --- Weather -------------------------------------------------------------
      One icon, in the masthead, for the day the dial is about. It is the only
@@ -7575,7 +7007,7 @@
   function goKidIcon(){ return goIcon('child', 'go-glyph'); }
 
   function goModeIcon(e){
-    const home = e.mode === 'Home' || !e.eta;
+    const home = !PlanCore.needsTravel(e);
     return `<span class="go-transit" aria-hidden="true">${appIcon(home ? 'Home' : (e.mode || 'Drive'))}</span>`;
   }
 
@@ -7823,7 +7255,9 @@
       : goRingFraction(v.mine, idx, target, v.now);
 
     let center;
-    if(st.kind === 'now'){
+    if(e.routeUnknown){
+      center = '<div class="go-dial-num is-word">CHECK</div><div class="go-dial-unit">route needed</div>';
+    } else if(st.kind === 'now'){
       center = `<div class="go-dial-num is-word">NOW</div>
                 <div class="go-dial-unit">${noTravel ? 'be there' : 'leave'}</div>`;
     } else if(st.kind === 'started'){
@@ -7866,7 +7300,7 @@
              <span class="go-route-line"></span>
              ${progress > 0 && progress < 100
                ? `<span class="go-route-bead" style="top:${progress}%"></span>` : ''}
-             <em>${e.eta} min</em>
+             <em>${e.eta===null?'Route needed':e.eta+' min'}</em>
            </div>
            <div class="go-route-row">
              <span class="go-route-mark end"></span>
@@ -7932,9 +7366,9 @@
       const who = goListWho();
       const chip = (name, bg, glyph, label, colorName = name) =>
         `<button class="go-person" aria-pressed="${who === name}"
-                 onclick="goSetCrew('${name}')" aria-label="Show ${label}'s schedule">
+                 onclick="goSetCrew(${goArg(name)})" aria-label="Show ${goEsc(label)}'s schedule">
            <span class="go-mark" style="background:${bg};color:${goPersonText(colorName)}" aria-hidden="true">${glyph}</span>
-           <em>${label}</em>
+           <em>${goEsc(label)}</em>
          </button>`;
       el.innerHTML = `<div class="go-crew">` +
         window.GO_CREW.map(name => chip(name, goPersonBg(name), name[0],
@@ -7952,7 +7386,7 @@
         const kids = goKidsOf(e);
         return kids.includes(val) || kids.includes('All');
       });
-      return `<button class="go-chip" aria-pressed="${on}" onclick="goSetKid('${val}')"
+      return `<button class="go-chip" aria-pressed="${on}" onclick="goSetKid(${goArg(val)})"
                  ${(present || on) ? '' : 'disabled'}><em>${icon}</em>${label}</button>`;
     };
     el.innerHTML = `<div class="go-kids">` + chip('all', GO_ICON_SVG('people'), 'All kids') +
@@ -8138,6 +7572,7 @@
   function GO_ICON_SVG(name){
     return appIcon(name, 'go-glyph-svg');
   }
+  const goPresetPlace=k=>k.place==='Home'?AppStore.home():state.locations.some(l=>l.name===k.place)?k.place:'';
   const goKind = id => GO_KINDS.find(k => k.id === id) || GO_KINDS[1];
 
   /* Title composes itself: one kid gets their name on it, several do not. */
@@ -8182,18 +7617,18 @@
   function goNewDraft(){
     const kind = goKind('pickup');
     const dayIdx = goDayIndex();
-    const kid = state.goKidFilter !== 'all' ? state.goKidFilter : (window.GO_KIDS[0] || 'All');
+    const kid = state.goKidFilter !== 'all' ? state.goKidFilter : (window.GO_KIDS[0] || null);
     const start = goNextFreeTime(dayIdx);
     return {
       id: null,
       kind: kind.id,
       title: '',
-      kids: [kid],
-      place: kind.place,
+      kids: kid?[kid]:[],
+      place: goPresetPlace(kind),
       dayOffset: 0,
       time: start,
       end: minutesToTime(timeToMinutes(start) + kind.mins),
-      owner: state.currentUser === 'All' ? 'Mom' : state.currentUser,
+      owner: state.currentUser === 'All' ? 'TBD' : state.currentUser,
       mode: kind.mode,
       gcal: false,
       detail: '',
@@ -8220,12 +7655,12 @@
       // Keep the written title whatever the preset guess was, so editing never
       // quietly renames somebody's event.
       title: e.title || '',
-      kids: (e.kids && e.kids.length) ? [...e.kids] : (e.kid ? e.kid.split(',').map(x => x.trim()) : ['All']),
+      kids: Array.isArray(e.kids) ? [...e.kids] : (e.kid ? e.kid.split(',').map(x => x.trim()) : []),
       place: e.location || 'Home',
       dayOffset: offset,
       time: e.time,
       end: minutesToTime(end > start ? end : start + 60),
-      owner: e.owner || e.lead || 'Mom',
+      owner: e.owner || e.lead || 'TBD',
       mode: e.mode || 'Drive',
       gcal: !!e.gcal,
       detail: '',
@@ -8286,7 +7721,7 @@
     const k = goKind(id);
     const d = state.goDraft;
     const prior = goKind(d.kind);
-    if(d.place === prior.place) d.place = k.place;
+    if(d.place === goPresetPlace(prior)) d.place = goPresetPlace(k);
     if(goDraftMins(d) === prior.mins) d.end = minutesToTime(timeToMinutes(d.time) + k.mins);
     // A title the parent typed is theirs; a composed one follows the preset.
     if(d.title && d.title === goComposedTitle(prior, d.kids, d.detail)) d.title = '';
@@ -8454,6 +7889,7 @@
   function goDurationLabel(m){
     return m < 60 ? `${m}m` : (m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h`);
   }
+  function goArg(v){ return goEsc(JSON.stringify(v)); }
   function goEsc(v){
     return String(v == null ? '' : v)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -8465,7 +7901,7 @@
   function goDraftReady(d){
     const det = goKind(d.kind).detail;
     if(det && det.required && !d.detail.trim() && !d.title.trim()) return false;
-    return !!(d.place || '').trim() && d.kids.length > 0;
+    return !!(d.place || '').trim() && (d.kids.length > 0 || !AppStore.children().length);
   }
 
   /* --- The confirmation card ------------------------------------------------
@@ -8544,7 +7980,7 @@
           ${suggestions.length ? `<div class="go-detail-chips">` +
             suggestions.map(s => `
               <button class="go-pill" aria-pressed="${s === d.detail}"
-                      onclick="goAddDetail('${goEsc(s)}')">${s}</button>`).join('') +
+                      onclick="goAddDetail(${goArg(s)})">${goEsc(s)}</button>`).join('') +
             `</div>` : ''}
           <input class="go-field" id="goDetailInput" type="text" maxlength="40"
                  placeholder="${k.detail.hint}" value="${goEsc(d.detail)}"
@@ -8597,7 +8033,7 @@
           <div class="go-detail-chips go-places">` +
             state.locations.slice(0, 6).map(p => `
               <button class="go-pill" aria-pressed="${p.name === d.place}"
-                      onclick="goAddSet({place:'${goEsc(p.name)}'})">${p.name}</button>`).join('') +
+                      onclick="goAddSet({place:${goArg(p.name)}})">${goEsc(p.name)}</button>`).join('') +
           `</div>
         </div>
       </section>`;
@@ -8609,9 +8045,9 @@
         <div class="go-sec-head"><label>Who is taking this?</label></div>
         <div class="go-cards">` +
       window.GO_CREW.map(name => `
-        <button class="go-card" aria-pressed="${d.owner === name}" onclick="goAddSet({owner:'${name}'})">
+        <button class="go-card" aria-pressed="${d.owner === name}" onclick="goAddSet({owner:${goArg(name)}})">
           <i style="background:${goPersonBg(name)}">${name[0]}</i>
-          <b>${name === state.currentUser ? 'Me' : name}</b>
+          <b>${name === state.currentUser ? 'Me' : goEsc(name)}</b>
           <em>${name === state.currentUser ? 'You' : 'Available'}</em>
         </button>`).join('') +
       `<button class="go-card is-other" aria-pressed="${d.owner === 'TBD'}" onclick="goAddSet({owner:'TBD'})">
@@ -8626,7 +8062,7 @@
         <div class="go-detail-chips go-scroll">` +
       window.GO_KIDS.map(x => `
         <button class="go-pill ${d.kids.includes(x) ? 'is-on' : ''}" aria-pressed="${d.kids.includes(x)}"
-                onclick="goAddKid('${x}')">${x}</button>`).join('') +
+                onclick="goAddKid(${goArg(x)})">${goEsc(x)}</button>`).join('') +
       `<button class="go-pill is-other" aria-pressed="${d.kids.includes('All')}"
                onclick="goAddKid('All')">All kids</button></div>
       </section>`;
@@ -8847,7 +8283,8 @@
           <select class="set-input is-role" aria-label="Relationship"
                   onchange="setPersonRole('${p.id}', this.value)">${roleOpts(p)}</select>
         </div>
-        ${p.name === state.currentUser ? `<span class="set-tag is-you">You</span>` : `
+        ${p.name === state.currentUser ? '<span class="set-tag is-you">You</span>' : ''}
+        ${`
         <button class="set-remove" aria-label="Remove ${goEsc(p.name)}"
                 onclick="setRemovePerson('${p.id}')"><i data-lucide="x"></i></button>`}
       </div>`;
@@ -8864,6 +8301,7 @@
                value="${goEsc(state.homeAddress || '')}" placeholder="Street, town"
                onchange="setHomeAddress(this.value)">
       </div>
+      ${setLink('Home and starting bases', 'FamilyHub.openSettings()')}
     `);
 
     const crewSec = setSection('crew', 'users-round', 'Caregivers',
@@ -8882,18 +8320,18 @@
     const connections = setSection('conn', 'link', 'Connections',
       'Calendar is read-only in this lab. Connecting is not wired up yet, so nothing here will change your real calendar.', `
       ${setRow('calendar-days', 'Google Calendar',
-        conn.google ? 'Connected · read-only' : 'Not connected',
-        setLink(conn.google ? 'Disconnect' : 'Connect', "setConnect('google')"))}
+        'Not connected · local preview',
+        setLink('Connection unavailable', "setConnect('google')"))}
       ${setRow('smartphone', 'Apple Calendar',
-        conn.apple ? 'Connected · read-only' : 'Not connected',
-        setLink(conn.apple ? 'Disconnect' : 'Connect', "setConnect('apple')"))}
+        'Not connected · local preview',
+        setLink('Connection unavailable', "setConnect('apple')"))}
     `);
 
     // 5 — Alerts and device
     const zones = GO_ZONES.map(z =>
       `<option value="${z}" ${z === (state.timeZone || 'device') ? 'selected' : ''}>${setZoneLabel(z)}</option>`).join('');
     const alerts = setSection('alerts', 'bell', 'Alerts &amp; device',
-      'Leave-by fires on the device so it still arrives with no signal. The other two need the shared backend and are queued, not delivered.', `
+      'Saved preferences for the future notification service. This prototype does not deliver notifications.', `
       ${setRow('alarm-clock', 'Leave by', 'When it is time to set off',
         setSwitch(state.notifyLeaveBy, "setToggle('notifyLeaveBy')", 'Leave-by alerts'))}
       ${setRow('user-round-x', 'Driver needed', 'A stop with nobody assigned',
@@ -8969,162 +8407,34 @@
 
   /* Events store people by name, so a rename is a schedule edit as much as a
      roster one. Sweep every reference rather than leaving orphans behind. */
-  function goRenamePerson(from, to){
-    if(from === to) return;
-    for(const day in state.eventsByDay){
-      for(const e of state.eventsByDay[day]){
-        if(e.owner === from) e.owner = to;
-        if(e.lead === from) e.lead = to;
-        if(Array.isArray(e.kids)) e.kids = e.kids.map(k => k === from ? to : k);
-        if(typeof e.kid === 'string') e.kid = e.kid.split(',').map(k => k.trim() === from ? to : k.trim()).join(', ');
-      }
-    }
-    if(state.parentLocations[from] !== undefined){
-      state.parentLocations[to] = state.parentLocations[from];
-      delete state.parentLocations[from];
-    }
-    if(state.currentUser === from) state.currentUser = to;
-    if(state.goCrewFilter === from) state.goCrewFilter = to;
-    if(state.goKidFilter === from) state.goKidFilter = to;
-  }
-
-  window.setPersonName = function(id, value){
-    const p = setFindPerson(id);
-    const name = (value || '').trim();
-    if(!p || !name || name === p.name) return;
-    if((state.people || []).some(x => x.id !== id && x.name === name)){
-      toast(`There is already a ${name} in this family`);
-      renderSettings();
-      return;
-    }
-    goRenamePerson(p.name, name);
-    p.name = name;
-    saveState();
-    renderAll();
-    renderSettings();
+  function settingsAction(action){try{action();}catch(error){toast(error.message);renderSettings();}}
+  window.setPersonName=(id,value)=>settingsAction(()=>AppStore.renamePerson(id,value));
+  window.setPersonRole=(id,value)=>settingsAction(()=>AppStore.setPersonRole(id,value));
+  window.setAddPerson=kind=>settingsAction(()=>{const p=AppStore.addPerson(kind);toast(`${p.name} added. Give them a name.`);});
+  window.setRemovePerson=function(id){
+    const person=setFindPerson(id);if(!person)return;
+    const count=AppStore.allReferences(person.name);
+    if(!confirm(`Remove ${person.name}?\n\n${count} event, template, or draft references will be updated. Their caregiver assignments become undetermined. Scheduled events stay in the plan.`))return;
+    AppStore.removePerson(id);toast(`${person.name} removed`);
   };
-
-  window.setPersonRole = function(id, value){
-    const p = setFindPerson(id);
-    if(!p) return;
-    p.relationship = value;
-    // "Child" is the one relationship that also decides which list they are in.
-    const kind = value === 'Child' ? 'child' : 'caregiver';
-    if(kind !== p.kind){
-      p.kind = kind;
-      if(state.currentUser === p.name && kind === 'child') state.currentUser = window.GO_CREW[0] || 'All';
-    }
-    saveState();
-    renderAll();
-    renderSettings();
-  };
-
-  window.setAddPerson = function(kind){
-    const used = new Set(goPeople().map(p => p.color));
-    const color = GO_PALETTE.find(c => !used.has(c)) || GO_PALETTE[goPeople().length % GO_PALETTE.length];
-    let n = 1, name;
-    do { name = kind === 'child' ? `Child ${n}` : `Caregiver ${n}`; n++; }
-    while(goPeople().some(p => p.name === name));
-    state.people.push({id:'p' + Date.now(), name, relationship: kind === 'child' ? 'Child' : 'Other', kind, color});
-    saveState();
-    renderAll();
-    renderSettings();
-    toast(`${name} added \u00b7 give them a name`);
-  };
-
-  window.setRemovePerson = function(id){
-    const p = setFindPerson(id);
-    if(!p) return;
-    const onSchedule = Object.values(state.eventsByDay).flat().filter(e =>
-      e.owner === p.name || e.lead === p.name || goKidsOf(e).includes(p.name)).length;
-    const warn = onSchedule
-      ? `\n\n${p.name} is on ${onSchedule} stop${onSchedule > 1 ? 's' : ''} this week. Those stops stay, but ${p.name} comes off them.`
-      : '';
-    if(!confirm(`Remove ${p.name} from the family?${warn}`)) return;
-    state.people = state.people.filter(x => x.id !== id);
-    for(const day in state.eventsByDay){
-      for(const e of state.eventsByDay[day]){
-        if(e.owner === p.name) e.owner = 'TBD';
-        if(e.lead === p.name) e.lead = 'TBD';
-        if(Array.isArray(e.kids)) e.kids = e.kids.filter(k => k !== p.name);
-        if(typeof e.kid === 'string') e.kid = e.kid.split(',').map(k => k.trim()).filter(k => k !== p.name).join(', ');
-      }
-    }
-    if(state.currentUser === p.name) state.currentUser = window.GO_CREW[0] || 'All';
-    if(state.goCrewFilter === p.name) state.goCrewFilter = null;
-    if(state.goKidFilter === p.name) state.goKidFilter = 'all';
-    saveState();
-    renderAll();
-    renderSettings();
-    toast(`${p.name} removed`);
-  };
-
-  window.setHomeAddress = function(value){
-    state.homeAddress = (value || '').trim();
-    const home = state.locations.find(l => l.name === (state.homePlaceName || 'Home'));
-    if(home) home.address = state.homeAddress;
-    saveState();
-  };
-
-  window.setToggle = function(key){
-    state[key] = !state[key];
-    saveState();
-    renderSettings();
-    if(key === 'trafficMode' || key === 'dinnerProtection') renderGo();
-  };
-
-  window.setHome = function(name){
-    state.homePlaceName = name;
-    saveState();
-    renderSettings();
-    toast(`Home is now ${name}`);
-  };
-
-  window.setZone = function(z){
-    state.timeZone = z;
-    saveState();
-    renderSettings();
-    toast(z === 'device' ? `Following this device · ${setDeviceZone()}` : `Times shown in ${z.replace(/_/g, ' ')}`);
-  };
-
-  window.setBuffer = function(step){
-    state.buffer = Math.max(0, Math.min(45, state.buffer + step));
-    saveState();
-    renderSettings();
-    renderGo();
-  };
-
-  // Honest about the boundary: the lab has no OAuth and writes nothing.
-  window.setConnect = function(which){
-    const conn = state.connections || (state.connections = {});
-    conn[which] = !conn[which];
-    saveState();
-    renderSettings();
-    toast(conn[which]
-      ? `${which === 'google' ? 'Google' : 'Apple'} marked connected · no real sync in the lab`
-      : 'Disconnected');
-  };
-
-  window.setSignOut = function(){
-    state.currentUser = 'Mom';
-    state.goCrewFilter = null;
-    saveState();
-    renderAll();
-    go('go');
-    toast('Signed out · back to the default profile');
-  };
+  window.setHomeAddress=value=>settingsAction(()=>AppStore.setHomeAddress(value));
+  window.setToggle=key=>settingsAction(()=>AppStore.setSetting(key,!state[key]));
+  window.setHome=name=>settingsAction(()=>AppStore.setSetting('homePlaceName',name));
+  window.setZone=zone=>settingsAction(()=>AppStore.setSetting('timeZone',zone));
+  window.setBuffer=step=>settingsAction(()=>AppStore.setSetting('buffer',Math.max(0,Math.min(45,state.buffer+step))));
+  window.setConnect=()=>toast('Calendar connection is not available in this local preview.');
+  window.setSignOut=function(){AppStore.setSetting('currentUser','All');state.goCrewFilter=null;go('go');toast('Viewing the whole family');};
 
   // Destructive, so it asks first and says exactly what goes.
   window.setDeleteAccount = function(){
     if(!confirm('Delete everything Heli-Pad has stored in this browser?\n\nThis clears the schedule, saved places, family settings and preferences. There is no server account yet, so nothing else is affected. This cannot be undone.')) return;
-    localStorage.clear();
+    AppStore.clearData();
     location.reload();
   };
 
   window.setResetSchedule = function(){
     if(!confirm('Put the sample schedule back to how it started? Any stops you added will be lost.')) return;
-    state.eventsByDay = structuredClone(defaultEvents);
-    saveState();
+    AppStore.resetSchedule(defaultEvents);
     renderAll();
     go('go');
     toast('Sample schedule restored');
@@ -9139,10 +8449,23 @@
     else toast('Clipboard not available');
   };
 
+  function renderSharedPickers(){
+    const crew=AppStore.caregivers(),kids=AppStore.children();
+    const key=JSON.stringify([crew,kids,state.locations]);
+    if(renderSharedPickers.key===key)return;renderSharedPickers.key=key;
+    const oldKids=getSelectedKids(),owner=$('#activityOwner')?.value||'TBD';
+    const grid=$('#caretakerBtnGrid');if(grid)grid.innerHTML=[...crew,'Family','TBD'].map(name=>`<button type="button" class="caretaker-btn" data-caretaker="${goEsc(name)}"><div class="c-avatar-circle" style="background:${ownerColor(name)}">${goEsc(name[0])}</div><div class="c-name">${goEsc(name==='TBD'?'Undetermined':name)}</div></button>`).join('');
+    const kidGrid=$('#activityKidsSelector');if(kidGrid)kidGrid.innerHTML=['All',...kids].map(name=>`<button type="button" class="kid-select-pill ${name==='All'?'all-pill':''}" data-kid="${goEsc(name)}">${goEsc(name==='All'?'All kids':name)}</button>`).join('');
+    setupKidsSelector();setupCaretakerButtons();setSelectedKids(oldKids);setModalOwner(crew.includes(owner)||owner==='Family'?owner:'TBD');
+    const places=$('#activityLocation');if(places){const selected=places.value;places.innerHTML=state.locations.map(p=>`<option value="${goEsc(p.name)}">${goEsc(p.name)}</option>`).join('');if(state.locations.some(p=>p.name===selected))places.value=selected;}
+  }
+
   function renderAll(){
+    renderSharedPickers();
     renderHeader();
     renderGo();
     renderLocations();
+    renderMapSummary();
     renderParentLocationControls();
     renderFamily();
     if (window.renderPlanConcept) window.renderPlanConcept();
@@ -9311,6 +8634,7 @@
   }
 
   function openModal(id){
+    if(id==='location'&&window.FamilyHub)return famOpenAddLocation();
     $('#'+id+'Modal').classList.add('open');
     window.refreshAppIcons();
   }
@@ -9342,14 +8666,14 @@
 
   function getSelectedKids(){
     const active = $$('#activityKidsSelector .kid-select-pill:not(.all-pill).active').map(b=>b.dataset.kid);
-    if(active.length === 0) return ['Maya'];
-    if(active.length === 3) return ['All'];
+    if(active.length === 0) return [];
+    if(active.length === AppStore.children().length) return ['All'];
     return active;
   }
 
   function setSelectedKids(kids){
-    const list = Array.isArray(kids) ? kids : (kids ? kids.split(',').map(s=>s.trim()) : ['Maya']);
-    const isAll = list.includes('All') || list.length >= 3;
+    const list = Array.isArray(kids) ? kids : (kids ? kids.split(',').map(s=>s.trim()) : []);
+    const isAll = list.includes('All') || (AppStore.children().length>0 && list.length === AppStore.children().length);
     $$('#activityKidsSelector .kid-select-pill').forEach(b => {
       const k = b.dataset.kid;
       if(isAll){
@@ -9505,9 +8829,9 @@
     $('#activityEndTime').value='18:30';
     renderModalDatePicker();
     setModalDay(state.activeDay);
-    setModalOwner(state.currentUser==='All'?'Mom':state.currentUser);
+    setModalOwner(state.currentUser==='All'?'TBD':state.currentUser);
     setModalMode('Drive');
-    setSelectedKids(['Maya']);
+    setSelectedKids(AppStore.children().slice(0,1));
     updateModalTimeUI();
     if($('#activityLocation').options.length)$('#activityLocation').selectedIndex=0;
   }
@@ -9545,9 +8869,9 @@
     $('#activityLocation').value=e.location;
     renderModalDatePicker();
     setModalDay(foundDay);
-    setModalOwner(e.owner || 'Mom');
+    setModalOwner(e.owner || 'TBD');
     setModalMode(e.mode || 'Drive');
-    setSelectedKids(e.kids && e.kids.length ? e.kids : (e.kid || 'Maya'));
+    setSelectedKids(Array.isArray(e.kids) ? e.kids : (e.kid || ''));
     updateModalTimeUI();
     openModal('activity');
   };
@@ -9597,7 +8921,7 @@
 
     $('#assignModalTitle').textContent = `Assign Driver: ${event.title}`;
     $('#assignSummaryTitle').textContent = event.title;
-    const kidsList = event.kids && event.kids.length ? event.kids.join(', ') : (event.kid || 'Maya');
+    const kidsList = event.kids && event.kids.length ? event.kids.join(', ') : (event.kid || '');
     $('#assignSummaryMeta').innerHTML = `
       <span>${appIcon('map-pin')} ${event.location}</span>
       <span>${appIcon('clock-3')} ${eventTimeLabel(event)}</span>
@@ -9608,7 +8932,7 @@
       const isRecommended = c.status === 'recommended';
       return `
         <div class="driver-candidate-card ${isRecommended ? 'recommended selected' : ''} ${c.causesDelay ? 'causes-delay' : ''} ${c.hasConflict ? 'has-conflict' : ''}" 
-             data-driver="${c.name}" onclick="selectDriverCandidate('${c.name}')">
+             data-driver="${c.name}" onclick="selectDriverCandidate(${goArg(c.name)})">
           <div class="driver-candidate-head">
             <div class="driver-candidate-left">
               <div class="avatar" style="background:${ownerColor(c.name)}">${c.name[0]}</div>
@@ -9629,7 +8953,7 @@
     }).join('');
 
     $('#driverCandidatesList').innerHTML = candidatesHtml;
-    state.selectedCandidateDriver = evalResult.bestCandidate ? evalResult.bestCandidate.name : 'Mom';
+    state.selectedCandidateDriver = evalResult.bestCandidate ? evalResult.bestCandidate.name : null;
     $('#confirmDriverAssignBtn').disabled = false;
     openModal('assignDriver');
   };
@@ -9733,7 +9057,7 @@
     };
   }
 
-  $('#confidenceSlider').oninput=e=>$('#confidenceOut').textContent=`${e.target.value}%`;
+  $('#confidenceSlider').oninput=e=>AppStore.setSetting('buffer',Number(e.target.value));
 
   const syncBtn = $('#syncBtn');
   if(syncBtn){
@@ -9757,7 +9081,7 @@
     const editId=Number($('#editEventId').value||0);
     const selectedKids=getSelectedKids();
     const targetDay=Number($('#activityDay')?.value ?? state.activeDay);
-    const ownerVal=$('#activityOwner')?.value || 'Mom';
+    const ownerVal=$('#activityOwner')?.value || 'TBD';
     const modeVal=$('#activityMode')?.value || 'Drive';
     const eventData={
       title:$('#activityTitle').value.trim()||'New Activity',
@@ -9809,21 +9133,13 @@
   };
 
   $('#saveLocationBtn').onclick=()=>{
-    const name=$('#locationName').value.trim()||'New Venue';
-    if(!state.locations.some(l=>l.name===name)){
-      state.locations.push({icon:'map-pin',name,address:$('#locationAddress').value.trim()||'Address'});
-    }
-    saveState();
-    renderLocations();
-    renderParentLocationControls();
-    closeModals();
-    toast('Venue saved');
+    try{AppStore.updateLocation(-1,{icon:'map-pin',name:$('#locationName').value.trim(),address:$('#locationAddress').value.trim()});closeModals();toast('Venue saved');}catch(error){toast(error.message);}
   };
 
   const settingsBtn = $('#settingsBtn');
   if(settingsBtn) settingsBtn.onclick = () => go('settings');
 
-  $('#openMapsBtn').onclick=()=>toast('Opening navigation...');
+  $('#openMapsBtn').onclick=()=>go('go');
   // The rebuilt Family screen dropped this button. Guarded rather than removed,
   // because an unguarded null here throws during setup and silently kills every
   // wiring below it - the profile switcher and all the modal controls.
@@ -9838,10 +9154,11 @@
   $$('.pin').forEach(pin=>pin.onclick=()=>toast(`Destination: ${pin.dataset.place}`));
 
   // Topbar Caregiver Profile Switcher (Cycles profile)
-  const profileCycle = [...window.GO_CREW, 'All'];
+
   const topbarProfileBtn = $('#topbarProfileBtn');
   if(topbarProfileBtn){
     topbarProfileBtn.onclick = () => {
+      const profileCycle=[...AppStore.caregivers(),'All'];
       const currentIdx = profileCycle.indexOf(state.currentUser);
       const nextUser = profileCycle[(currentIdx + 1) % profileCycle.length];
       state.currentUser = nextUser;
@@ -9864,7 +9181,7 @@
 </script>
 <script src="family-core.js?v=1"></script>
 <script src="family.js?v=1"></script>
-<script src="plan-core.js?v=8"></script>
+
 <script src="plan.js?v=9"></script>
 </body>
 </html>
