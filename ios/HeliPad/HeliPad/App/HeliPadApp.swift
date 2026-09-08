@@ -4,7 +4,7 @@ import SwiftUI
 struct HeliPadApp: App {
     var body: some Scene {
         WindowGroup {
-            TodayView()
+            ContentView()
         }
     }
 }

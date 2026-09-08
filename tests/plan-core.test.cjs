@@ -59,3 +59,18 @@ test('dinner goals flag crossing trips only on selected dates',()=>{
  assert.equal(C.analyze([e],p)[0].risks.some(r=>r.type==='dinner'),true);
  assert.equal(C.analyze([event({...e,date:'2026-08-04'})],p)[0].risks.some(r=>r.type==='dinner'),false);
 });
+test('multi-day recurrence crosses year boundaries and excludes dates before its start',()=>{
+ const batch=C.occurrences(event({date:'2026-12-30',repeat:'weekly',count:2,weekdays:[4,0,2,2]}));
+ assert.deepEqual(batch.map(e=>e.date),['2026-12-30','2027-01-01','2027-01-04','2027-01-06','2027-01-08']);
+ assert.ok(batch.every(e=>e.title==='Pickup'&&e.owner==='Mom'));
+});
+test('recurrence requires valid selected days',()=>{
+ for(const weekdays of [[],[7],[-1],[1.5]])assert.throws(()=>C.occurrences(event({repeat:'weekly',count:2,weekdays})),/weekday/);
+ assert.throws(()=>C.occurrences(event({repeat:'none',weekdays:[]})),/weekday/);
+ assert.throws(()=>C.occurrences(event({date:'2026-08-09',repeat:'weekly',count:1,weekdays:[0]})),/start date/);
+});
+
+test('selected dates work without weekly recurrence, including earlier days in the chosen week',()=>{
+ assert.deepEqual(C.occurrences(event({date:'2026-08-05',repeat:'none',weekdays:[0,2,4]})).map(e=>e.date),['2026-08-03','2026-08-05','2026-08-07']);
+ assert.deepEqual(C.occurrences(event({date:'2026-08-05'})).map(e=>e.date),['2026-08-05']);
+});

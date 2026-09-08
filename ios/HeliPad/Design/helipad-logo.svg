@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Vincent Pad landing mark</title>
+  <desc id="desc">A simple single-color H centered in a circular landing pad.</desc>
+
+  <!-- Change this one value to recolor the entire logo. -->
+  <g stroke="#315BE7" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Landing target -->
+    <circle cx="256" cy="256" r="158" stroke-width="34"/>
+
+    <!-- H landing symbol -->
+    <path d="M196 184V328M316 184V328M196 256H316" stroke-width="42"/>
+
+    <!-- Approach markers -->
+    <path d="M256 48V78M256 434V464M48 256H78M434 256H464" stroke-width="28"/>
+  </g>
+</svg>

@@ -90,8 +90,17 @@
     if(!draft.title.trim()) throw Error('Give this event a name.');
     if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.time) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.endTime) || mins(draft.endTime)<=mins(draft.time)) throw Error('End time must be after start time on the same day.');
     const count=draft.repeat==='weekly'?Number(draft.count):1;
-    if(!Number.isInteger(count)||count<1||count>52) throw Error('Choose 1 to 52 occurrences.');
-    return Array.from({length:count},(_,i)=>({...draft,date:dateAdd(draft.date,i*7)}));
+    if(!Number.isInteger(count)||count<1||count>52) throw Error('Choose 1 to 52 weeks.');
+    const weekdays=draft.weekdays===undefined?[daysBetween(monday(draft.date),draft.date)]:draft.weekdays;
+    if(!Array.isArray(weekdays)||!weekdays.length||weekdays.some(d=>!Number.isInteger(d)||d<0||d>6))throw Error('Choose at least one weekday.');
+    const selected=[...new Set(weekdays)].sort((a,b)=>a-b);
+    const start=monday(draft.date),dates=[];
+    for(let week=0;week<count;week++)for(const day of selected){
+      const date=dateAdd(start,week*7+day);
+      if(draft.repeat!=='weekly'||date>=draft.date)dates.push({...draft,date});
+    }
+    if(!dates.length)throw Error('Choose a day on or after the start date, or add another week.');
+    return dates;
   }
   const schedule = e => ({date:e.date,title:e.title,time:e.time,endTime:e.endTime,location:e.location});
   const signature = e => JSON.stringify(schedule(e));

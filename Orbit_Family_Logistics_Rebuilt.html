@@ -2776,7 +2776,7 @@
       opacity: 0.7;
     }
     .fam-scope-seg strong {
-      font-size: 10.5px;
+      font-size: 12px;
       font-weight: 750;
       letter-spacing: 0.01em;
       color: var(--g-slate);
@@ -2813,7 +2813,7 @@
       border: 0;
       background: transparent;
       color: var(--g-forest);
-      font-size: 12px;
+      font-size: 13.5px;
       font-weight: 800;
       cursor: pointer;
       display: inline-flex;
@@ -2837,10 +2837,10 @@
     .fam-chip {
       background: transparent;
       border: 1px solid var(--g-line);
-      padding: 6px 12px 6px 8px;
+      padding: 7px 14px;
       border-radius: 30px;
-      min-height: 36px;
-      font-size: 11px;
+      min-height: 40px;
+      font-size: 13px;
       font-weight: 650;
       display: inline-flex;
       align-items: center;
@@ -2872,7 +2872,7 @@
       box-shadow: 0 1px 3px #2357460a;
     }
     .fam-metric-label {
-      font-size: 9.5px;
+      font-size: 11px;
       font-weight: 800;
       letter-spacing: 0.1em;
       text-transform: uppercase;
@@ -2888,7 +2888,7 @@
       color: var(--g-ink);
     }
     .fam-metric-sub {
-      font-size: 10.5px;
+      font-size: 12px;
       font-weight: 600;
       color: var(--g-slate);
       margin-top: 3px;
@@ -2924,7 +2924,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 11px;
+      font-size: 12.5px;
       font-weight: 650;
     }
     .fam-cat-dot {
@@ -2971,17 +2971,17 @@
       min-width: 0;
     }
     .fam-kid-name {
-      font-size: 13.5px;
+      font-size: 15px;
       font-weight: 750;
       margin: 0 0 2px;
     }
     .fam-kid-stat-line {
-      font-size: 11px;
+      font-size: 12.5px;
       font-weight: 600;
       color: var(--g-slate);
     }
     .fam-kid-driver-pill {
-      font-size: 10.5px;
+      font-size: 12px;
       font-weight: 750;
       padding: 4px 8px;
       border-radius: 8px;
@@ -3068,7 +3068,7 @@
       min-width: 0;
     }
     .fam-loc-title {
-      font-size: 13px;
+      font-size: 14.5px;
       font-weight: 750;
       margin: 0 0 2px;
       overflow: hidden;
@@ -3076,7 +3076,7 @@
       white-space: nowrap;
     }
     .fam-loc-address {
-      font-size: 10.5px;
+      font-size: 12.5px;
       font-weight: 600;
       color: var(--g-slate);
       overflow: hidden;
@@ -4534,6 +4534,7 @@
     /* An all-day row has no clock to line up, so it reads as a label. */
     .go-stop-time.is-allday { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 800; }
     .go-two { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .go-two > * { min-width: 0; }
     .go-mini { display: block; font-size: 10px; font-weight: 650; color: var(--g-slate); margin-bottom: 4px; }
 
     /* Fields. */
@@ -5098,7 +5099,7 @@
       box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.16);
       backdrop-filter: blur(20px);
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       padding: 5px;
       z-index: 30;
     }
@@ -5270,7 +5271,7 @@
       .fab { bottom: calc(84px + env(safe-area-inset-bottom)); }
     }
   </style>
-  <link rel="stylesheet" href="family.css?v=1" />
+  <link rel="stylesheet" href="family.css?v=2" />
 </head>
 <body>
 <div class="page">
@@ -5439,10 +5440,6 @@
         <button class="nav-btn" data-nav="plan" aria-label="Plan: seven-day overview">
           <i data-lucide="calendar-days" aria-hidden="true"></i>
           <span>Plan</span>
-        </button>
-        <button class="nav-btn" data-nav="map">
-          <i data-lucide="map" aria-hidden="true"></i>
-          <span>Map</span>
         </button>
         <button class="nav-btn" data-nav="family">
           <i data-lucide="users-round" aria-hidden="true"></i>
@@ -6683,7 +6680,9 @@
   function renderFamilyPanel(){
     const el = $('#famPanel');
     if(!el) return;
-    $('#famHeroCard').hidden = ['places','events'].includes(state.familyActivePanel);
+    // The workload card stays put on every panel. Hiding it for two of the four
+    // made the panel below jump up and down as you moved along the segments,
+    // which read as the screen re-laying itself out rather than swapping a tab.
     switch(state.familyActivePanel){
       case 'places':
         el.innerHTML = renderFamilyLocations();
@@ -9180,7 +9179,7 @@
 
 </script>
 <script src="family-core.js?v=1"></script>
-<script src="family.js?v=1"></script>
+<script src="family.js?v=2"></script>
 
 <script src="plan.js?v=9"></script>
 </body>

@@ -22,9 +22,28 @@
     const records=window.HeliPlan?.records()||Object.values(state.eventsByDay).flat();
     return C.suggestions(records,state.templates);
   }
+  /* Activity categories. A template carries its own; an event is read from its
+     title. Sports is tested before Health so "Gymnastics Clinic" is not a
+     doctor's appointment, and the social rule sits above School so a birthday
+     drop-off is not a school run. */
+  const CATEGORIES=[
+    {id:'Sports',label:'Sports',short:'Sports',color:'#7fa375',test:/soccer|football|gym|swim|skate|athletic|tournament|practice|sport|basketball|hockey|tennis|track/},
+    {id:'Arts',label:'Arts & music',short:'Arts',color:'#bda170',test:/piano|music|orchestra|band|choir|dance|\bart|drama|theat|robotics|studio/},
+    {id:'Family',label:'Family & social',short:'Social',color:'#c2ba6b',test:/family|birthday|party|dinner|brunch|movie|grocery|market|holiday|playdate/},
+    {id:'School',label:'School',short:'School',color:'#7f9fad',test:/school|drop-?off|class|science|math|olympiad|homework|tutor|library|dismissal|fair|club/},
+    {id:'Health',label:'Health',short:'Health',color:'#c98b6b',test:/clinic|dental|dentist|pediatric|doctor|checkup|therapy|orthodon|vaccin/}
+  ];
+  const byCategoryId=Object.fromEntries(CATEGORIES.map(c=>[c.id,c]));
+  function categoryOf(record){
+    if(byCategoryId[record.category])return byCategoryId[record.category];
+    const title=String(record.title||'').toLowerCase();
+    return CATEGORIES.find(c=>c.test.test(title))||byCategoryId.Family;
+  }
   function templates(){
     const list=templateList(),ideas=suggestions();
-    return `<div class="fam-panel-head"><h2>Your shortcuts</h2>${button('+ New template','template','fam-action-link')}</div><p class="fh-intro">The handoffs you use often, ready for another day. Choose a date when you use one in Plan.</p>${list.map(t=>`<article class="fh-tpl"><div class="fh-tpl-top"><div class="fh-tpl-copy"><h3>${esc(t.title)}</h3><p>${icon('clock-3')}${formatTime(t.time)} – ${formatTime(t.endTime)}</p><p>${icon('map-pin')}${esc(t.location)}</p></div>${button(icon('pencil'),'template','fam-icon-btn',`data-id="${esc(t.id)}" aria-label="Edit ${esc(t.title)}"`)}</div><div class="fh-tpl-foot"><div class="fh-kid-tags">${t.kids.map(k=>`<span>${esc(k)}</span>`).join('')}</div>${button(`Use in Plan ${icon('arrow-up-right')}`,'use','fh-use',`data-id="${esc(t.id)}" aria-label="Use ${esc(t.title)} in Plan"`)}</div></article>`).join('')||'<p class="fh-empty">Save a frequently used schedule item to get started.</p>'}
+    const groups=CATEGORIES.map(c=>({...c,items:list.filter(t=>categoryOf(t).id===c.id)})).filter(g=>g.items.length);
+    const row=t=>`<div class="fam-tpl-row"><button type="button" class="fam-tpl-main" data-fh="template" data-id="${esc(t.id)}" aria-label="Open ${esc(t.title)}"><strong>${esc(t.title)}</strong><small>${formatTime(t.time)} · ${esc(t.kids.join(', ')||'No child chosen')}</small></button>${button('Use','use','fh-use',`data-id="${esc(t.id)}" aria-label="Use ${esc(t.title)} in Plan"`)}</div>`;
+    return `<div class="fam-panel-head"><h2>Your shortcuts</h2>${button('+ New template','template','fam-action-link')}</div><p class="fh-intro">Grouped by what they are, so the list stays short. Tap one to see or change its full detail; choose a date when you use it in Plan.</p>${groups.map(g=>`<section class="fam-tpl-group"><div class="fam-group-head"><span class="fam-group-dot" style="background:${g.color}"></span><h3>${esc(g.label)}</h3><span class="fam-group-count">${g.items.length}</span></div>${g.items.map(row).join('')}</section>`).join('')||'<p class="fh-empty">Save a frequently used schedule item to get started.</p>'}
       <section class="fh-ai" aria-label="AI template suggestions"><div class="fh-ai-head">${icon('sparkles')}<h3>A shortcut for next time</h3><span class="fh-badge">AI preview</span></div><p class="fh-intro">Repeated handoffs in your schedule can become templates. Review the details before saving.</p>${ideas.map((idea,i)=>`<article class="fh-suggestion"><div><strong>${esc(idea.draft.title)}</strong><small>${idea.count} matching handoffs · ${formatTime(idea.draft.time)}<br>${esc(idea.draft.kids.join(', '))} · ${esc(idea.draft.location)}</small></div>${button('Review','suggestion','fh-use',`data-index="${i}" aria-label="Review suggestion for ${esc(idea.draft.title)}"`)}</article>`).join('')||'<p class="fh-empty">No new repeated handoffs found. Suggestions appear as your schedule develops.</p>'}<p class="fh-note">Preview uses repeated schedule patterns. No AI service is connected.</p></section>`;
   }
   function familyEvents(){return Object.values(state.eventsByDay).flat();}
@@ -34,12 +53,77 @@
     const max=Math.max(1,...Object.values(load));
     el.innerHTML=`<div class="fam-hero-head"><div class="fam-hero-eyebrow">This sample week</div></div><h2>Care across the family</h2><p>${list.length} events · ${list.filter(e=>e.owner==='TBD').length} awaiting a caregiver</p><div class="pn-load-chart">${AppStore.caregivers().map(name=>`<div class="pn-load-row"><span class="pn-load-name">${mark(name)}${esc(name)}</span><div class="pn-track"><i style="width:${(load[name]||0)/max*100}%;--person:${goPersonInk(name)}"></i></div><strong>${load[name]||0}<small> min</small></strong></div>`).join('')||'<p>Add caregivers in Settings to assign your schedule.</p>'}</div><p class="fh-note">Estimated driving time. Unknown routes need checking.</p>`;
   }
+  /* One pass over the sample week. Per-child totals are always whole-family, so
+     the care split can be compared side by side; the headline figures and the
+     activity mix follow the chip filter. */
+  function weekStats(filter){
+    const kids=AppStore.children(),crewNames=AppStore.caregivers();
+    const lanes=[...crewNames,'Family','Unassigned'];
+    const laneOf=owner=>crewNames.includes(owner)?owner:owner==='Family'?'Family':'Unassigned';
+    const each=Object.fromEntries(kids.map(n=>[n,{minutes:0,events:0,byLane:Object.fromEntries(lanes.map(l=>[l,0]))}]));
+    const byCategory=Object.fromEntries(CATEGORIES.map(c=>[c.id,0]));
+    const perDay=Array(7).fill(0);
+    let minutes=0,events=0,drives=0,open=0;
+    for(const [day,list] of Object.entries(state.eventsByDay)){
+      for(const e of list){
+        const span=Math.max(0,timeToMinutes(e.endTime)-timeToMinutes(e.time));
+        const involved=e.kids?.includes('All')?kids:(e.kids||[]).filter(k=>kids.includes(k));
+        for(const name of involved){const kid=each[name];kid.minutes+=span;kid.events++;kid.byLane[laneOf(e.owner)]+=span;}
+        if(filter!=='All'&&!involved.includes(filter))continue;
+        minutes+=span;events++;
+        if(perDay[Number(day)]!==undefined)perDay[Number(day)]++;
+        byCategory[categoryOf(e).id]+=span;
+        if(e.mode!=='Home'&&e.location!==homeName())drives++;
+        if(laneOf(e.owner)==='Unassigned')open++;
+      }
+    }
+    const peak=perDay.indexOf(Math.max(...perDay));
+    return {kids,lanes,each,byCategory,minutes,events,drives,open,peak,peakCount:perDay[peak]};
+  }
+  const laneLabel=name=>name==='Unassigned'?'Unassigned':name;
   function kidsStats(){
-    const events=familyEvents();
-    return `<div class="fam-panel-head"><h2>Each child's week</h2></div><p class="fh-intro">Activities in the sample week, shared with Go and Plan.</p>${AppStore.children().map(name=>{const list=events.filter(e=>e.kids?.includes(name)||e.kids?.includes('All'));return `<article class="fh-tpl"><h3>${esc(name)}</h3><p>${list.length} events · ${list.filter(e=>e.owner==='TBD').length} awaiting a caregiver</p>${list.slice(0,4).map(e=>`<p>${esc(e.title)} · ${esc(e.location)}</p>`).join('')}</article>`;}).join('')||'<p class="fh-empty">Add children in Settings to include them in events and templates.</p>'}`;
+    const kids=AppStore.children();
+    if(!kids.length)return `<div class="fam-panel-head"><h2>Each child's week</h2></div><p class="fh-empty">Add children in Settings to include them in events and templates.</p>`;
+    const filter=kids.includes(state.familyKidStatsFilter)?state.familyKidStatsFilter:'All';
+    const s=weekStats(filter),hrs=m=>(m/60).toFixed(1),share=(part,whole)=>whole>0?part/whole*100:0;
+    const chips=['All',...kids].map(name=>`<button type="button" class="fam-chip" data-fh="kid-filter" data-name="${esc(name)}" aria-pressed="${filter===name}">${name==='All'?'Everyone':esc(name)}</button>`).join('');
+    const metric=(label,value,unit,sub,wide)=>`<div class="fam-metric-card"><div class="fam-metric-label">${label}</div><div class="fam-metric-val${wide?' text':''}">${esc(value)}${unit?`<small>${unit}</small>`:''}</div><div class="fam-metric-sub">${esc(sub)}</div></div>`;
+    const bar=(segments,total)=>`<div class="fam-cat-bar">${total>0?segments.map(([name,color,value])=>value>0?`<span class="fam-cat-seg" style="width:${share(value,total)}%;background:${color}"><span class="fam-seg-label">${esc(name)}, ${hrs(value)} hours</span></span>`:'').join(''):''}</div>`;
+    const legend=segments=>`<div class="fam-cat-legend">${segments.filter(([,,value])=>value>0).map(([name,color,value])=>`<div class="fam-cat-item"><span class="fam-cat-dot" style="background:${color}"></span><span class="fam-cat-name">${esc(name)}</span><span class="fam-cat-value">${hrs(value)} hrs</span></div>`).join('')}</div>`;
+    const mix=CATEGORIES.map(c=>[c.short,c.color,s.byCategory[c.id]]);
+    const careOf=totals=>s.lanes.map(l=>[laneLabel(l),goPersonInk(l),totals[l]]);
+    const everyone=Object.fromEntries(s.lanes.map(l=>[l,kids.reduce((sum,k)=>sum+s.each[k].byLane[l],0)]));
+    const top=CATEGORIES.map(c=>[c,s.byCategory[c.id]]).sort((a,b)=>b[1]-a[1])[0];
+    const who=filter==='All'?'the family':filter;
+    return `<div class="fam-panel-head"><h2>Each child's week</h2></div>
+      <div class="fam-kids-chips" role="group" aria-label="Show one child or everyone">${chips}</div>
+      <div class="fam-metric-grid">
+        ${metric('Scheduled time',hrs(s.minutes),' hrs',`${s.events} stop${s.events===1?'':'s'} for ${who}`)}
+        ${metric('Journeys',String(s.drives),' drives',s.open?`${s.open} still awaiting a caregiver`:'Every stop has a caregiver')}
+        ${metric('Busiest day',s.events?dayNames[s.peak]:'None',null,s.events?`${s.peakCount} stop${s.peakCount===1?'':'s'} scheduled`:'Nothing in the sample week',true)}
+        ${metric('Most time in',top[1]>0?top[0].short:'Nothing yet',null,top[1]>0?`${hrs(top[1])} hrs of the week`:'Add an activity to see the mix',true)}
+      </div>
+      <div class="fam-cat-box">
+        <div class="fam-metric-label">Mixture of activities</div>
+        ${bar(mix,s.minutes)}
+        ${legend(mix)||'<p class="fam-metric-sub">Nothing scheduled for this child yet.</p>'}
+      </div>
+      <div class="fam-cat-box">
+        <div class="fam-metric-label">Time with each caregiver</div>
+        <p class="fam-metric-sub" style="margin:0 0 12px">Shown for every child, whichever chip is chosen above.</p>
+        ${kids.map(name=>{const kid=s.each[name];return `<div class="fam-care-child"><div class="fam-care-head"><strong>${esc(name)}</strong><span>${hrs(kid.minutes)} hrs · ${kid.events} stop${kid.events===1?'':'s'}</span></div>${bar(careOf(kid.byLane),kid.minutes)}</div>`;}).join('')}
+        ${legend(careOf(everyone))}
+      </div>
+      <p class="fh-note">Scheduled activity time in the sample week, shared with Go and Plan. Driving time is shown on the card above.</p>`;
   }
   function crew(){
-    return `<div class="fam-panel-head"><h2>Your caregivers</h2><button class="fh-use" onclick="go('settings')">Manage in Settings</button></div>${AppStore.people('caregiver').map(p=>`<article class="fh-tpl"><div class="fh-base-row">${mark(p.name)}<div><strong>${esc(p.name)}</strong><small>${esc(p.relationship)} · starts at ${esc(state.parentLocations[p.name])}</small></div></div></article>`).join('')||'<p class="fh-empty">No caregivers yet.</p>'}<section class="fh-ai"><h3>Shared planning preferences</h3><p>${state.buffer} minutes of travel buffer · Traffic adjustment ${state.trafficMode?'on':'off'} · Dinner protection ${state.dinnerProtection?'on':'off'}</p><button class="fh-use" onclick="go('settings')">Change in Settings</button></section>`;
+    const week=AppStore.records().filter(e=>e.date>=PlanCore.BASE_WEEK&&e.date<=PlanCore.dateAdd(PlanCore.BASE_WEEK,6));
+    const load=PlanCore.loads(week,AppStore.planningOptions());
+    const list=AppStore.people('caregiver');
+    const rule=(term,detail)=>`<div><dt>${term}</dt><dd>${detail}</dd></div>`;
+    return `<div class="fam-panel-head"><h2>Your caregivers</h2>${button('Manage in Settings','open-settings','fam-action-link')}</div><p class="fh-intro">Who is in the household, where their day starts, and how much of this sample week they carry.</p>
+      <div class="fam-person-list">${list.map(p=>{const stops=week.filter(e=>e.owner===p.name).length;return `<article class="fam-person-card">${mark(p.name)}<div class="fam-person-body"><h3>${esc(p.name)}</h3><p>${esc(p.relationship)} · starts at ${esc(state.parentLocations[p.name]||homeName())}</p><p class="fam-person-stat">${stops} handoff${stops===1?'':'s'} · ${load[p.name]||0} min driving</p></div></article>`;}).join('')||'<p class="fh-empty">No caregivers yet.</p>'}</div>
+      <section class="fh-ai" aria-label="Shared planning rules"><div class="fh-ai-head">${icon('sliders-horizontal')}<h3>Shared planning rules</h3></div><p class="fh-intro">These apply to everyone's schedule.</p><dl class="fam-rule-list">${rule('Travel buffer',`${state.buffer} minutes`)}${rule('Traffic adjustment',state.trafficMode?'On':'Off')}${rule('Dinner protection',state.dinnerProtection?'On':'Off')}</dl>${button('Change in Settings','open-settings','fh-use')}</section>`;
   }
   // Sample addresses are intentionally fictional. Google Places replaces this list when configured.
   const samplePlaces=[...defaultLocations.map(l=>({...l,address:l.name==='Warren Plant'?'6400 Manufacturing Drive, Warren, MI 48092':`${l.address}, Troy, MI 48084`,source:'sample'})),
@@ -163,6 +247,8 @@
   function handle(action,element){
     const data=element.dataset||{},index=data.index===undefined?-1:Number(data.index);
     if(action==='close')return close();
+    if(action==='kid-filter')return window.famSetKidStatsFilter?.(data.name);
+    if(action==='open-settings')return go('settings');
     if(action==='settings')return show('settings');
     if(action==='settings-save'){
       const f=new FormData(document.getElementById('fhForm'));

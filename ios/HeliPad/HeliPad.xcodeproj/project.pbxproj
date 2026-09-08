@@ -1,118 +1,684 @@
 // !$*UTF8*$!
 {
 	archiveVersion = 1;
-	classes = {};
+	classes = {
+	};
 	objectVersion = 56;
 	objects = {
-		3B1EFF5979EC4398A3F718EF /* HeliPadApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeliPadApp.swift; sourceTree = "<group>"; };
-		BE52FD12127B488E94364C81 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
-		9368B64A059B4C86A754F5EC /* TodayUseCases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayUseCases.swift; sourceTree = "<group>"; };
-		651CEC46B9674EC18A48E753 /* EditSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditSheet.swift; sourceTree = "<group>"; };
-		2009525032EB46ADAA23EBAA /* TodayTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayTheme.swift; sourceTree = "<group>"; };
-		C61DAC60D61A4DA48269FD36 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
-		C78F375EDD484121AD2B5CB6 /* TodayViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayViewModel.swift; sourceTree = "<group>"; };
-		F7D670D9F431480C9FC9E85B /* Ports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ports.swift; sourceTree = "<group>"; };
+
+/* Begin PBXBuildFile section */
+		622E17728F10649DB92166E3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 887E65758D3DDD9D236D8C6B /* Assets.xcassets */; };
+		04DC1DB2DDC35D4FE3406E01 /* HeliPadApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D67BB6377C7985382333C0CF /* HeliPadApp.swift */; };
+		057353B07A919E0EC3ECC02F /* GoogleMapsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329F663B6D39EA8A47A5A999 /* GoogleMapsService.swift */; };
+		0AA36FB6E684938ED0668278 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0712DA5983C3011B96A994E7 /* LocationService.swift */; };
+		0B8A668D25AF52CD5920847C /* OnboardingReviewStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFCAF9E31ED3E1E2AE16DF6B /* OnboardingReviewStep.swift */; };
+		110B67F5B53D2A09DC555C9C /* PlanRoutinesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C79DFB401C56B346AFC484 /* PlanRoutinesView.swift */; };
+		11CDACC0155E0E314FAD8240 /* EditSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09D8FC07F5D8E6172E6B2422 /* EditSheet.swift */; };
+		14A46B01A55C353FEF8E91D3 /* RoutesData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2694E867BBAED0475C36F408 /* RoutesData.swift */; };
+		21F80D01122446BAF0934C48 /* GoRailTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E13A392663405E502770D1D /* GoRailTimelineView.swift */; };
+		229D4A45C26CE542782C1EBD /* PlanRoutinesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A44E22F226EF8373899E50C2 /* PlanRoutinesSheet.swift */; };
+		239D42EE9AEAACCE3C4034A2 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = C07B27EEB2B85E661EF63EFD /* Models.swift */; };
+		257377EA6CD816D3273DDBEB /* FamilyViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A997D0A6D5F218A754FF804 /* FamilyViewModel.swift */; };
+		2B60483E25942E689B54AB88 /* GoAddEditStopSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABBE27035DB8CEE14F44679 /* GoAddEditStopSheet.swift */; };
+		2CCABCF1128273C45CA7DB46 /* FamilyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ACE538D9C67314D4548931F /* FamilyView.swift */; };
+		2CDCA5C8370BB6D82E0EBF7A /* FamilyTemplateSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BBEE398623EABC2104D2608 /* FamilyTemplateSheet.swift */; };
+		2D0BC2F87303C9439B754DDD /* FamilyTemplatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F32FC99FCDBC5E4919B5980 /* FamilyTemplatesView.swift */; };
+		2F0C61BF1CC44AF938DB19EE /* HeliTypography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 877D3FBFA36E18650E53F099 /* HeliTypography.swift */; };
+		38E3988D044E747E3675981C /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 820555E81E79C06084A4CAF6 /* WeatherService.swift */; };
+		3DAC4D1DA8D407C367D7491C /* PlanScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3684626D04E47D4EB00FFFE /* PlanScheduleView.swift */; };
+		45AEEF34B6144F032BA90FD4 /* GoWheelTimeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7364A2D579E7F8555CE5142 /* GoWheelTimeView.swift */; };
+		4A6FE859C42FD0197ECCD550 /* FamilyPlacesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 230596F712EECEFCC32BEAF3 /* FamilyPlacesView.swift */; };
+		4C9CF01DA9E02651589A1F59 /* TodayViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0A7C9268FBB71A8983AF72 /* TodayViewModel.swift */; };
+		4DCB6A476014ED53A129AA10 /* FamilyKidsStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BF7F9CBF22065F01F4093B4 /* FamilyKidsStatsView.swift */; };
+		56D386FB9A91A0D40C023C09 /* GoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 509A9D3EA583FF2FE6C7F107 /* GoView.swift */; };
+		5D3B6D7846B8F4CF22D0F590 /* GoDialCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45BF80BE77ADC0FA18F8E3FC /* GoDialCardView.swift */; };
+		67168628578A1413A74D2E5A /* TodayTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215FB78CF9148F854D5DC211 /* TodayTheme.swift */; };
+		6AD9272FE090CF8ED90CA900 /* GoViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E1562F6E0CD84378DA7BC2 /* GoViewModel.swift */; };
+		6E53778006360AD8E6EC6237 /* FamilyRosterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741398ACE96CEF6A7A72868A /* FamilyRosterView.swift */; };
+		7124C2F2E3FB0D8C9F2EB75A /* PlanCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 863501ABD0D2BF11BF475B27 /* PlanCore.swift */; };
+		72FC76C5F9CB71FCCA9E7E26 /* OnboardingPlacesStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85D723F2D1D02C5EB5EAC177 /* OnboardingPlacesStep.swift */; };
+		73DB2321EA4D84F4449AC9A9 /* GoMastheadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A2F2C70CBE4DA298033654C /* GoMastheadView.swift */; };
+		7677AE166C68C7329477695F /* NeonDatabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A2D56146E5338169D0229E2 /* NeonDatabaseService.swift */; };
+		A89C723B54C348C55C13D866 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8706FA2A7D58717A279526F4 /* NotificationService.swift */; };
+		7F124BE0F4E7CB5E2F269E48 /* OnboardingBuild.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BF0A215CB3BD5AFF96F4CB9 /* OnboardingBuild.swift */; };
+		8358A897059C10DEE655C16E /* IntegrationsGuideSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F96DD6F9B399B2B489C9F6A /* IntegrationsGuideSheet.swift */; };
+		895250FED09067FB7F435E08 /* PlanCalendarReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25F82A5046AFF986652C86BD /* PlanCalendarReviewSheet.swift */; };
+		8B549E3D9F4514509D5DA88E /* OnboardingDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = F21DC9D86EFC9C34117995F1 /* OnboardingDraft.swift */; };
+		8B7E284AAED253A744670ACD /* TodayUseCases.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85CFFA0285C838E27FEB9A3C /* TodayUseCases.swift */; };
+		9569B1A3BBA981F9B1338003 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 429BC53EA757215630C1DBE8 /* AppStore.swift */; };
+		95AF3456B71747047225767F /* PlanPrioritiesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56F9C4B36B12C1610647E3C /* PlanPrioritiesSheet.swift */; };
+		98623475B5B919AA5566B634 /* OnboardingComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B19BD9072E3CD2397565DB4 /* OnboardingComponents.swift */; };
+		A0D4A2C83FFB32DF299CC068 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FD341B521B53260E070DA84 /* ContentView.swift */; };
+		A7C12A51EA0DE7E7B44AA279 /* HeliIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 290F82792C7BC49ADE9FBD6A /* HeliIcons.swift */; };
+		AA7104D61AE126E32A1BF471 /* PlanAssignSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F253670F483AE90CEA2E44E /* PlanAssignSheet.swift */; };
+		AB7E6087B3CE1C6433638C87 /* HeliColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2461C021592D6781AF34BD80 /* HeliColors.swift */; };
+		AC6F1B0D663494C37248E2FB /* AvatarDisc.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FFB194883D45A7924935700 /* AvatarDisc.swift */; };
+		AD563EC258390FDA0BAD9AA3 /* PlanTemplateStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F403E9134D628571636732FE /* PlanTemplateStripView.swift */; };
+		B3C3F3F7AEAA4C8CCF5712F7 /* OnboardingActivitiesStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 076690A68FDAEC53E8E56336 /* OnboardingActivitiesStep.swift */; };
+		BFED4CFE76C92EEE432593F9 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D7FB2C3390FB08A4D458A0F /* AppConfig.swift */; };
+		C079D028A1BE36D2C96C1366 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A53A2E73E9FB587BD8AFAEC9 /* SettingsView.swift */; };
+		C6E0F897B70B13D9FEC3187C /* HeliCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80225354D41E79A754ECB221 /* HeliCard.swift */; };
+		C992B41BF9E15BE30124FE1C /* PlanMastheadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E29348066C29A894F4C74B8 /* PlanMastheadView.swift */; };
+		CBAF16CA5D35178E1B934EF3 /* GoDialInstrument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A59653971BC96837C1CE45B /* GoDialInstrument.swift */; };
+		CCF85BDBA9DB5CC60E7A14AF /* GoPanelHeadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68B0E49003FB9C145DAEC4FF /* GoPanelHeadView.swift */; };
+		CDE52C7D6721CF258939F64A /* PlanCommandCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E209F9E98072B45565BAF8 /* PlanCommandCardView.swift */; };
+		CE256B45F94BB5F4569F09B6 /* TimeFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B677474DF2B30E0BDA28590 /* TimeFormat.swift */; };
+		D6351191A5F1E01B0B86F29F /* OnboardingSteps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 061541637A96504B3372B779 /* OnboardingSteps.swift */; };
+		D8A4126CBBB5E50AAD602B26 /* Ports.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA00B965B037FAB6C4B28A4 /* Ports.swift */; };
+		D8A957A6BD567503C3BDE567 /* PlanDecisionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FD847666B3CBD1879929B77 /* PlanDecisionListView.swift */; };
+		DB93EDB39B4C717F019CA210 /* GoScopeRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D1D69757D1646E9CEF7D06 /* GoScopeRowView.swift */; };
+		DCFD8817655620BF324E57AE /* PlanViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F2899BEA6353032B0B90A87 /* PlanViewModel.swift */; };
+		DE43D3EEC4AB63CA712B7AFF /* FamilyCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90E98D57CDC5B26E9EB9E93D /* FamilyCore.swift */; };
+		DFB47FF0ED09ADD0BC599F23 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCC62876745C5E100D6E3C2F /* Persistence.swift */; };
+		E19236868FF7CF566F083A3B /* FamilyWorkloadCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FD40821326F4BDFF2AB611A /* FamilyWorkloadCardView.swift */; };
+		EA8EECE756FBE97D2C38692E /* PlanRebalanceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC990E62F2154EB25E2A8BE4 /* PlanRebalanceSheet.swift */; };
+		EDB7DD392A59A030590DDB7A /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C3D918C678F97E82504A92 /* TodayView.swift */; };
+		EEA4303B9E2501CDD3F9EB27 /* PlanReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49FA2CCBECEA7E76ADDB5C1 /* PlanReviewSheet.swift */; };
+		F556095E4C18FE988039927E /* PlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACEA537A19C8AB039BBF0105 /* PlanView.swift */; };
+		F86CBB8FBE9857C97FA46068 /* FamilyLocationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F1ECD620ACD184F5685A63D /* FamilyLocationSheet.swift */; };
+		F964E02D3D84C3F3045221E6 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC93BA893235766AFF19A800 /* OnboardingView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		887E65758D3DDD9D236D8C6B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		061541637A96504B3372B779 /* OnboardingSteps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSteps.swift; sourceTree = "<group>"; };
+		0712DA5983C3011B96A994E7 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
+		076690A68FDAEC53E8E56336 /* OnboardingActivitiesStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingActivitiesStep.swift; sourceTree = "<group>"; };
+		09D8FC07F5D8E6172E6B2422 /* EditSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditSheet.swift; sourceTree = "<group>"; };
+		0ABBE27035DB8CEE14F44679 /* GoAddEditStopSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoAddEditStopSheet.swift; sourceTree = "<group>"; };
+		0E13A392663405E502770D1D /* GoRailTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoRailTimelineView.swift; sourceTree = "<group>"; };
+		215FB78CF9148F854D5DC211 /* TodayTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayTheme.swift; sourceTree = "<group>"; };
+		230596F712EECEFCC32BEAF3 /* FamilyPlacesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyPlacesView.swift; sourceTree = "<group>"; };
+		2461C021592D6781AF34BD80 /* HeliColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeliColors.swift; sourceTree = "<group>"; };
+		25F82A5046AFF986652C86BD /* PlanCalendarReviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanCalendarReviewSheet.swift; sourceTree = "<group>"; };
+		2694E867BBAED0475C36F408 /* RoutesData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutesData.swift; sourceTree = "<group>"; };
+		290F82792C7BC49ADE9FBD6A /* HeliIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeliIcons.swift; sourceTree = "<group>"; };
+		2BBEE398623EABC2104D2608 /* FamilyTemplateSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyTemplateSheet.swift; sourceTree = "<group>"; };
+		329F663B6D39EA8A47A5A999 /* GoogleMapsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleMapsService.swift; sourceTree = "<group>"; };
+		3A2D56146E5338169D0229E2 /* NeonDatabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeonDatabaseService.swift; sourceTree = "<group>"; };
+		8706FA2A7D58717A279526F4 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		3A997D0A6D5F218A754FF804 /* FamilyViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyViewModel.swift; sourceTree = "<group>"; };
+		3BF0A215CB3BD5AFF96F4CB9 /* OnboardingBuild.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingBuild.swift; sourceTree = "<group>"; };
+		3F1ECD620ACD184F5685A63D /* FamilyLocationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyLocationSheet.swift; sourceTree = "<group>"; };
+		3F96DD6F9B399B2B489C9F6A /* IntegrationsGuideSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationsGuideSheet.swift; sourceTree = "<group>"; };
+		429BC53EA757215630C1DBE8 /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
+		45BF80BE77ADC0FA18F8E3FC /* GoDialCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoDialCardView.swift; sourceTree = "<group>"; };
+		4B677474DF2B30E0BDA28590 /* TimeFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeFormat.swift; sourceTree = "<group>"; };
+		4F253670F483AE90CEA2E44E /* PlanAssignSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanAssignSheet.swift; sourceTree = "<group>"; };
+		4FD847666B3CBD1879929B77 /* PlanDecisionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanDecisionListView.swift; sourceTree = "<group>"; };
+		509A9D3EA583FF2FE6C7F107 /* GoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoView.swift; sourceTree = "<group>"; };
+		5A2F2C70CBE4DA298033654C /* GoMastheadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoMastheadView.swift; sourceTree = "<group>"; };
+		5A59653971BC96837C1CE45B /* GoDialInstrument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoDialInstrument.swift; sourceTree = "<group>"; };
+		5ACE538D9C67314D4548931F /* FamilyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyView.swift; sourceTree = "<group>"; };
+		5E29348066C29A894F4C74B8 /* PlanMastheadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanMastheadView.swift; sourceTree = "<group>"; };
+		68B0E49003FB9C145DAEC4FF /* GoPanelHeadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoPanelHeadView.swift; sourceTree = "<group>"; };
+		6BF7F9CBF22065F01F4093B4 /* FamilyKidsStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyKidsStatsView.swift; sourceTree = "<group>"; };
+		6D7FB2C3390FB08A4D458A0F /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		6FD341B521B53260E070DA84 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		741398ACE96CEF6A7A72868A /* FamilyRosterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyRosterView.swift; sourceTree = "<group>"; };
+		7F32FC99FCDBC5E4919B5980 /* FamilyTemplatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyTemplatesView.swift; sourceTree = "<group>"; };
+		7FD40821326F4BDFF2AB611A /* FamilyWorkloadCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyWorkloadCardView.swift; sourceTree = "<group>"; };
+		80225354D41E79A754ECB221 /* HeliCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeliCard.swift; sourceTree = "<group>"; };
+		820555E81E79C06084A4CAF6 /* WeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherService.swift; sourceTree = "<group>"; };
+		85CFFA0285C838E27FEB9A3C /* TodayUseCases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayUseCases.swift; sourceTree = "<group>"; };
+		85D723F2D1D02C5EB5EAC177 /* OnboardingPlacesStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPlacesStep.swift; sourceTree = "<group>"; };
+		85E1562F6E0CD84378DA7BC2 /* GoViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoViewModel.swift; sourceTree = "<group>"; };
+		863501ABD0D2BF11BF475B27 /* PlanCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanCore.swift; sourceTree = "<group>"; };
+		877D3FBFA36E18650E53F099 /* HeliTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeliTypography.swift; sourceTree = "<group>"; };
+		8B19BD9072E3CD2397565DB4 /* OnboardingComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingComponents.swift; sourceTree = "<group>"; };
+		8FFB194883D45A7924935700 /* AvatarDisc.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarDisc.swift; sourceTree = "<group>"; };
+		90E98D57CDC5B26E9EB9E93D /* FamilyCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyCore.swift; sourceTree = "<group>"; };
+		9A0A7C9268FBB71A8983AF72 /* TodayViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayViewModel.swift; sourceTree = "<group>"; };
+		9F2899BEA6353032B0B90A87 /* PlanViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanViewModel.swift; sourceTree = "<group>"; };
+		A44E22F226EF8373899E50C2 /* PlanRoutinesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanRoutinesSheet.swift; sourceTree = "<group>"; };
+		A53A2E73E9FB587BD8AFAEC9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A56F9C4B36B12C1610647E3C /* PlanPrioritiesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanPrioritiesSheet.swift; sourceTree = "<group>"; };
+		AAA00B965B037FAB6C4B28A4 /* Ports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ports.swift; sourceTree = "<group>"; };
+		ACEA537A19C8AB039BBF0105 /* PlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanView.swift; sourceTree = "<group>"; };
+		BCC62876745C5E100D6E3C2F /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
+		C07B27EEB2B85E661EF63EFD /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		C3D1D69757D1646E9CEF7D06 /* GoScopeRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoScopeRowView.swift; sourceTree = "<group>"; };
 		CDC043AA92AA43F1A5B7CE5A /* HeliPad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HeliPad.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		8168FF392A4345618B3EC1EF /* HeliPadApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B1EFF5979EC4398A3F718EF /* HeliPadApp.swift */; };
-		3D2814E3D77B48429DD1CA3E /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE52FD12127B488E94364C81 /* Models.swift */; };
-		CFC2847F71E7451C8F58C303 /* TodayUseCases.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9368B64A059B4C86A754F5EC /* TodayUseCases.swift */; };
-		B511AFD6DC6D4B54AEECCE70 /* EditSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 651CEC46B9674EC18A48E753 /* EditSheet.swift */; };
-		8804AA1FBBF04707876770A8 /* TodayTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2009525032EB46ADAA23EBAA /* TodayTheme.swift */; };
-		0D0C5F874AAA45EDAEF1744B /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C61DAC60D61A4DA48269FD36 /* TodayView.swift */; };
-		40E651D730164F1EA0D3CC37 /* TodayViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C78F375EDD484121AD2B5CB6 /* TodayViewModel.swift */; };
-		E5D62473907C4CC096BF51CF /* Ports.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D670D9F431480C9FC9E85B /* Ports.swift */; };
-		7E500C53C6B24E048DFE2A6E /* App */ = {isa = PBXGroup; children = (3B1EFF5979EC4398A3F718EF /* HeliPadApp.swift */, ); path = App; sourceTree = "<group>"; };
-		59A88AB60EAB491EAA94B9CD /* Domain */ = {isa = PBXGroup; children = (BE52FD12127B488E94364C81 /* Models.swift */, 9368B64A059B4C86A754F5EC /* TodayUseCases.swift */, ); path = Domain; sourceTree = "<group>"; };
-		FE5F8E2B6900484A957AEC7E /* Ports */ = {isa = PBXGroup; children = (F7D670D9F431480C9FC9E85B /* Ports.swift */, ); path = Ports; sourceTree = "<group>"; };
-		39F0634B543A47118E23604B /* Today */ = {isa = PBXGroup; children = (651CEC46B9674EC18A48E753 /* EditSheet.swift */, 2009525032EB46ADAA23EBAA /* TodayTheme.swift */, C61DAC60D61A4DA48269FD36 /* TodayView.swift */, C78F375EDD484121AD2B5CB6 /* TodayViewModel.swift */, ); path = Today; sourceTree = "<group>"; };
-		4FDF63A02F954F86B392997B /* Features */ = {isa = PBXGroup; children = (39F0634B543A47118E23604B /* Today */, ); path = Features; sourceTree = "<group>"; };
-		8084A2972F59408C8015762E /* HeliPad */ = {isa = PBXGroup; children = (7E500C53C6B24E048DFE2A6E /* App */, 59A88AB60EAB491EAA94B9CD /* Domain */, FE5F8E2B6900484A957AEC7E /* Ports */, 4FDF63A02F954F86B392997B /* Features */, ); path = HeliPad; sourceTree = "<group>"; };
-		9A4AB5DCFB5E407AB1D1F3A0 /* Products */ = {isa = PBXGroup; children = (CDC043AA92AA43F1A5B7CE5A /* HeliPad.app */, ); name = Products; sourceTree = "<group>"; };
-		EFAA4DCD15DF428EB0D0C541 = {isa = PBXGroup; children = (8084A2972F59408C8015762E /* HeliPad */, 9A4AB5DCFB5E407AB1D1F3A0 /* Products */, ); sourceTree = "<group>"; };
-		3A251AEEF98A45DC87DA9056 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (8168FF392A4345618B3EC1EF /* HeliPadApp.swift in Sources */, 3D2814E3D77B48429DD1CA3E /* Models.swift in Sources */, CFC2847F71E7451C8F58C303 /* TodayUseCases.swift in Sources */, B511AFD6DC6D4B54AEECCE70 /* EditSheet.swift in Sources */, 8804AA1FBBF04707876770A8 /* TodayTheme.swift in Sources */, 0D0C5F874AAA45EDAEF1744B /* TodayView.swift in Sources */, 40E651D730164F1EA0D3CC37 /* TodayViewModel.swift in Sources */, E5D62473907C4CC096BF51CF /* Ports.swift in Sources */, ); runOnlyForDeploymentPostprocessing = 0; };
-		148B9A00343840ECB1235D04 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		5EA9BD4C84D3402E967DF041 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		D5C79DFB401C56B346AFC484 /* PlanRoutinesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanRoutinesView.swift; sourceTree = "<group>"; };
+		D67BB6377C7985382333C0CF /* HeliPadApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeliPadApp.swift; sourceTree = "<group>"; };
+		DC990E62F2154EB25E2A8BE4 /* PlanRebalanceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanRebalanceSheet.swift; sourceTree = "<group>"; };
+		DFCAF9E31ED3E1E2AE16DF6B /* OnboardingReviewStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingReviewStep.swift; sourceTree = "<group>"; };
+		EC93BA893235766AFF19A800 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		F21DC9D86EFC9C34117995F1 /* OnboardingDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingDraft.swift; sourceTree = "<group>"; };
+		F2E209F9E98072B45565BAF8 /* PlanCommandCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanCommandCardView.swift; sourceTree = "<group>"; };
+		F3684626D04E47D4EB00FFFE /* PlanScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanScheduleView.swift; sourceTree = "<group>"; };
+		F403E9134D628571636732FE /* PlanTemplateStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanTemplateStripView.swift; sourceTree = "<group>"; };
+		F49FA2CCBECEA7E76ADDB5C1 /* PlanReviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanReviewSheet.swift; sourceTree = "<group>"; };
+		F5C3D918C678F97E82504A92 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
+		F7364A2D579E7F8555CE5142 /* GoWheelTimeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoWheelTimeView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		148B9A00343840ECB1235D04 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		14EB1EC902C30BEB2C520C10 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				18EE327D54BB86B003D543AD /* Components */,
+				2461C021592D6781AF34BD80 /* HeliColors.swift */,
+				290F82792C7BC49ADE9FBD6A /* HeliIcons.swift */,
+				877D3FBFA36E18650E53F099 /* HeliTypography.swift */,
+				4B677474DF2B30E0BDA28590 /* TimeFormat.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		18C34E37A63F6F5FABAC302F /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				F2E209F9E98072B45565BAF8 /* PlanCommandCardView.swift */,
+				4FD847666B3CBD1879929B77 /* PlanDecisionListView.swift */,
+				5E29348066C29A894F4C74B8 /* PlanMastheadView.swift */,
+				D5C79DFB401C56B346AFC484 /* PlanRoutinesView.swift */,
+				F3684626D04E47D4EB00FFFE /* PlanScheduleView.swift */,
+				F403E9134D628571636732FE /* PlanTemplateStripView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		18EE327D54BB86B003D543AD /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				8FFB194883D45A7924935700 /* AvatarDisc.swift */,
+				5A59653971BC96837C1CE45B /* GoDialInstrument.swift */,
+				80225354D41E79A754ECB221 /* HeliCard.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		2C3495591E10CB2A6AB17552 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				3F96DD6F9B399B2B489C9F6A /* IntegrationsGuideSheet.swift */,
+				A53A2E73E9FB587BD8AFAEC9 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		35D315DEBBF45F223B169A61 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				14EB1EC902C30BEB2C520C10 /* Theme */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		49CEB2D14879458DCF57AB80 /* Sheets */ = {
+			isa = PBXGroup;
+			children = (
+				3F1ECD620ACD184F5685A63D /* FamilyLocationSheet.swift */,
+				2BBEE398623EABC2104D2608 /* FamilyTemplateSheet.swift */,
+			);
+			path = Sheets;
+			sourceTree = "<group>";
+		};
+		4C18CBDF6886F031DD98218C /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				DBE36EA54AD906AE27368EEF /* Views */,
+				EC93BA893235766AFF19A800 /* OnboardingView.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		4FA36380653C63011427E08F /* Go */ = {
+			isa = PBXGroup;
+			children = (
+				B7A452FEE4CE7207FB417FFC /* Sheets */,
+				C9FAD0B0E4DB2E5124A84A4F /* Views */,
+				509A9D3EA583FF2FE6C7F107 /* GoView.swift */,
+				85E1562F6E0CD84378DA7BC2 /* GoViewModel.swift */,
+			);
+			path = Go;
+			sourceTree = "<group>";
+		};
+		609874F33224C0C09F1FEE42 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				329F663B6D39EA8A47A5A999 /* GoogleMapsService.swift */,
+				0712DA5983C3011B96A994E7 /* LocationService.swift */,
+				3A2D56146E5338169D0229E2 /* NeonDatabaseService.swift */,
+				8706FA2A7D58717A279526F4 /* NotificationService.swift */,
+				820555E81E79C06084A4CAF6 /* WeatherService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		77774BDDEBE30160BE11502D /* Domain */ = {
+			isa = PBXGroup;
+			children = (
+				429BC53EA757215630C1DBE8 /* AppStore.swift */,
+				90E98D57CDC5B26E9EB9E93D /* FamilyCore.swift */,
+				C07B27EEB2B85E661EF63EFD /* Models.swift */,
+				3BF0A215CB3BD5AFF96F4CB9 /* OnboardingBuild.swift */,
+				F21DC9D86EFC9C34117995F1 /* OnboardingDraft.swift */,
+				BCC62876745C5E100D6E3C2F /* Persistence.swift */,
+				863501ABD0D2BF11BF475B27 /* PlanCore.swift */,
+				2694E867BBAED0475C36F408 /* RoutesData.swift */,
+				85CFFA0285C838E27FEB9A3C /* TodayUseCases.swift */,
+			);
+			path = Domain;
+			sourceTree = "<group>";
+		};
+		7E80FED9A798F59CEB58198C /* Today */ = {
+			isa = PBXGroup;
+			children = (
+				09D8FC07F5D8E6172E6B2422 /* EditSheet.swift */,
+				215FB78CF9148F854D5DC211 /* TodayTheme.swift */,
+				F5C3D918C678F97E82504A92 /* TodayView.swift */,
+				9A0A7C9268FBB71A8983AF72 /* TodayViewModel.swift */,
+			);
+			path = Today;
+			sourceTree = "<group>";
+		};
+		9248C0B39794C89A41BD4977 /* Sheets */ = {
+			isa = PBXGroup;
+			children = (
+				4F253670F483AE90CEA2E44E /* PlanAssignSheet.swift */,
+				25F82A5046AFF986652C86BD /* PlanCalendarReviewSheet.swift */,
+				A56F9C4B36B12C1610647E3C /* PlanPrioritiesSheet.swift */,
+				DC990E62F2154EB25E2A8BE4 /* PlanRebalanceSheet.swift */,
+				F49FA2CCBECEA7E76ADDB5C1 /* PlanReviewSheet.swift */,
+				A44E22F226EF8373899E50C2 /* PlanRoutinesSheet.swift */,
+			);
+			path = Sheets;
+			sourceTree = "<group>";
+		};
+		984D844B917CCD4C29DE2A97 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				CA5E153BF03ED9581A368A7D /* Family */,
+				4FA36380653C63011427E08F /* Go */,
+				4C18CBDF6886F031DD98218C /* Onboarding */,
+				FE6D8C7B811CBB248CFE4623 /* Plan */,
+				2C3495591E10CB2A6AB17552 /* Settings */,
+				7E80FED9A798F59CEB58198C /* Today */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		9A4AB5DCFB5E407AB1D1F3A0 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CDC043AA92AA43F1A5B7CE5A /* HeliPad.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B7A452FEE4CE7207FB417FFC /* Sheets */ = {
+			isa = PBXGroup;
+			children = (
+				0ABBE27035DB8CEE14F44679 /* GoAddEditStopSheet.swift */,
+			);
+			path = Sheets;
+			sourceTree = "<group>";
+		};
+		BB5D8E872B7D45C0EFD70B64 /* HeliPad */ = {
+			isa = PBXGroup;
+			children = (
+				D1D0524B025E57AFFF263442 /* App */,
+				887E65758D3DDD9D236D8C6B /* Assets.xcassets */,
+				35D315DEBBF45F223B169A61 /* Core */,
+				77774BDDEBE30160BE11502D /* Domain */,
+				984D844B917CCD4C29DE2A97 /* Features */,
+				CB8E19121C2BEA6C89B59409 /* Ports */,
+				609874F33224C0C09F1FEE42 /* Services */,
+			);
+			path = HeliPad;
+			sourceTree = "<group>";
+		};
+		BFBE05515C8FCFD7CC12D7FA /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				6BF7F9CBF22065F01F4093B4 /* FamilyKidsStatsView.swift */,
+				230596F712EECEFCC32BEAF3 /* FamilyPlacesView.swift */,
+				741398ACE96CEF6A7A72868A /* FamilyRosterView.swift */,
+				7F32FC99FCDBC5E4919B5980 /* FamilyTemplatesView.swift */,
+				7FD40821326F4BDFF2AB611A /* FamilyWorkloadCardView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		C9FAD0B0E4DB2E5124A84A4F /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				45BF80BE77ADC0FA18F8E3FC /* GoDialCardView.swift */,
+				5A2F2C70CBE4DA298033654C /* GoMastheadView.swift */,
+				68B0E49003FB9C145DAEC4FF /* GoPanelHeadView.swift */,
+				0E13A392663405E502770D1D /* GoRailTimelineView.swift */,
+				C3D1D69757D1646E9CEF7D06 /* GoScopeRowView.swift */,
+				F7364A2D579E7F8555CE5142 /* GoWheelTimeView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		CA5E153BF03ED9581A368A7D /* Family */ = {
+			isa = PBXGroup;
+			children = (
+				49CEB2D14879458DCF57AB80 /* Sheets */,
+				BFBE05515C8FCFD7CC12D7FA /* Views */,
+				5ACE538D9C67314D4548931F /* FamilyView.swift */,
+				3A997D0A6D5F218A754FF804 /* FamilyViewModel.swift */,
+			);
+			path = Family;
+			sourceTree = "<group>";
+		};
+		CB8E19121C2BEA6C89B59409 /* Ports */ = {
+			isa = PBXGroup;
+			children = (
+				AAA00B965B037FAB6C4B28A4 /* Ports.swift */,
+			);
+			path = Ports;
+			sourceTree = "<group>";
+		};
+		D1D0524B025E57AFFF263442 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				6D7FB2C3390FB08A4D458A0F /* AppConfig.swift */,
+				6FD341B521B53260E070DA84 /* ContentView.swift */,
+				D67BB6377C7985382333C0CF /* HeliPadApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		DBE36EA54AD906AE27368EEF /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				076690A68FDAEC53E8E56336 /* OnboardingActivitiesStep.swift */,
+				8B19BD9072E3CD2397565DB4 /* OnboardingComponents.swift */,
+				85D723F2D1D02C5EB5EAC177 /* OnboardingPlacesStep.swift */,
+				DFCAF9E31ED3E1E2AE16DF6B /* OnboardingReviewStep.swift */,
+				061541637A96504B3372B779 /* OnboardingSteps.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		EFAA4DCD15DF428EB0D0C541 = {
+			isa = PBXGroup;
+			children = (
+				BB5D8E872B7D45C0EFD70B64 /* HeliPad */,
+				9A4AB5DCFB5E407AB1D1F3A0 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		FE6D8C7B811CBB248CFE4623 /* Plan */ = {
+			isa = PBXGroup;
+			children = (
+				9248C0B39794C89A41BD4977 /* Sheets */,
+				18C34E37A63F6F5FABAC302F /* Views */,
+				ACEA537A19C8AB039BBF0105 /* PlanView.swift */,
+				9F2899BEA6353032B0B90A87 /* PlanViewModel.swift */,
+			);
+			path = Plan;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
 		55EA15E486C948A0A468659D /* HeliPad */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 89BC2985020547FE927B8083 /* Build configuration list for PBXNativeTarget "HeliPad" */;
-			buildPhases = (3A251AEEF98A45DC87DA9056 /* Sources */, 148B9A00343840ECB1235D04 /* Frameworks */, 5EA9BD4C84D3402E967DF041 /* Resources */, );
-			buildRules = ();
-			dependencies = ();
+			buildPhases = (
+				3A251AEEF98A45DC87DA9056 /* Sources */,
+				148B9A00343840ECB1235D04 /* Frameworks */,
+				5EA9BD4C84D3402E967DF041 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
 			name = HeliPad;
 			productName = HeliPad;
 			productReference = CDC043AA92AA43F1A5B7CE5A /* HeliPad.app */;
 			productType = "com.apple.product-type.application";
 		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
 		C4A896D211324CA79D77017C /* Project object */ = {
 			isa = PBXProject;
-			attributes = { BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 1500; LastUpgradeCheck = 1500; };
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+			};
 			buildConfigurationList = AFA5703DFB694E108C7C8B6A /* Build configuration list for PBXProject "HeliPad" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
-			knownRegions = (en, Base, );
+			knownRegions = (
+				en,
+				Base,
+			);
 			mainGroup = EFAA4DCD15DF428EB0D0C541;
 			productRefGroup = 9A4AB5DCFB5E407AB1D1F3A0 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			targets = (55EA15E486C948A0A468659D /* HeliPad */, );
+			targets = (
+				55EA15E486C948A0A468659D /* HeliPad */,
+			);
 		};
-		17184B01016B47C484A68D85 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5EA9BD4C84D3402E967DF041 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				622E17728F10649DB92166E3 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		3A251AEEF98A45DC87DA9056 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BFED4CFE76C92EEE432593F9 /* AppConfig.swift in Sources */,
+				A0D4A2C83FFB32DF299CC068 /* ContentView.swift in Sources */,
+				04DC1DB2DDC35D4FE3406E01 /* HeliPadApp.swift in Sources */,
+				AC6F1B0D663494C37248E2FB /* AvatarDisc.swift in Sources */,
+				CBAF16CA5D35178E1B934EF3 /* GoDialInstrument.swift in Sources */,
+				C6E0F897B70B13D9FEC3187C /* HeliCard.swift in Sources */,
+				AB7E6087B3CE1C6433638C87 /* HeliColors.swift in Sources */,
+				A7C12A51EA0DE7E7B44AA279 /* HeliIcons.swift in Sources */,
+				2F0C61BF1CC44AF938DB19EE /* HeliTypography.swift in Sources */,
+				CE256B45F94BB5F4569F09B6 /* TimeFormat.swift in Sources */,
+				9569B1A3BBA981F9B1338003 /* AppStore.swift in Sources */,
+				DE43D3EEC4AB63CA712B7AFF /* FamilyCore.swift in Sources */,
+				239D42EE9AEAACCE3C4034A2 /* Models.swift in Sources */,
+				7F124BE0F4E7CB5E2F269E48 /* OnboardingBuild.swift in Sources */,
+				8B549E3D9F4514509D5DA88E /* OnboardingDraft.swift in Sources */,
+				DFB47FF0ED09ADD0BC599F23 /* Persistence.swift in Sources */,
+				7124C2F2E3FB0D8C9F2EB75A /* PlanCore.swift in Sources */,
+				14A46B01A55C353FEF8E91D3 /* RoutesData.swift in Sources */,
+				8B7E284AAED253A744670ACD /* TodayUseCases.swift in Sources */,
+				2CCABCF1128273C45CA7DB46 /* FamilyView.swift in Sources */,
+				257377EA6CD816D3273DDBEB /* FamilyViewModel.swift in Sources */,
+				F86CBB8FBE9857C97FA46068 /* FamilyLocationSheet.swift in Sources */,
+				2CDCA5C8370BB6D82E0EBF7A /* FamilyTemplateSheet.swift in Sources */,
+				4DCB6A476014ED53A129AA10 /* FamilyKidsStatsView.swift in Sources */,
+				4A6FE859C42FD0197ECCD550 /* FamilyPlacesView.swift in Sources */,
+				6E53778006360AD8E6EC6237 /* FamilyRosterView.swift in Sources */,
+				2D0BC2F87303C9439B754DDD /* FamilyTemplatesView.swift in Sources */,
+				E19236868FF7CF566F083A3B /* FamilyWorkloadCardView.swift in Sources */,
+				56D386FB9A91A0D40C023C09 /* GoView.swift in Sources */,
+				6AD9272FE090CF8ED90CA900 /* GoViewModel.swift in Sources */,
+				2B60483E25942E689B54AB88 /* GoAddEditStopSheet.swift in Sources */,
+				5D3B6D7846B8F4CF22D0F590 /* GoDialCardView.swift in Sources */,
+				73DB2321EA4D84F4449AC9A9 /* GoMastheadView.swift in Sources */,
+				CCF85BDBA9DB5CC60E7A14AF /* GoPanelHeadView.swift in Sources */,
+				21F80D01122446BAF0934C48 /* GoRailTimelineView.swift in Sources */,
+				DB93EDB39B4C717F019CA210 /* GoScopeRowView.swift in Sources */,
+				45AEEF34B6144F032BA90FD4 /* GoWheelTimeView.swift in Sources */,
+				F964E02D3D84C3F3045221E6 /* OnboardingView.swift in Sources */,
+				B3C3F3F7AEAA4C8CCF5712F7 /* OnboardingActivitiesStep.swift in Sources */,
+				98623475B5B919AA5566B634 /* OnboardingComponents.swift in Sources */,
+				72FC76C5F9CB71FCCA9E7E26 /* OnboardingPlacesStep.swift in Sources */,
+				0B8A668D25AF52CD5920847C /* OnboardingReviewStep.swift in Sources */,
+				D6351191A5F1E01B0B86F29F /* OnboardingSteps.swift in Sources */,
+				F556095E4C18FE988039927E /* PlanView.swift in Sources */,
+				DCFD8817655620BF324E57AE /* PlanViewModel.swift in Sources */,
+				AA7104D61AE126E32A1BF471 /* PlanAssignSheet.swift in Sources */,
+				895250FED09067FB7F435E08 /* PlanCalendarReviewSheet.swift in Sources */,
+				95AF3456B71747047225767F /* PlanPrioritiesSheet.swift in Sources */,
+				EA8EECE756FBE97D2C38692E /* PlanRebalanceSheet.swift in Sources */,
+				EEA4303B9E2501CDD3F9EB27 /* PlanReviewSheet.swift in Sources */,
+				229D4A45C26CE542782C1EBD /* PlanRoutinesSheet.swift in Sources */,
+				CDE52C7D6721CF258939F64A /* PlanCommandCardView.swift in Sources */,
+				D8A957A6BD567503C3BDE567 /* PlanDecisionListView.swift in Sources */,
+				C992B41BF9E15BE30124FE1C /* PlanMastheadView.swift in Sources */,
+				110B67F5B53D2A09DC555C9C /* PlanRoutinesView.swift in Sources */,
+				3DAC4D1DA8D407C367D7491C /* PlanScheduleView.swift in Sources */,
+				AD563EC258390FDA0BAD9AA3 /* PlanTemplateStripView.swift in Sources */,
+				8358A897059C10DEE655C16E /* IntegrationsGuideSheet.swift in Sources */,
+				C079D028A1BE36D2C96C1366 /* SettingsView.swift in Sources */,
+				11CDACC0155E0E314FAD8240 /* EditSheet.swift in Sources */,
+				67168628578A1413A74D2E5A /* TodayTheme.swift in Sources */,
+				EDB7DD392A59A030590DDB7A /* TodayView.swift in Sources */,
+				4C9CF01DA9E02651589A1F59 /* TodayViewModel.swift in Sources */,
+				D8A4126CBBB5E50AAD602B26 /* Ports.swift in Sources */,
+				057353B07A919E0EC3ECC02F /* GoogleMapsService.swift in Sources */,
+				0AA36FB6E684938ED0668278 /* LocationService.swift in Sources */,
+				7677AE166C68C7329477695F /* NeonDatabaseService.swift in Sources */,
+				A89C723B54C348C55C13D866 /* NotificationService.swift in Sources */,
+				38E3988D044E747E3675981C /* WeatherService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		17184B01016B47C484A68D85 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 87Q24PLN3T;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = HeliPad;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "HeliPad uses your location to calculate real-time driving times and departure countdowns.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", );
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				PRODUCT_BUNDLE_IDENTIFIER = com.onepalebluedot.helipad;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
-				DEBUG_INFORMATION_FORMAT = dwarf;				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;				SWIFT_OPTIMIZATION_LEVEL = "-Onone";			}; name = Debug; };
-		A059AF773E114CABAA708749 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {
+			};
+			name = Debug;
+		};
+		1DCFC72BDDB347A9AC9E09DB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+			};
+			name = Debug;
+		};
+		A059AF773E114CABAA708749 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 87Q24PLN3T;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = HeliPad;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "HeliPad uses your location to calculate real-time driving times and departure countdowns.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", );
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.onepalebluedot.helipad;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";				SWIFT_COMPILATION_MODE = wholemodule;			}; name = Release; };
-		1DCFC72BDDB347A9AC9E09DB /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {
+			};
+			name = Release;
+		};
+		C0442E3B11F04B58838CB508 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
-				DEBUG_INFORMATION_FORMAT = dwarf;				ENABLE_TESTABILITY = YES;				GCC_PREPROCESSOR_DEFINITIONS = ("DEBUG=1", "$(inherited)", );				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;			}; name = Debug; };
-		C0442E3B11F04B58838CB508 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = iphoneos;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";				VALIDATE_PRODUCT = YES;			}; name = Release; };
-		AFA5703DFB694E108C7C8B6A /* Build configuration list for PBXProject "HeliPad" */ = {isa = XCConfigurationList; buildConfigurations = (1DCFC72BDDB347A9AC9E09DB /* Debug */, C0442E3B11F04B58838CB508 /* Release */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		89BC2985020547FE927B8083 /* Build configuration list for PBXNativeTarget "HeliPad" */ = {isa = XCConfigurationList; buildConfigurations = (17184B01016B47C484A68D85 /* Debug */, A059AF773E114CABAA708749 /* Release */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		89BC2985020547FE927B8083 /* Build configuration list for PBXNativeTarget "HeliPad" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				17184B01016B47C484A68D85 /* Debug */,
+				A059AF773E114CABAA708749 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AFA5703DFB694E108C7C8B6A /* Build configuration list for PBXProject "HeliPad" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1DCFC72BDDB347A9AC9E09DB /* Debug */,
+				C0442E3B11F04B58838CB508 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
 	};
 	rootObject = C4A896D211324CA79D77017C /* Project object */;
 }

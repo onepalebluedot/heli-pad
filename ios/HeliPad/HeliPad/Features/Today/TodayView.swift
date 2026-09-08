@@ -194,7 +194,7 @@ struct TodayView: View {
             Text(task.start.formatted(date: .omitted, time: .shortened))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(TodayTheme.muted)
-                .frame(width: 52, alignment: .leading)
+                .frame(width: 64, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
                 Text(task.title).font(.subheadline.weight(.semibold))
                 Text("\(vm.childNames(task.children)) · \(vm.personName(task.assigneeId))")
@@ -230,9 +230,18 @@ struct TodayView: View {
 
     private var weekStrip: some View {
         // Below dial / under scroll only (SWIPE-TAP-MAP).
-        HStack(spacing: 4) {
+        // The household week starts on Monday everywhere else in the app, so this
+        // strip anchors to the same Monday rather than to the locale's Sunday.
+        let calendar = Calendar.current
+        let monday = calendar.date(
+            byAdding: .day,
+            value: -PlanCore.currentWeekdayIndex(),
+            to: .now
+        ) ?? .now
+
+        return HStack(spacing: 4) {
             ForEach(0..<7, id: \.self) { i in
-                let day = Calendar.current.date(byAdding: .day, value: i - Calendar.current.component(.weekday, from: .now) + 1, to: .now) ?? .now
+                let day = calendar.date(byAdding: .day, value: i, to: monday) ?? monday
                 VStack(spacing: 6) {
                     Text(day.formatted(.dateTime.weekday(.narrow)))
                         .font(.caption2.weight(.semibold))
@@ -241,8 +250,8 @@ struct TodayView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .foregroundStyle(Calendar.current.isDateInToday(day) ? Color.white : TodayTheme.ink)
-                .background(Calendar.current.isDateInToday(day) ? TodayTheme.green : Color.clear, in: Capsule())
+                .foregroundStyle(calendar.isDateInToday(day) ? Color.white : TodayTheme.ink)
+                .background(calendar.isDateInToday(day) ? TodayTheme.green : Color.clear, in: Capsule())
             }
         }
         .padding(.top, 8)
