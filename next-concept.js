@@ -50,8 +50,13 @@
 
   function stop(event, target) {
     const travel = isTravel(event), past = !view.offset && now() >= timeToMinutes(event.time) && !event.done;
+    const allDay = window.isAllDay && window.isAllDay(event);
     const [clock, period] = formatTime(event.time).split(' ');
-    return `<li class="nx-stop ${event.done ? 'is-done' : ''} ${target?.id === event.id ? 'is-next' : ''}"><div class="nx-stop-time">${clock}<span>${period} · ${travel ? 'arrive' : 'starts'}</span></div>
+    // An all-day stop has no arrival to line up under; it says so instead.
+    const timeCell = allDay
+      ? `<div class="nx-stop-time">All<span>day</span></div>`
+      : `<div class="nx-stop-time">${clock}<span>${period} · ${travel ? 'arrive' : 'starts'}</span></div>`;
+    return `<li class="nx-stop ${event.done ? 'is-done' : ''} ${target?.id === event.id ? 'is-next' : ''}">${timeCell}
       <button class="nx-stop-main" data-nx-action="details" data-id="${event.id}"><strong>${escape(kidLabel(event))} · ${escape(shortTitle(event.title))}</strong><p>${escape(event.location)}</p><p class="${past || event.conflict || event.lead === 'TBD' ? 'nx-stop-warning' : ''}">${event.done ? '✓ Completed' : past ? 'Check status · not confirmed' : event.lead === 'TBD' ? 'Driver needed' : event.conflict ? 'Schedule overlap · review driver' : travel ? `Leave ${time(depart(event))} · ${escape(event.lead)}` : 'No travel needed'}</p></button>
       <button class="nx-driver" style="--nx-person-bg:${colors[event.lead] || '#f0dcc6'}" data-nx-action="assign" data-id="${event.id}" aria-label="Review driver for ${escape(event.title)}">${escape(initials[event.lead] || '?')}</button></li>`;
   }
@@ -124,7 +129,7 @@
     returnFocus = document.activeElement;
     const shell = document.createElement('div');
     shell.id = 'nxSheet'; shell.className = 'nx-sheet-backdrop';
-    shell.innerHTML = `<section class="next-sheet" role="dialog" aria-modal="true" aria-labelledby="nxSheetTitle"><div class="nx-sheet-head"><div><div class="nx-eyebrow">${escape(kidLabel(event))} · ${dayNames[eventDayOf(id)]}</div><h2 id="nxSheetTitle">${escape(event.title)}</h2></div><button class="nx-sheet-close" aria-label="Close trip details">×</button></div><div class="nx-sheet-info"><p><strong>${escape(event.location)}</strong></p><p>${formatTime(event.time)} – ${formatTime(event.endTime)}</p><p>${isTravel(event) ? `Leave ${escape(event.origin)} at <strong>${time(depart(event))}</strong>.<br>${event.eta} min estimated travel, plus ${Math.max(0,timeToMinutes(event.time)-depart(event)-event.eta)} min buffer.` : 'No travel needed.'}</p><p>${event.lead === 'TBD' ? 'A caregiver still needs to be assigned.' : `${escape(event.lead)} is assigned.`}</p>${event.conflict ? `<p style="color:#9a482c">Schedule overlap: ${escape(event.conflict)}</p>` : ''}<small>Design preview. Travel times are sample estimates.</small></div><div class="nx-sheet-actions"><button data-sheet-action="done">${event.done ? 'Reopen handoff' : 'Mark handoff complete'}</button><button data-sheet-action="edit">Edit appointment</button><button data-sheet-action="assign">Compare / change caregiver</button></div></section>`;
+    shell.innerHTML = `<section class="next-sheet" role="dialog" aria-modal="true" aria-labelledby="nxSheetTitle"><div class="nx-sheet-head"><div><div class="nx-eyebrow">${escape(kidLabel(event))} · ${dayNames[eventDayOf(id)]}</div><h2 id="nxSheetTitle">${escape(event.title)}</h2></div><button class="nx-sheet-close" aria-label="Close trip details">×</button></div><div class="nx-sheet-info"><p><strong>${escape(event.location)}</strong></p><p>${window.eventTimeLabel ? window.eventTimeLabel(event) : `${formatTime(event.time)} – ${formatTime(event.endTime)}`}</p><p>${isTravel(event) ? `Leave ${escape(event.origin)} at <strong>${time(depart(event))}</strong>.<br>${event.eta} min estimated travel, plus ${Math.max(0,timeToMinutes(event.time)-depart(event)-event.eta)} min buffer.` : 'No travel needed.'}</p><p>${event.lead === 'TBD' ? 'A caregiver still needs to be assigned.' : `${escape(event.lead)} is assigned.`}</p>${event.conflict ? `<p style="color:#9a482c">Schedule overlap: ${escape(event.conflict)}</p>` : ''}<small>Design preview. Travel times are sample estimates.</small></div><div class="nx-sheet-actions"><button data-sheet-action="done">${event.done ? 'Reopen handoff' : 'Mark handoff complete'}</button><button data-sheet-action="edit">Edit appointment</button><button data-sheet-action="assign">Compare / change caregiver</button></div></section>`;
     document.querySelector('.app').append(shell);
     shell.querySelector('.nx-sheet-close').onclick = closeSheet;
     shell.onclick = e => { if(e.target === shell) closeSheet(); };

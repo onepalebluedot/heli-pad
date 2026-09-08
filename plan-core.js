@@ -11,25 +11,26 @@
   const dateAdd = (date, days) => { const d = new Date(date+'T12:00:00'); d.setDate(d.getDate()+days); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
   const daysBetween = (a,b) => Math.round((Date.parse(b+'T12:00:00Z')-Date.parse(a+'T12:00:00Z'))/86400000);
   const monday = date => dateAdd(date, -((new Date(date+'T12:00:00').getDay()+6)%7));
-  const needsTravel = e => e.mode !== 'Home' && e.location !== 'Home' && !['cook','placeholder'].includes(e.kind);
+  const needsTravel = e => !e.allDay && e.mode !== 'Home' && !['cook','placeholder'].includes(e.kind);
   const unassigned = e => !e.owner || ['TBD','Unassigned'].includes(e.owner);
   const end = e => { const t=mins(e.endTime); return t<=mins(e.time) ? t+1440:t; };
   const intersects = (a,b,c,d) => a<d && c<b;
-  const route = (a,b,options) => a===b ? 0 : options.routes[a]?.[b] ?? null;
+  const route = (a,b,options,at) => options.travel ? options.travel(a,b,at) : a===b ? 0 : options.routes[a]?.[b] ?? null;
+  const crew = options => options.crew ?? CREW;
   const owned = (e,name) => e.owner===name || e.owner==='Family';
   function candidate(event, name, events, options) {
     const start=mins(event.time), finish=end(event), buffer=Number(options.buffer ?? 12);
     const others=events.filter(e=>e.date===event.date && e.id!==event.id && owned(e,name));
     const prior=others.filter(e=>end(e)<=start).sort((a,b)=>end(b)-end(a))[0];
     const recent=prior && start-end(prior)<=180;
-    const origin=start<540 ? 'Home' : recent ? prior.location : options.origins[name] || 'Home';
-    const eta=needsTravel(event) ? route(origin,event.location,options):0;
+    const origin=start<540 ? (options.home||'Home') : recent ? prior.location : options.origins[name] || options.home || 'Home';
+    const eta=needsTravel(event) ? route(origin,event.location,options,start):0;
     const leave=eta===null ? start:start-eta-(needsTravel(event)?buffer:0);
     const overlap=others.find(e=>intersects(leave,finish,mins(e.time),end(e)));
     const slack=prior && eta!==null ? leave-end(prior):null;
     // Check the onward journey too; fixing one trip must not break the next.
     const next=others.filter(e=>mins(e.time)>=finish).sort((a,b)=>mins(a.time)-mins(b.time))[0];
-    const nextEta=next && needsTravel(next) ? route(event.location,next.location,options):0;
+    const nextEta=next && needsTravel(next) ? route(event.location,next.location,options,mins(next.time)):0;
     const onwardSlack=next && nextEta!==null ? mins(next.time)-nextEta-(needsTravel(next)?buffer:0)-finish:null;
     const unknown=eta===null || (next && nextEta===null);
     const conflict=Boolean(overlap || (slack!==null && slack<0) || (onwardSlack!==null && onwardSlack<0));
@@ -38,15 +39,16 @@
   }
   function analyze(events, options) {
     return events.map(event=> {
-      const missing=unassigned(event), detail=candidate(event,missing?'Mom':event.owner,events,options);
+      const missing=unassigned(event)||(event.owner!=='Family'&&!crew(options).includes(event.owner)), detail=candidate(event,missing?(crew(options)[0]||''):event.owner,events,options);
       const risks=[];
       if(missing) risks.push({type:'driver', label:needsTravel(event)?'Needs driver':'Needs caregiver'});
       if(!missing && detail.conflict) risks.push({type:'overlap',label:detail.reason});
       if(!missing && !detail.conflict && detail.slack!==null && detail.slack<10) risks.push({type:'tight',label:`${detail.slack} min spare after travel + buffer`});
+      if(event.locationMissing||!event.location) risks.push({type:'place',label:'Choose a saved location'});
       if(detail.unknown) risks.push({type:'route',label:'Check the route'});
       if(!missing && detail.eta>=25) risks.push({type:'long',label:`${detail.eta} min drive`});
-      const priority=options.priorities?.[monday(event.date)];
-      if(priority?.enabled && priority.days?.includes((new Date(event.date+'T12:00:00').getDay()+6)%7) && needsTravel(event) && intersects(detail.leave,end(event),mins(priority.time),mins(priority.time)+45)) risks.push({type:'dinner',label:'Crosses family dinner'});
+      const priority=options.priorities?.[monday(event.date)] || (options.dinnerProtection?{enabled:true,days:[0,1,2,3,4,5,6],time:'18:30'}:null);
+      if(options.dinnerProtection!==false && priority?.enabled && priority.days?.includes((new Date(event.date+'T12:00:00').getDay()+6)%7) && !event.allDay && !/dinner|supper/i.test(event.title) && intersects(detail.leave,end(event),mins(priority.time),mins(priority.time)+45)) risks.push({type:'dinner',label:'Crosses family dinner'});
       const tentative=Boolean(event.tentative) && !missing;
       if(tentative) risks.push({type:'tentative',label:'Driver is tentative'});
       return {...event,detail,risks,status:missing?'missing':risks.length?'review':'ready'};
@@ -57,7 +59,7 @@
     return {list,total:list.length,ready:list.filter(e=>e.status==='ready').length,missing:list.filter(e=>e.status==='missing').length,review:list.filter(e=>e.status==='review').length};
   }
   function loads(events,options) {
-    const result=Object.fromEntries(CREW.map(n=>[n,0]));
+    const result=Object.fromEntries(crew(options).map(n=>[n,0]));
     for(const e of events) if(result[e.owner]!==undefined && needsTravel(e)) result[e.owner]+=candidate(e,e.owner,events,options).eta||0;
     return result;
   }
@@ -66,8 +68,8 @@
     const changes=[];
     for(const e of [...draft].sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time))) {
       if(e.done || e.owner==='Family' || e.tentative || e.locked || !needsTravel(e)) continue;
-      const old=candidate(e,e.owner || 'Mom',draft,options), load=loads(draft,options);
-      const pool=CREW.map(n=>candidate(e,n,draft,options)).filter(c=>!c.conflict&&!c.unknown);
+      const old=candidate(e,e.owner || crew(options)[0] || '',draft,options), load=loads(draft,options);
+      const pool=crew(options).map(n=>candidate(e,n,draft,options)).filter(c=>!c.conflict&&!c.unknown);
       pool.sort((a,b)=>(a.eta+load[a.name]*.12)-(b.eta+load[b.name]*.12));
       const best=pool[0];
       if(!best || best.name===e.owner) continue;

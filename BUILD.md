@@ -17,7 +17,7 @@ Three documents govern this project, and they do not overlap:
 
 The HTML in `index.html` is the **UX lab**, not the architecture. Read it for behaviour, never for structure. Where this document says "the lab does X", it means "the intended behaviour is X, and you can see it working there".
 
-**Two surfaces are in scope, and the choice between homes is settled.** SYSTEM.md records *Primary home chrome: resolved — Go selected by product owner*. **Go** is the daily execution screen (`index.html`, the `"GO" SCREEN` block and `renderGo()`); **Plan** is its weekly companion (`plan.css`, `plan.js`, `plan-core.js`), and it already carries the week overview, the review and rebalance sheets, and a labelled local preview of two-way calendar sync. Next and Today are reference experiments and are not being ported.
+**Four surfaces are in scope, and the choice between homes is settled.** SYSTEM.md records *Primary home chrome: resolved — Go selected by product owner*. **Go** is the daily execution screen (`index.html`, the `"GO" SCREEN` block and `renderGo()`); **Plan** is its weekly assignment desk (`plan.css`, `plan.js`, `plan-core.js`) with recurring handoff assignment, review, and an expandable Go-style schedule; **Map** and **Family** provide saved-place and household setup. Today and Next are historical reference experiments and are not shipped or loaded.
 
 **If you are an AI agent building from this file:** work in the phase order in §12. Do not start a phase before its predecessor's acceptance criteria pass. Do not invent product decisions — the items marked **[DECIDE]** are for a human. When the lab and this file disagree on behaviour, the lab is the reference implementation; when they disagree on structure, this file is.
 
@@ -47,7 +47,7 @@ Point 5 is not a nice-to-have. Every design decision in `design.md` assumes the 
 ┌───────────────────────────────────────────────────────────┐
 │  iOS client (SwiftUI)                                     │
 │                                                            │
-│   Presentation   Go · Next · Today · Family · Settings     │
+│   Presentation   Go · Plan · Map · Family · Settings      │
 │   Use cases      hottest task · leave-by · assign · sync   │
 │   Domain         Person Place Task TripPlan DayAgenda      │
 │   Ports          Calendar Travel Weather Store Notifier    │
@@ -441,8 +441,8 @@ WeatherKit, attribution, the load gauge against real data, empty and error state
 **Done when:** every state in `design.md` has been seen with real data, including the ones nobody wants to look at.
 
 ### Phase 8 — Plan
-Port the weekly companion: week overview, readiness from real events, review and rebalance sheets, priorities. `plan-core.js` is pure logic (`analyze`, `summary`, `loads`, `proposals`, `occurrences`, `pull`) and should port almost verbatim — it is the one part of the lab written as a module rather than a screen.
-**Done when:** readiness, conflict flags, and rebalance proposals agree with the lab given the same events, and an empty week reads 0 / 0.
+Port the weekly assignment desk: decision queue, recurring handoff assignment, review sheets, priorities, and an expandable schedule that matches Go's event rows and add-event flow. `plan-core.js` remains pure logic (`analyze`, `summary`, `loads`, `proposals`, `occurrences`, `pull`) and should port almost verbatim.
+**Done when:** recurring assignments apply to every occurrence in scope, readiness and conflict flags agree with the lab given the same events, the expanded schedule matches Go, and an empty week reads 0 / 0.
 
 ### Phase 9 — Beyond
 Live Activity, Watch complication, arrival auto-complete (§9), calendar write-back if §5.4 is approved.
@@ -460,8 +460,8 @@ Live Activity, Watch complication, arrival auto-complete (§9), calendar write-b
 5. **Arrival in the time column, departure inside the row.** Two kinds of time never share a column.
 6. **No leave-by while composing.** The create sheet shows start and end only, because the app does not yet know where the caregiver will be coming from.
 7. **Two taps to add.** Every field pre-filled; the keyboard opens only for a custom name, place, or exact time.
-8. **Swipe accelerates, never hides.** Every gesture has a visible tap path first — see `design-lab/SWIPE-TAP-MAP-v1.md`.
-9. **Line work, not clip art.** Icons are drawn in the app's palette. Children's emoji are the exception, because there the emoji is the identity.
+8. **Swipe accelerates, never hides.** Every gesture has a visible tap path first — see `design-lab/SWIPE-TAP-MAP-v1.md`. And the dial is not a carousel: it shows the next stop, full stop.
+9. **Line work, not clip art, with no exceptions.** Every icon is drawn in the app's palette at one stroke weight. Children are named rather than badged — the name is the identity.
 10. **Readiness is computed, never claimed.** Plan's ready fraction comes from the events themselves, saving a review records only that somebody looked, and an empty week reads 0 / 0 — never 100%.
 11. **Unknown stays unknown.** A route with no estimate is shown as unknown rather than given a plausible number.
 

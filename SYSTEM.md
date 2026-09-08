@@ -37,17 +37,18 @@ The prototype already explores these questions; production must answer them with
 
 | Asset | Role |
 | --- | --- |
-| `index.html` / `Orbit_Family_Logistics_Rebuilt.html` | Shell + Today / Go concepts (large single-file UI) |
-| `next-concept.css` / `next-concept.js` | “Next” tab: trip card, agenda, crew, preview clock |
-| `plan.css` / `plan.js` / `plan-core.js` | Weekly Plan: readiness, assignments, recurrence, priorities, calendar review |
+| `index.html` / `Orbit_Family_Logistics_Rebuilt.html` | Shell + shipped Go, Plan, Map, and Family surfaces (large single-file UI) |
+| `next-concept.css` / `next-concept.js` | Historical “Next” concept; not loaded by shipped navigation |
+| `plan.css` / `plan.js` / `plan-core.js` | Weekly Plan assignment desk: readiness, recurring assignments, recurrence, priorities, calendar review |
 | Sample in-memory events | Mock family, places, ETAs — not synced |
 | Vercel static deploy | Shareable UI demos |
 
-**UI experiments (not yet frozen)**
+**UI experiments and shipped surfaces**
 
-- **Today** — list / progressive disclosure / swipe actions
-- **Go** — countdown dial, travel bar, time spine (“do I need to move?”)
-- **Next** — ivory / forest trip card + daily agenda + “who’s got what?”
+- **Go** — shipped countdown dial, travel bar, and time spine (“do I need to move?”)
+- **Plan** — shipped assignment desk with expandable Go-style schedule
+- **Map / Family** — shipped household setup surfaces
+- **Today / Next** — historical reference experiments only; not loaded by the app
 
 The product owner has selected **Go** as the current home design and intended daily workflow. **Plan** is the weekly family planning surface. Today and Next remain reference experiments.
 
@@ -319,4 +320,20 @@ A live adapter still needs Google OAuth, authorized calendar selection, provider
 
 ### Verification
 
-Run `node --test tests/plan-core.test.cjs` for planning rules, recurrence boundaries, and overlay-preserving calendar merge. Browser verification covers review → assignment → persistence, event creation across a year boundary, pull/push preview, priorities, and phone layouts. This is local UX-lab validation, not evidence of Google API integration.
+Run `node --test tests/*.test.cjs` for planning rules, recurrence boundaries, shared-store behavior, template migration, and overlay-preserving calendar merge. Browser verification covers assignment → persistence, event creation across a year boundary, pull/push preview, family setup, and phone layouts. This is local UX-lab validation, not evidence of Google API integration.
+
+## Family places and reusable templates, September 7
+
+Family follows Go's ivory canvas, Newsreader headings, forest green, line icons, caregiver marks, and bottom sheets. Locations and Templates hide the workload card so their editors stay close to the top of the screen. The workload graph remains read-only. Swap Next and workload rebalance actions have been removed from Family and Plan; the older rebalance descriptions above are historical. Manual and whole-routine caregiver assignment remain available in Plan.
+
+`family.js` owns the Family editors and settings sheet. `family-core.js` contains template normalization, validation, suggestion grouping, and conversion to a Plan draft. `family.css` uses Go's existing design tokens. Both HTML entry points load these files.
+
+Locations holds commonly used places. Home and active caregiver starting bases appear as read-only summaries; users edit their addresses and base selections in Family settings, also reachable from the main Settings screen. The prototype displays the household defaults that stand in for onboarding. Saving a place does not ask for or write travel minutes. Real departure-aware Google Maps routing remains a production adapter, not a fixed field on a saved place.
+
+Address entry offers keyboard-accessible, explicitly labeled sample completions. A user can also save a manually entered address. For Google Places, `family.js` uses `PlaceAutocompleteElement`, `gmp-select`, and `Place.fetchFields` when the Maps JavaScript API is already loaded, or when a restricted browser key is supplied in a `google-maps-api-key` meta tag. The selected place ID, formatted address, and coordinates are stored with the location. There is no key configured in the repository, so live Google address search and routing have not been verified. See the [Google Places widget documentation](https://developers.google.com/maps/documentation/javascript/place-autocomplete-new).
+
+Templates store a title, start and end times, a saved location, multiple children, optional caregiver, and travel/at-home type. Legacy single-child and duration-only templates are normalized without dropping their existing details. A template has no date and creates no calendar entry by itself. Plan shows compact highlights and an All templates sheet. Choosing a template opens an independent draft on the selected Plan date; saving that draft creates the occurrence in the shared dated plan. Changing a template later does not rewrite scheduled occurrences.
+
+The AI suggestions area is a labeled local preview. It groups repeated schedule items by title, place, children, time window, and activity type, skips patterns already saved as templates, and requires review before saving. Mixed caregiver assignments become Decide later. No LLM or external AI service is called.
+
+Verification: `node --test tests/*.test.cjs` covers the shared planning rules plus legacy template migration, multi-child drafts, time validation, and suggestion grouping. Browser checks cover address selection with arrow keys, saved-location persistence, settings-to-location display, template creation and reuse in a future Plan week, suggestion acceptance, validation, and phone layouts. Google APIs are outside this local verification.

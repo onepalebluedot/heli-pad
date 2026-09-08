@@ -2,7 +2,7 @@
 
 [![Vercel Deployment](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=flat&logo=vercel)](https://heli-pad.vercel.app)
 [![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20iOS%20PWA-indigo?style=flat)](#)
-[![Zero Dependencies](https://img.shields.io/badge/Dependencies-Zero-emerald?style=flat)](#)
+[![No Build Step](https://img.shields.io/badge/Build%20step-None-emerald?style=flat)](#)
 
 A modern, iOS-inspired mobile web application designed for stress-free family handoffs, activity relays, and parental coordination.
 
@@ -16,48 +16,30 @@ A modern, iOS-inspired mobile web application designed for stress-free family ha
 
 ---
 
-## Plan: weekly planning
+## Surface map
 
-Go is the chosen daily workflow. Open `index.html#plan` for its weekly companion:
+Heli-Pad ships four surfaces:
 
-- A seven-day readiness graphic with flagged unassigned and tentative events.
-- Day browsing and a schedule/driving-load swap, with caregiver filters independent of Go.
-- Caregiver comparison, assignment locks, and reviewed rebalancing suggestions.
-- Dated future events and weekly recurrence, with editing per occurrence.
-- Dinner protection, a weekly priority, and meal ideas in a separate sheet.
-- Clearly labeled Google Calendar pull/push **preview**. No Google account, live routing, or AI service is connected.
+- **Go** is the daily execution view: the next departure, today's timeline, and fast completion.
+- **Plan** is the weekly assignment desk: decide who handles recurring handoffs, review anything that needs a decision, and expand a day to see the same timeline used by Go.
+- **Map** is the saved-place and route context view.
+- **Family** manages caregivers, kids, locations, and reusable event templates.
 
-The Plan implementation is shared by both HTML entry points through `plan.css`, `plan.js`, and `plan-core.js`. Changes persist locally. Run `node --test tests/plan-core.test.cjs` for the planning-rule checks.
+Plan keeps the schedule collapsed until it is useful. Expanding a day reveals morning and afternoon sections, kid tags, Go-style rows, and the matching **Add an event** flow. Assigning a recurring routine applies the caregiver to every occurrence in the current week. Changes persist locally.
+
+The former **Today** and **Next** tabs are not shipped navigation and are not loaded by the app; older references to them describe historical design experiments only.
+
+The Plan implementation is shared by both HTML entry points through `plan.css`, `plan.js`, and `plan-core.js`. Run `node --test tests/*.test.cjs` for the full planning, family, and shared-store checks.
 
 ## Key Features
 
-### "Next" Tab — Third Homepage Concept
+### Go Tab — At-a-Glance Departure View
 
-An ivory and forest-green design centered on the next family handoff. Open
-`index.html#next` or select **Next** in the bottom navigation.
-
-- A trip card names the child, caregiver, origin, destination, leave-by time,
-  and arrive-by time. Timing distinguishes using the buffer from arriving late.
-- A daily agenda supports child filters, appointment details, editing, and
-  completion. Earlier unconfirmed handoffs stay visible for review.
-- "Who's got what?" shows each caregiver's handoffs and estimated driving
-  minutes. Selecting a caregiver switches the agenda and trip card together.
-- Driver suggestions use the existing sample scheduling logic. Changes go
-  through the existing caregiver comparison and assignment dialog.
-- A labeled preview clock defaults to 2:40 PM, with 3:00 PM, 3:15 PM, and live
-  options. It does not change the Go or Today simulation clock.
-
-The new design lives in `next-concept.css` and `next-concept.js`, shared by both
-HTML entry points. It uses the existing local sample data; travel estimates,
-calendar integration, and multi-user syncing remain prototype behavior.
-
-### 0. "Go" Tab — At-a-Glance Departure View (Design Study)
-
-A ground-up redesign of the Today content, built as a separate tab so the two
-approaches can be compared side by side. Its premise: a parent reading this
-screen is usually holding keys, so it answers one question — *do I need to move,
-and when?* — and draws everything else as a mark rather than a sentence. Rebuilt
-in the warm Next design language on 2026-09-05; see [`design.md`](./design.md).
+A focused daily execution view for a parent who is usually holding keys. Its
+premise: a parent reading this screen is usually holding keys, so it answers one
+question — *do I need to move, and when?* — and draws everything else as a mark
+rather than a sentence. Rebuilt in the warm family design language on
+2026-09-05; see [`design.md`](./design.md).
 
 - **Countdown Dial**: A live count on a forest / olive / clay tone card, drawn as a depleting SVG ring. Minutes inside the hour (`56 · min · to leave`), hours and minutes beyond it (`3h 21m`). Two channels, two facts: the card background says how urgent, the ring says how much run-up is left. It re-renders on the shared 5-second ticker.
 - **Piecewise Ring**: One linear window cannot serve both "four hours out" and "eleven minutes out", so the final 60 minutes own 60% of the circle and everything earlier shares the other 40%, measured across the real gap (previous stop's end, or 6 AM). 411 min reads 90%, 56 min reads 56%, 11 min reads 11% — the arc is always moving, and it moves fastest where the decision lives.
@@ -66,12 +48,12 @@ in the warm Next design language on 2026-09-05; see [`design.md`](./design.md).
 - **Defined State Matrix**: `later` · `ontrack` · `soon` · `now` · `started` · `nothing-left`, plus a no-travel variant that counts down to when everyone is together rather than to a departure that does not exist. Stops more than 20 minutes past their start roll off the dial and stay flagged on the rail, so a phone opened at 11 PM shows "Day is over · 3 never checked off" instead of a four-hundred-minute red alarm.
 - **Two Scopes**: The dial always shows *my next departure, today* — nothing in the scope row moves it. The day strip, caregiver picker and child filter are all list controls, so looking ahead at Thursday or checking whether Dad has the 4:48 covered never costs you your countdown. The panel title names whose day is listed; the masthead keeps naming today.
 - **Weather**: One ochre line icon in the masthead for today's sky — the only ambient fact on the screen. `goWeather()` is a lab stub over sample data; production reads a WeatherProvider port (WeatherKit on iOS). See `SYSTEM.md`.
-- **Hero Swap**: The dial cycles through *my* stops. The dot rail under the card is the tap path; a horizontal drag is the accelerator. `Live` hands the dial back to the stop the clock actually points at.
 - **Week Strip as a Load Gauge**: Each day's dot carries weight, not a yes/no — four steps of depth and size, blending stops with minutes behind the wheel, graded against the busiest day of *that person's* own week. Switching from Mom to Nani repaints the whole strip, so you can see at a glance whose week is heavy and where the gaps are. The same buttons appear in the new-stop sheet, so you can see which day is already full before scheduling into it.
 - **Scope Swap**: One row stands in for a day strip, a crew strip, and a filter row. Each segment shows its current value as a mark plus a word and swaps the matching picker into a single drawer. It sits below the dial, so a filter never outranks leave-in.
 - **Panel Swap**: The rest-of-day rail and the wheel-time chart share one slot behind a two-icon toggle, instead of stacking as two permanent modules.
 - **Route Beside the Dial**: The two times and the count are one decision, so they are one glance — the ring on the left, a vertical route on the right. Hollow origin, dashed run, filled square destination, with a bead (the same mark that rides the ring) advancing as the run-up elapses. Lifting the route out from under the dial shortens the card by about a third, which brings the destination, the people and the actions above the fold.
-- **Line Work, Not Emoji**: Transit modes are 1.6px line glyphs in the screen's own palette — car, walker, carpool, bus, house — rather than emoji, which arrive with someone else's colour and gloss and read as clip art beside a hand-drawn dial. Children keep their emoji, because there the emoji is the identity a family already uses.
+- **Line Work, Not Emoji**: One Lucide icon set for the whole screen — 1.6px line glyphs in the current text colour, covering transit, weather, activity presets, places, children and actions. Kid tags sit beside the event metadata so `Maya` and `Soni` stay scannable without inline brackets.
+- **A Status Dot Per Row**: Forest and gently flashing for the stop the dial is counting to, ochre when a driver is missing, sage once done — so *which one is happening now* survives a scan.
 - **Time Spine**: The day as a vertical rail of stops. The time column is the **arrival** — when the thing actually starts — and the derived departure rides inside the row as a `Leave 2:51 PM` line, so two different kinds of time never share one column. The title owns the whole flexible column, so activity names never truncate; only the venue may ellipsize. Children and the lead caregiver are named, not just badged — a pale disc carries the colour and the word beneath it carries the identity ("You" for your own stops, "Needs driver" when unassigned).
 - **One Sheet for Add and Edit**: A sheet built from the screen's own parts — a live tone-card preview, five field rows, and the scope row's swap for the pickers. Tapping an existing stop opens the same sheet, seeded: "Edit stop", "Save changes", and a quiet "Remove this stop". Nothing is a blank field: an activity preset supplies the venue, travel mode and duration; the day comes from the list you were looking at; the driver is you; the title composes itself ("Noah Practice").
 - **A Time Range, Not a Length**: The When drawer shows `2:30 PM → 2:50 PM` with the duration derived beneath it, so nobody does arithmetic to answer a question they already know ("it finishes at three"). Tapping either end aims the stepper, the hour chips and the exact input at it; moving the start carries the end along. Presets are whole hours from 7 AM to 9 PM, with ± 15 minutes for the fine adjustment.
@@ -147,7 +129,7 @@ When migrating this prototype to native Swift / SwiftUI:
 ## Getting Started
 
 ### Local Development
-Open `index.html` directly in any modern browser. There are no build tools, bundlers, or external dependencies required.
+Open `index.html` directly in any modern browser, or use a local server while developing. There is no build step or bundler. Newsreader, Plus Jakarta Sans, and Lucide are loaded from CDNs, so the first load needs network access.
 
 ```bash
 # Clone the repository
@@ -158,6 +140,13 @@ cd heli-pad
 
 # Open index.html in your browser or run a simple local server
 python3 -m http.server 8080
+
+# Optional: install the browser CLI used for smoke checks
+npm install -g agent-browser
+agent-browser install
+
+# Run the repository tests
+node --test tests/*.test.cjs
 ```
 
 ### Production Deployment

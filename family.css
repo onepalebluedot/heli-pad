@@ -1,0 +1,85 @@
+/* Family uses Go's shared tokens and sheet controls. */
+.fam-settings-btn { width:44px;height:44px;display:grid;place-items:center;border:1px solid var(--g-line);border-radius:50%;background:var(--g-paper);color:var(--g-forest);cursor:pointer; }
+.fam-settings-btn svg { width:20px;height:20px; }
+.fam-hero-card[hidden] { display:none; }
+.family-screen .fam-panel-head { align-items:center;gap:12px; }
+.family-screen .fam-panel-head h2 { font-size:21px;letter-spacing:-.7px; }
+.fh-intro,.fh-note { font-size:12px;line-height:1.65;color:var(--g-slate);margin:0 0 16px; }
+.fh-note { font-size:11px;margin:12px 0 0; }
+.fh-bases { background:var(--g-forest);color:var(--g-paper);border-radius:24px;padding:19px;margin:0 0 22px; }
+.fh-base-head { display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px; }
+.fh-base-head h3 { font-family:var(--font-headline);font-size:21px;letter-spacing:-.5px;margin:0; }
+.fh-base-head button { color:var(--g-paper);border:1px solid #ffffff44;background:transparent;border-radius:20px;min-height:36px;padding:6px 11px;font:inherit;font-size:11px;cursor:pointer; }
+.fh-base-row { display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid #ffffff20; }
+.fh-base-row > svg { width:22px;height:22px;flex:none;opacity:.8; }
+.fh-base-row div { min-width:0; }
+.fh-base-row strong,.fh-base-row small { display:block;overflow-wrap:anywhere; }
+.fh-base-row strong { font-size:12px; }
+.fh-base-row small { font-size:11px;line-height:1.6;opacity:.75;margin-top:3px; }
+.fh-base-row .go-mark { flex:none; }
+.fh-base-foot { margin:9px 0 0;font-size:10px;line-height:1.5;opacity:.65; }
+.family-screen .fam-loc-card { gap:10px;border-radius:18px; }
+.family-screen .fam-loc-address { overflow-wrap:anywhere; }
+.fh-location-edit { flex:none; }
+.fh-tpl { background:var(--g-paper);border:1px solid var(--g-line);border-radius:18px;padding:16px;margin-bottom:10px; }
+.fh-tpl-top { display:flex;gap:10px;align-items:flex-start; }
+.fh-tpl-copy { flex:1;min-width:0; }
+.fh-tpl h3 { font-family:var(--font-headline);font-size:20px;line-height:1.2;letter-spacing:-.45px;margin:0 0 8px;overflow-wrap:anywhere; }
+.fh-tpl p { margin:5px 0;font-size:11px;line-height:1.5;color:var(--g-slate);display:flex;align-items:center;gap:7px; }
+.fh-tpl p svg { width:14px;height:14px;flex:none; }
+.fh-tpl-foot { display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:13px;padding-top:12px;border-top:1px solid var(--g-line); }
+.fh-kid-tags { display:flex;flex-wrap:wrap;gap:4px; }
+.fh-kid-tags span { font-size:10px;padding:4px 7px;border-radius:20px;background:#efeddb;color:var(--g-ink); }
+.fh-use { display:flex;align-items:center;gap:6px;flex:none;border:none;background:transparent;color:var(--g-forest);font-size:11px;font-weight:750;min-height:36px;cursor:pointer; }
+.fh-use svg { width:14px;height:14px; }
+.fh-ai { margin-top:23px;border-top:1px solid var(--g-line);padding-top:20px; }
+.fh-ai-head { display:flex;align-items:center;gap:8px;margin-bottom:9px; }
+.fh-ai-head h3 { margin:0;font-family:var(--font-headline);font-size:23px;letter-spacing:-.6px; }
+.fh-ai-head svg { width:19px;height:19px;color:var(--g-ochre); }
+.fh-badge { font-size:9px;letter-spacing:.06em;text-transform:uppercase;background:#e8ebdf;color:var(--g-forest);padding:4px 6px;border-radius:6px;margin-left:auto; }
+.fh-suggestion { display:flex;align-items:center;gap:10px;background:#eeeee2;border:1px dashed #bdc8b7;border-radius:16px;padding:14px;margin-top:8px; }
+.fh-suggestion div { flex:1;min-width:0; }.fh-suggestion strong { display:block;font-size:12px;line-height:1.45; }.fh-suggestion small { display:block;font-size:11px;line-height:1.6;color:var(--g-slate);margin-top:4px; }
+#familySheetBackdrop { z-index:76; }
+#familySheetBackdrop .go-sheet { max-height:90%; }
+#familySheetBackdrop .go-sheet-body { padding-bottom:18px; }
+#familySheetBackdrop .go-sheet-foot { display:flex;flex-direction:column;gap:8px; }
+.fh-form { display:flex;flex-direction:column;gap:18px; }
+.fh-form label,.fh-form legend { color:var(--g-slate);font-size:11px;font-weight:650; }
+.fh-form label > input,.fh-form label > select { margin-top:7px; }
+.fh-form fieldset { border:0;padding:0;margin:0;min-width:0; }
+.fh-form legend { margin-bottom:10px; }
+.fh-form .go-field { width:100%;min-width:0;font-size:14px; }
+.fh-form .go-two { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
+.fh-form .go-two > * { min-width:0; }
+.fh-choices { display:flex;flex-wrap:wrap;gap:7px; }
+.fh-choice { display:flex;align-items:center;gap:6px;border:1px solid var(--g-line);border-radius:24px;min-height:40px;padding:8px 10px;background:var(--g-paper); }
+.fh-choice:has(input:checked) { background:#e6e9db;border-color:#8ba67e;color:var(--g-forest); }
+.fh-choice input { accent-color:var(--g-forest);margin:0!important;width:15px;height:15px; }
+.fh-choice .go-mark { width:20px;height:20px;font-size:10px; }
+.fh-secondary { min-height:42px;color:var(--g-slate);font:inherit;font-size:12px;background:transparent;border:0;cursor:pointer; }
+.fh-error { color:var(--g-warn);font-size:12px;margin:0;line-height:1.5; }
+.fh-search-results { margin-top:6px;border-radius:12px;border:1px solid var(--g-line);overflow:hidden; }
+.fh-search-results:empty { display:none; }
+.fh-search-results button { display:block;width:100%;text-align:left;padding:11px 12px;min-height:44px;border:0;border-bottom:1px solid var(--g-line);background:var(--g-paper);color:var(--g-ink);cursor:pointer; }
+.fh-search-results button:last-child { border-bottom:0; }
+.fh-search-results button:hover,.fh-search-results button[aria-selected=true] { background:#e7ecde; }
+.fh-search-results strong,.fh-search-results small { display:block; }.fh-search-results strong { font-size:12px; }.fh-search-results small { font-size:10px;color:var(--g-slate);line-height:1.6;margin-top:3px; }
+.fh-settings-row { display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--g-line); }
+.fh-settings-row div { flex:1;min-width:0; }.fh-settings-row strong { display:block;font-size:12px; }.fh-settings-row small { display:block;font-size:11px;line-height:1.6;color:var(--g-slate);overflow-wrap:anywhere; }
+.fh-empty { padding:22px 16px;border:1px dashed var(--g-line);border-radius:16px;font-size:12px;line-height:1.6;color:var(--g-slate); }
+.family-screen button:focus-visible,#familySheetBackdrop :focus-visible { outline:2px solid var(--g-ochre);outline-offset:3px; }
+.pn-template-section { margin:18px 0; }.pn-template-heading { display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px; }.pn-template-heading h2 { font-family:var(--font-headline);font-size:21px;margin:0;letter-spacing:-.6px; }.pn-template-heading button { border:0;background:transparent;color:var(--g-forest);font-size:11px;min-height:36px;cursor:pointer; }
+.pn-template-strip { display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;scroll-snap-type:x proximity; }
+.pn-template-highlight { text-align:left;border:1px solid var(--g-line);background:var(--g-paper);color:var(--g-ink);border-radius:15px;padding:12px 14px;flex:0 0 160px;scroll-snap-align:start;cursor:pointer; }
+.pn-template-highlight strong { display:block;font-size:12px;line-height:1.35; }.pn-template-highlight small { display:block;margin-top:7px;font-size:10px;color:var(--g-slate); }
+.pn-template-list { display:grid;gap:8px; }.pn-template-list .pn-template-highlight { width:100%; }
+.pn-command-actions:has(> :only-child) { grid-template-columns:1fr; }
+@media(max-width:370px){.fh-bases{padding:15px;}.fh-tpl{padding:13px;}.fh-tpl h3{font-size:18px;}.family-screen .fam-panel-head h2{font-size:19px;}.fh-tpl-foot{align-items:flex-start;}.fh-form .go-two{gap:8px;}}
+
+/* Shared roster summaries stay legible on Family's dark card. */
+.fam-hero-card .fh-note { color: #d3e0d4; }
+.fam-hero-card .go-mark { background: #e4ecd9 !important; }
+.fam-hero-card .pn-load-row { min-height: 38px; }
+.fam-hero-card .pn-track { background: #ffffff24; }
+.fam-hero-card > h2 { margin: 12px 0; }
+.fam-hero-card .pn-load-chart { margin: 14px 0; }
