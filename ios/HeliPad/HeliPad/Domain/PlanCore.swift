@@ -83,6 +83,17 @@ public enum PlanCore {
         return dateFormatter.string(from: target)
     }
 
+    /// Whole days from `a` to `b`, or nil when either side is not a calendar
+    /// date. `daysBetween` answers 0 for unparseable input, which reads as
+    /// "same day" and quietly files a corrupt record onto the first weekday.
+    /// Anything positioning a record by date should ask this instead.
+    public static func dayOffset(from a: String, to b: String) -> Int? {
+        guard let da = dateFormatter.date(from: a), let db = dateFormatter.date(from: b) else {
+            return nil
+        }
+        return Int(round(db.timeIntervalSince(da) / 86400.0))
+    }
+
     public static func daysBetween(_ a: String, _ b: String) -> Int {
         guard let da = dateFormatter.date(from: a), let db = dateFormatter.date(from: b) else { return 0 }
         let diff = db.timeIntervalSince(da)

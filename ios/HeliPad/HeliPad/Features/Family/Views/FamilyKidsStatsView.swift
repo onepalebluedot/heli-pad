@@ -19,7 +19,7 @@ public struct FamilyKidsStatsView: View {
         VStack(alignment: .leading, spacing: 18) {
             // Header
             HStack {
-                Text("KIDS LOGISTICS & STATS")
+                Text("KIDS WEEKLY STATS")
                     .font(HeliTypography.eyebrow(11))
                     .foregroundColor(HeliColors.mutedGray)
                     .tracking(1.4)
@@ -52,8 +52,12 @@ public struct FamilyKidsStatsView: View {
 
             // Summary 4-stat grid
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                statBox(title: "SCHEDULED TIME", value: String(format: "%.1fh", stats.totalHours), subtitle: "this week")
-                statBox(title: "JOURNEYS & STOPS", value: "\(stats.journeyCount)", subtitle: "handoffs")
+                statBox(title: "SCHEDULED EVENTS", value: "\(stats.eventCount)", subtitle: "this week")
+                statBox(
+                    title: "NEEDS A DRIVER",
+                    value: "\(stats.needsDriverCount)",
+                    subtitle: stats.needsDriverCount == 0 ? "all covered" : "still unassigned"
+                )
                 statBox(title: "BUSIEST DAY", value: stats.busiestDay, subtitle: "peak logistics")
                 statBox(title: "TOP ACTIVITY", value: stats.topCategory, subtitle: "primary focus")
             }
@@ -66,13 +70,13 @@ public struct FamilyKidsStatsView: View {
                     .foregroundColor(HeliColors.mutedGray)
                     .tracking(1.2)
 
-                if stats.journeyCount > 0 {
+                if stats.eventCount > 0 {
                     GeometryReader { geo in
                         HStack(spacing: 2) {
                             ForEach(orderedCategories, id: \.self) { cat in
                                 let count = stats.categoryMix[cat] ?? 0
-                                let fraction = CGFloat(count) / CGFloat(max(1, stats.journeyCount))
-                                let width = max(4, fraction * (geo.size.width - CGFloat(stats.categoryMix.count - 1) * 2))
+                                let fraction = CGFloat(count) / CGFloat(max(1, stats.eventCount))
+                                let width = max(4, fraction * (geo.size.width - CGFloat(orderedCategories.count - 1) * 2))
                                 RoundedRectangle(cornerRadius: 3)
                                     .fill(HeliColors.categoryColor(cat))
                                     .frame(width: width, height: 10)
@@ -114,23 +118,27 @@ public struct FamilyKidsStatsView: View {
                     .foregroundColor(HeliColors.mutedGray)
                     .tracking(1.2)
 
-                if stats.journeyCount > 0 {
+                if stats.eventCount > 0 {
                     VStack(spacing: 6) {
                         ForEach(Array(stats.driverSplit.keys.sorted()), id: \.self) { driver in
                             let rides = stats.driverSplit[driver] ?? 0
-                            let pct = (rides * 100) / max(1, stats.journeyCount)
+                            let pct = (rides * 100) / max(1, stats.eventCount)
                             HStack {
                                 AvatarDisc(name: driver, size: 20)
                                 Text(driver == "TBD" ? "Unassigned" : driver)
                                     .font(HeliTypography.caption(12))
                                     .foregroundColor(HeliColors.greenInk)
                                 Spacer()
-                                Text("\(rides) stops (\(pct)%)")
+                                Text("\(rides) \(rides == 1 ? "event" : "events") (\(pct)%)")
                                     .font(HeliTypography.chipLabel(11))
                                     .foregroundColor(HeliColors.mutedGray)
                             }
                         }
                     }
+                } else {
+                    Text("No caregiver assigned to \(selectedKid) this week.")
+                        .font(HeliTypography.caption(12))
+                        .foregroundColor(HeliColors.mutedGray)
                 }
             }
             .padding(16)

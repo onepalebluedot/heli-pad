@@ -84,9 +84,9 @@ public struct GoView: View {
         .onAppear {
             if scenePhase == .active { viewModel.startClock() }
             LocationService.shared.startUpdating()
-            if let hero = heroEvent, PlanCore.needsTravel(hero) {
+            if let hero = heroEvent {
                 Task {
-                    _ = await store.calculateDeviceDriveTime(to: hero.location)
+                    _ = await store.calculateDeviceDriveTime(for: hero)
                 }
             }
         }
@@ -100,10 +100,16 @@ public struct GoView: View {
         .onChange(of: store.timeZone) { _, _ in viewModel.updateClock() }
         .onChange(of: store.mockTime) { _, _ in viewModel.updateClock() }
         .onChange(of: heroEvent?.id) { _, _ in
-            if let hero = heroEvent, PlanCore.needsTravel(hero) {
+            if let hero = heroEvent {
                 Task {
-                    _ = await store.calculateDeviceDriveTime(to: hero.location)
+                    _ = await store.calculateDeviceDriveTime(for: hero)
                 }
+            }
+        }
+        .onReceive(LocationService.shared.$currentLocation) { newLoc in
+            guard newLoc != nil, let hero = heroEvent else { return }
+            Task {
+                _ = await store.calculateDeviceDriveTime(for: hero)
             }
         }
         .sheet(isPresented: $viewModel.showAddEditSheet) {
@@ -147,8 +153,14 @@ public struct GoView: View {
                 return
             }
         }
+        if let coord = store.destinationCoordinate(for: stop) {
+            if let url = URL(string: "http://maps.apple.com/?daddr=\(coord.latitude),\(coord.longitude)&dirflg=d") {
+                UIApplication.shared.open(url)
+                return
+            }
+        }
         let dest = (stop.formattedAddress?.isEmpty == false ? stop.formattedAddress! : stop.location)
-        let query = dest.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let query = (dest.isEmpty ? store.homeAddress : dest).addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         if let url = URL(string: "http://maps.apple.com/?daddr=\(query)&dirflg=d") {
             UIApplication.shared.open(url)
         }

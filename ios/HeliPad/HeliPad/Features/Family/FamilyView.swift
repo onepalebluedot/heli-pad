@@ -30,8 +30,7 @@ public struct FamilyView: View {
 
                 // 1. Persistent Workload Distribution Card
                 let loads = viewModel.caregiverLoads(store: store)
-                let totalM = viewModel.totalWorkloadMinutes(store: store)
-                FamilyWorkloadCardView(loads: loads, totalMinutes: totalM)
+                FamilyWorkloadCardView(loads: loads, totalDrives: viewModel.totalDrives(store: store))
 
                 // 2. Segmented Panel Switcher
                 HStack(spacing: 6) {
@@ -105,13 +104,9 @@ public struct FamilyView: View {
                     )
 
                 case .roster:
-                    let loadsDict = PlanCore.loads(
-                        store.records(),
-                        store.planningOptions()
-                    )
                     FamilyRosterView(
                         caregivers: store.caregiverPeople(),
-                        loads: loadsDict,
+                        loads: viewModel.driveCounts(store: store),
                         settings: store.settings,
                         onEditRules: {
                             showRulesSheet = true

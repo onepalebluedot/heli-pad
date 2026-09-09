@@ -22,19 +22,39 @@ public class FamilyViewModel: ObservableObject {
 
     public init() {}
 
-    // Workload calculation across caregivers
-    public func caregiverLoads(store: AppStore) -> [(name: String, minutes: Int, color: Color)] {
-        let events = store.records()
-        let loads = PlanCore.loads(events, store.planningOptions())
-
-        return store.caregivers().map { name in
-            let mins = loads[name] ?? 0
-            return (name: name, minutes: mins, color: HeliColors.caregiverInk(name))
-        }.sorted { $0.minutes > $1.minutes }
+    /// Every Family panel reads the week buckets rather than `records()`, which
+    /// also carries off-week history. The panels all say "weekly", so they must
+    /// count a week.
+    public func weekEvents(store: AppStore) -> [TaskRecord] {
+        store.eventsByDay.keys.sorted().flatMap { store.eventsByDay[$0] ?? [] }
     }
 
-    public func totalWorkloadMinutes(store: AppStore) -> Int {
-        caregiverLoads(store: store).reduce(0) { $0 + $1.minutes }
+    /// Driving load is counted in stops, not minutes. Minutes came from route
+    /// ETAs, and `route` returns nil for any place pair the route table has not
+    /// learned yet — so a household whose places are unmapped saw every
+    /// caregiver sitting at zero. A count of driving stops is always available.
+    public func driveCounts(store: AppStore) -> [String: Int] {
+        var counts: [String: Int] = [:]
+        for name in store.caregivers() { counts[name] = 0 }
+        for event in weekEvents(store: store)
+        where counts[event.owner] != nil && PlanCore.needsTravel(event) {
+            counts[event.owner, default: 0] += 1
+        }
+        return counts
+    }
+
+    // Workload distribution across caregivers
+    public func caregiverLoads(store: AppStore) -> [(name: String, drives: Int, color: Color)] {
+        let counts = driveCounts(store: store)
+        return store.caregivers()
+            .map { (name: $0, drives: counts[$0] ?? 0, color: HeliColors.caregiverInk($0)) }
+            // Swift's sort is not stable, so a bare comparison on the count lets
+            // tied caregivers swap places between renders. Break ties on name.
+            .sorted { $0.drives != $1.drives ? $0.drives > $1.drives : $0.name < $1.name }
+    }
+
+    public func totalDrives(store: AppStore) -> Int {
+        caregiverLoads(store: store).reduce(0) { $0 + $1.drives }
     }
 
     // Template suggestions
@@ -44,11 +64,11 @@ public class FamilyViewModel: ObservableObject {
 
     // Kid stats
     public func statsForKid(kid: String, store: AppStore) -> KidStatsData {
-        let kidEvents = store.records().filter { $0.kids.contains(kid) }
-        let totalMinutes = kidEvents.reduce(0) { acc, ev in
-            let dur = PlanCore.timeDiff(start: ev.time, end: ev.endTime)
-            return acc + max(0, dur)
-        }
+        let kidEvents = weekEvents(store: store).filter { $0.kids.contains(kid) || $0.kids.contains("All") }
+        // The one number in this panel that asks for a decision: stops nobody has
+        // picked up yet. Counting stops that need driving instead only restated
+        // the total, since almost every stop is away from home.
+        let needsDriverCount = kidEvents.filter { PlanCore.unassigned($0) }.count
 
         // Busiest day. Counting into a dictionary and asking for `max` leaves the
         // winner of a tie down to hash order, which is seeded per process — the
@@ -70,8 +90,9 @@ public class FamilyViewModel: ObservableObject {
         // Category breakdown, grouped into the household's big buckets rather
         // than the raw stop kind.
         var catCounts: [String: Int] = [:]
+        let shortcuts = shortcutCategories(store: store)
         for ev in kidEvents {
-            catCounts[ev.kind.category, default: 0] += 1
+            catCounts[category(of: ev, shortcuts: shortcuts), default: 0] += 1
         }
         // "Other" is a catch-all, so it makes a poor headline. Lead with a named
         // category when the child has one, and only fall back to Other.
@@ -94,13 +115,34 @@ public class FamilyViewModel: ObservableObject {
         }
 
         return KidStatsData(
-            totalHours: Double(totalMinutes) / 60.0,
-            journeyCount: kidEvents.count,
+            eventCount: kidEvents.count,
+            needsDriverCount: needsDriverCount,
             busiestDay: busiestDay,
             topCategory: topCategory,
             categoryMix: catCounts,
             driverSplit: driverCounts
         )
+    }
+
+    /// Shortcut title (folded) to the category the household filed it under.
+    private func shortcutCategories(store: AppStore) -> [String: String] {
+        var map: [String: String] = [:]
+        for template in store.templates {
+            guard let cat = template.category, TaskKind.categories.contains(cat) else { continue }
+            map[template.title.trimmingCharacters(in: .whitespaces).lowercased()] = cat
+        }
+        return map
+    }
+
+    /// A stop built from a shortcut carries the shortcut's title but not its
+    /// category — `kind` only records whether someone has to drive, so every
+    /// such stop reports the "Other" catch-all and the mix reads as one bar.
+    /// Fall back to the shortcut it came from before settling for Other.
+    private func category(of event: TaskRecord, shortcuts: [String: String]) -> String {
+        let own = event.kind.category
+        guard own == "Other" else { return own }
+        let key = event.title.trimmingCharacters(in: .whitespaces).lowercased()
+        return shortcuts[key] ?? own
     }
 
     private static let weekdayNames = [
@@ -109,8 +151,8 @@ public class FamilyViewModel: ObservableObject {
 }
 
 public struct KidStatsData {
-    public var totalHours: Double
-    public var journeyCount: Int
+    public var eventCount: Int
+    public var needsDriverCount: Int
     public var busiestDay: String
     public var topCategory: String
     public var categoryMix: [String: Int]

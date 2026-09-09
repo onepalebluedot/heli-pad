@@ -261,10 +261,6 @@ public class AppStore: ObservableObject {
         }
     }
 
-    public static func dayDate(_ d: Int) -> String {
-        return PlanCore.dateAdd(BASE_WEEK, d)
-    }
-
     public func dateForDay(_ day: Int) -> String {
         PlanCore.dateAdd(weekStart, day)
     }
@@ -283,8 +279,10 @@ public class AppStore: ObservableObject {
         var days: [Int: [TaskRecord]] = [:]
         var outside: [TaskRecord] = []
         for record in records {
-            let day = PlanCore.daysBetween(weekStart, record.date)
-            if (0...6).contains(day) {
+            // A record whose date will not parse has no place in the week. Keeping
+            // it aside preserves it without inventing a day for it — filing it on
+            // Monday would look deliberate and be wrong.
+            if let day = PlanCore.dayOffset(from: weekStart, to: record.date), (0...6).contains(day) {
                 days[day, default: []].append(record)
             } else {
                 outside.append(record)
@@ -319,7 +317,8 @@ public class AppStore: ObservableObject {
         e.kid = e.kids.joined(separator: ", ")
         e.color = color(e.owner)
 
-        if !e.location.isEmpty && !hasPlace(e.location) {
+        let hasAttachedCoordinate = e.latitude != nil && e.longitude != nil
+        if !e.location.isEmpty && !hasPlace(e.location) && !hasAttachedCoordinate {
             e.locationMissing = true
         } else {
             e.locationMissing = nil
@@ -407,9 +406,134 @@ public class AppStore: ObservableObject {
         }
     }
 
+    // MARK: - Edit stamping
+    //
+    // Two phones cannot agree on which edit is newer by comparing wall clocks.
+    // Instead every locally changed record takes a logical stamp, and every
+    // record that disappears leaves a tombstone. Both are derived centrally by
+    // diffing against the last saved content, so existing edit and delete call
+    // sites did not need to change — and none can forget to stamp.
+
+    /// Last saved content per record, so a save can tell what actually changed.
+    /// Rebuilt whenever state is loaded or replaced wholesale.
+    private var contentBaseline: [String: String] = [:]
+
+    /// Tombstones are swept once they are older than this. A delete that takes
+    /// longer than this to reach the other phone would be resurrected, which is
+    /// far longer than any realistic gap between two phones in one household.
+    private static let tombstoneHorizon: TimeInterval = 30 * 24 * 60 * 60
+
+    private static let fingerprintEncoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return encoder
+    }()
+
+    /// Content hash that is stable across launches. `Hashable` is seeded per
+    /// process, so it would report every record as changed after a relaunch.
+    private func fingerprint<T: StampedRecord>(_ record: T) -> String {
+        var bare = record
+        bare.stamp = nil
+        guard let data = try? Self.fingerprintEncoder.encode(bare) else { return UUID().uuidString }
+        var hash: UInt64 = 0xcbf29ce484222325            // FNV-1a
+        for byte in data {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x100000001b3
+        }
+        return String(hash, radix: 16)
+    }
+
+    private func nextStamp() -> RecordStamp {
+        syncMetadata.lamport += 1
+        return RecordStamp(counter: syncMetadata.lamport, deviceID: syncMetadata.deviceID)
+    }
+
+    public var tombstones: [Tombstone] { plan.tombstones ?? [] }
+
+    /// Raises the logical clock above everything the payload carries, so the
+    /// next local edit sorts after anything the other phone has already done.
+    private func observeStamps(in state: PersistedState) {
+        var highest = syncMetadata.lamport
+        func note(_ stamp: RecordStamp?) {
+            if let stamp, stamp.counter > highest { highest = stamp.counter }
+        }
+        state.eventsByDay.values.flatMap { $0 }.forEach { note($0.stamp) }
+        state.plan.future.forEach { note($0.stamp) }
+        state.plan.tombstones?.forEach { note($0.stamp) }
+        state.people.forEach { note($0.stamp) }
+        state.templates.forEach { note($0.stamp) }
+        state.locations.forEach { note($0.stamp) }
+        syncMetadata.lamport = highest
+    }
+
+    /// Records current content as the baseline without stamping anything. Used
+    /// after a load or a download, where nothing was edited locally.
+    private func rebaselineContent() {
+        var baseline: [String: String] = [:]
+        func note<T: StampedRecord>(_ items: [T], _ kind: Tombstone.Kind) {
+            for item in items { baseline["\(kind.rawValue):\(item.stampKey)"] = fingerprint(item) }
+        }
+        note(records(), .event)
+        note(people, .person)
+        note(templates, .template)
+        note(locations, .location)
+        contentBaseline = baseline
+    }
+
+    private func stampChanged<T: StampedRecord>(
+        _ items: inout [T],
+        kind: Tombstone.Kind,
+        seen: inout [String: String]
+    ) -> Bool {
+        var changed = false
+        for index in items.indices {
+            let key = "\(kind.rawValue):\(items[index].stampKey)"
+            let print = fingerprint(items[index])
+            seen[key] = print
+            if contentBaseline[key] != print || items[index].stamp == nil {
+                items[index].stamp = nextStamp()
+                changed = true
+            }
+        }
+        return changed
+    }
+
+    /// Stamps what changed since the last save and tombstones what vanished.
+    private func stampLocalChanges() {
+        var seen: [String: String] = [:]
+
+        var events = records()
+        let eventsChanged = stampChanged(&events, kind: .event, seen: &seen)
+        if eventsChanged { partitionRecords(events) }
+
+        _ = stampChanged(&people, kind: .person, seen: &seen)
+        _ = stampChanged(&templates, kind: .template, seen: &seen)
+        _ = stampChanged(&locations, kind: .location, seen: &seen)
+
+        // Anything the baseline knew about that is no longer here was deleted.
+        var graves = plan.tombstones ?? []
+        let now = nowProvider()
+        for key in contentBaseline.keys where seen[key] == nil {
+            let parts = key.split(separator: ":", maxSplits: 1)
+            guard parts.count == 2, let kind = Tombstone.Kind(rawValue: String(parts[0])) else { continue }
+            let id = String(parts[1])
+            graves.removeAll { $0.kind == kind && $0.id == id }
+            graves.append(Tombstone(id: id, kind: kind, stamp: nextStamp(), deletedAt: now))
+        }
+
+        // A record that came back (re-added under the same id) outlives its grave.
+        graves.removeAll { seen["\($0.kind.rawValue):\($0.id)"] != nil }
+        graves.removeAll { now.timeIntervalSince($0.deletedAt) > Self.tombstoneHorizon }
+
+        let settled: [Tombstone]? = graves.isEmpty ? nil : graves
+        if plan.tombstones != settled { plan.tombstones = settled }
+        contentBaseline = seen
+    }
+
     public func save(syncToCloud: Bool = true) {
         reconcile()
         prepareSyncIdentity()
+        stampLocalChanges()
         syncMetadata.localRevision += 1
         syncPending = true
         persist()
@@ -540,6 +664,11 @@ public class AppStore: ObservableObject {
             dismissedEventIds = Set(dismissed)
         }
         reconcile()
+        // Nothing here was edited on this phone: adopt the incoming stamps as
+        // the baseline, and move the clock past them so the next local edit
+        // sorts after everything the other phone has already done.
+        observeStamps(in: state)
+        rebaselineContent()
     }
 
     // MARK: - Cloud & Services Operations
@@ -554,7 +683,15 @@ public class AppStore: ObservableObject {
     private func prepareSyncIdentity() {
         let fingerprint = SHA256.hash(data: Data(neonConnectionString.utf8)).map { String(format: "%02x", $0) }.joined()
         if syncMetadata.connectionFingerprint != fingerprint || syncMetadata.householdID != cloudHouseholdID {
-            syncMetadata = HouseholdSyncMetadata(householdID: cloudHouseholdID, connectionFingerprint: fingerprint)
+            // Point at the new household, but keep this device's identity and
+            // logical clock: rewinding either would make its next edit look
+            // older than edits the other phone has already seen.
+            syncMetadata = HouseholdSyncMetadata(
+                householdID: cloudHouseholdID,
+                deviceID: syncMetadata.deviceID,
+                lamport: syncMetadata.lamport,
+                connectionFingerprint: fingerprint
+            )
             syncMetadata.localRevision = 1
             syncPending = true
         }
@@ -664,20 +801,45 @@ public class AppStore: ObservableObject {
         save()
     }
 
+    public func destinationCoordinate(for event: TaskRecord) -> CLLocationCoordinate2D? {
+        // 1. If explicit latitude & longitude are attached to the stop
+        if let lat = event.latitude, let lng = event.longitude {
+            return CLLocationCoordinate2D(latitude: lat, longitude: lng)
+        }
+
+        let locName = event.location.trimmingCharacters(in: .whitespaces)
+
+        // 2. If destination is explicitly named and exists in household locations
+        if !locName.isEmpty,
+           let dest = locations.first(where: { $0.name.lowercased() == locName.lowercased() }),
+           let lat = dest.latitude, let lng = dest.longitude {
+            return CLLocationCoordinate2D(latitude: lat, longitude: lng)
+        }
+
+        // 3. Only an explicitly home-bound stop should use the home coordinate.
+        if event.mode == "Home" || locName.lowercased() == "home" || locName.lowercased() == homePlaceName.lowercased() {
+            return homeCoordinate
+        }
+
+        // An unknown destination is not Home. Callers can fall back to the
+        // event's formatted address, while drive-time calculation correctly
+        // reports that it still needs a route.
+        return nil
+    }
+
     @MainActor
-    public func calculateDeviceDriveTime(to destinationName: String) async -> Int? {
-        guard let dest = locations.first(where: { $0.name.lowercased() == destinationName.lowercased() }) else {
+    public func calculateDeviceDriveTime(for event: TaskRecord) async -> Int? {
+        guard let destCoord = destinationCoordinate(for: event) else {
+            self.realTimeDeviceEta = nil
             return nil
         }
         let deviceCoord = LocationService.shared.effectiveCoordinate
-        let destCoord: CLLocationCoordinate2D
-        if let lat = dest.latitude, let lng = dest.longitude {
-            destCoord = CLLocationCoordinate2D(latitude: lat, longitude: lng)
-        } else {
-            // Standing in for an unplaceable destination with a sample coordinate
-            // produces a confident, wrong ETA. Better to have none.
-            self.realTimeDeviceEta = nil
-            return nil
+
+        // If the device is already within 150 meters of the destination, ETA is 0 min
+        let meters = LocationService.distanceInMeters(from: deviceCoord, to: destCoord)
+        if meters < 150 {
+            self.realTimeDeviceEta = 0
+            return 0
         }
 
         if let result = await GoogleMapsService.shared.calculateDriveTime(from: deviceCoord, to: destCoord, apiKey: googleMapsApiKey) {
@@ -685,6 +847,12 @@ public class AppStore: ObservableObject {
             return result.durationMinutes
         }
         return nil
+    }
+
+    @MainActor
+    public func calculateDeviceDriveTime(to destinationName: String) async -> Int? {
+        let dummy = TaskRecord(id: "query", date: "", owner: "", location: destinationName)
+        return await calculateDeviceDriveTime(for: dummy)
     }
 
     // MARK: - Onboarding

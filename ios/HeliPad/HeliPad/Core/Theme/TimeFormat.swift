@@ -1,9 +1,9 @@
 import Foundation
 
 public enum TimeFormat {
-    /// The departure ring drains only during the final 30 minutes.
+    /// The departure ring drains only during the final 60 minutes.
     public static func countdownFraction(minutesUntil: Int) -> Double {
-        min(1, max(0, Double(minutesUntil) / 30))
+        min(1, max(0, Double(minutesUntil) / 60))
     }
 
     private static var timeFormatter: DateFormatter = {

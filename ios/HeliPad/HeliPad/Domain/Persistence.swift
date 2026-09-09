@@ -84,6 +84,13 @@ public struct PersistedState: Codable {
 
 public enum HeliPersistence {
     public static let storageKey = "helipad.state.v1"
+    /// Where a household that failed to decode is parked, rather than deleted.
+    public static let quarantineKey = "helipad.state.v1.unreadable"
+
+    /// The last household that could not be read, if there is one.
+    public static func quarantined(from defaults: UserDefaults = .standard) -> Data? {
+        defaults.data(forKey: quarantineKey)
+    }
     private static let currentVersion = 1
 
     public static func load(from defaults: UserDefaults = .standard) -> PersistedState? {
@@ -95,6 +102,9 @@ public enum HeliPersistence {
         } catch {
             // A shape we can no longer read is worse than none: fall back to the
             // seed household rather than launching into a half-decoded family.
+            // Keep the bytes, though — deleting them turns a decoding slip into
+            // permanent data loss, and a later build may well read them fine.
+            defaults.set(data, forKey: quarantineKey)
             defaults.removeObject(forKey: storageKey)
             return nil
         }
@@ -116,10 +126,48 @@ public enum HeliPersistence {
 /// Local sync bookkeeping is stripped from every cloud payload.
 public struct HouseholdSyncMetadata: Codable {
     public var householdID: String = UUID().uuidString
+    /// Identifies this install when two phones stamp an edit at the same
+    /// logical moment. Never reused, so ties resolve identically on both sides.
+    public var deviceID: String = UUID().uuidString
+    /// Logical clock. Raised past anything seen from the other phone.
+    public var lamport: Int = 0
     public var connectionFingerprint: String = ""
     public var remoteRevision: String? = nil
     public var localRevision: Int = 0
     public var uploadedRevision: Int = 0
+
+    public init(
+        householdID: String = UUID().uuidString,
+        deviceID: String = UUID().uuidString,
+        lamport: Int = 0,
+        connectionFingerprint: String = "",
+        remoteRevision: String? = nil,
+        localRevision: Int = 0,
+        uploadedRevision: Int = 0
+    ) {
+        self.householdID = householdID
+        self.deviceID = deviceID
+        self.lamport = lamport
+        self.connectionFingerprint = connectionFingerprint
+        self.remoteRevision = remoteRevision
+        self.localRevision = localRevision
+        self.uploadedRevision = uploadedRevision
+    }
+
+    /// Decoded field by field, with a default for anything absent. A synthesized
+    /// decoder demands every non-optional key, so adding one field here would
+    /// otherwise make every household saved by an earlier build unreadable —
+    /// and an unreadable household is a lost household.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        householdID = try c.decodeIfPresent(String.self, forKey: .householdID) ?? UUID().uuidString
+        deviceID = try c.decodeIfPresent(String.self, forKey: .deviceID) ?? UUID().uuidString
+        lamport = try c.decodeIfPresent(Int.self, forKey: .lamport) ?? 0
+        connectionFingerprint = try c.decodeIfPresent(String.self, forKey: .connectionFingerprint) ?? ""
+        remoteRevision = try c.decodeIfPresent(String.self, forKey: .remoteRevision)
+        localRevision = try c.decodeIfPresent(Int.self, forKey: .localRevision) ?? 0
+        uploadedRevision = try c.decodeIfPresent(Int.self, forKey: .uploadedRevision) ?? 0
+    }
 }
 
 public protocol IntegrationSecretStore {

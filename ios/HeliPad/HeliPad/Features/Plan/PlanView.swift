@@ -120,7 +120,7 @@ public struct PlanView: View {
                             title: "",
                             owner: "TBD",
                             kids: [],
-                            location: "Home",
+                            location: "",
                             mode: "Drive"
                         )
                         eventToEdit = newEv

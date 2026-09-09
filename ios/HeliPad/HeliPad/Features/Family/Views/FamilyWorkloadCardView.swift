@@ -1,12 +1,19 @@
 import SwiftUI
 
 public struct FamilyWorkloadCardView: View {
-    public var loads: [(name: String, minutes: Int, color: Color)]
-    public var totalMinutes: Int
+    public var loads: [(name: String, drives: Int, color: Color)]
+    public var totalDrives: Int
 
-    public init(loads: [(name: String, minutes: Int, color: Color)], totalMinutes: Int) {
+    public init(loads: [(name: String, drives: Int, color: Color)], totalDrives: Int) {
         self.loads = loads
-        self.totalMinutes = totalMinutes
+        self.totalDrives = totalDrives
+    }
+
+    /// Only caregivers who actually drove get a segment and a legend entry. A
+    /// zero-width segment still claimed the 4pt floor below, which read as a
+    /// sliver of load that was not there.
+    private var driving: [(name: String, drives: Int, color: Color)] {
+        loads.filter { $0.drives > 0 }
     }
 
     public var body: some View {
@@ -18,7 +25,7 @@ public struct FamilyWorkloadCardView: View {
                         .font(HeliTypography.eyebrow(10))
                         .foregroundColor(HeliColors.mutedGray)
                         .tracking(1.4)
-                    Text("\(totalMinutes / 60)h \(totalMinutes % 60)m total driving")
+                    Text("\(totalDrives) driving \(totalDrives == 1 ? "stop" : "stops")")
                         .font(HeliTypography.headline(18))
                         .foregroundColor(HeliColors.greenInk)
                 }
@@ -41,10 +48,10 @@ public struct FamilyWorkloadCardView: View {
             // Stacked distribution bar
             GeometryReader { geo in
                 HStack(spacing: 2) {
-                    if totalMinutes > 0 {
-                        ForEach(loads, id: \.name) { item in
-                            let fraction = CGFloat(item.minutes) / CGFloat(max(1, totalMinutes))
-                            let width = max(4, fraction * (geo.size.width - CGFloat(loads.count - 1) * 2))
+                    if totalDrives > 0 {
+                        ForEach(driving, id: \.name) { item in
+                            let fraction = CGFloat(item.drives) / CGFloat(max(1, totalDrives))
+                            let width = max(4, fraction * (geo.size.width - CGFloat(driving.count - 1) * 2))
                             RoundedRectangle(cornerRadius: 3)
                                 .fill(item.color)
                                 .frame(width: width, height: 12)
@@ -59,21 +66,27 @@ public struct FamilyWorkloadCardView: View {
             .frame(height: 12)
 
             // Caregiver breakdown legend
-            HStack(spacing: 12) {
-                ForEach(loads, id: \.name) { item in
-                    let pct = totalMinutes > 0 ? (item.minutes * 100) / totalMinutes : 0
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(item.color)
-                            .frame(width: 8, height: 8)
-                        Text(item.name)
-                            .font(HeliTypography.caption(11))
-                            .foregroundColor(HeliColors.greenInk)
-                        Text("\(item.minutes)m (\(pct)%)")
-                            .font(HeliTypography.chipLabel(10))
-                            .foregroundColor(HeliColors.mutedGray)
+            if totalDrives > 0 {
+                HStack(spacing: 12) {
+                    ForEach(loads, id: \.name) { item in
+                        let pct = (item.drives * 100) / totalDrives
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(item.color)
+                                .frame(width: 8, height: 8)
+                            Text(item.name)
+                                .font(HeliTypography.caption(11))
+                                .foregroundColor(HeliColors.greenInk)
+                            Text("\(item.drives) (\(pct)%)")
+                                .font(HeliTypography.chipLabel(10))
+                                .foregroundColor(HeliColors.mutedGray)
+                        }
                     }
                 }
+            } else {
+                Text("No driving stops assigned this week yet.")
+                    .font(HeliTypography.caption(11))
+                    .foregroundColor(HeliColors.mutedGray)
             }
         }
         .padding(16)

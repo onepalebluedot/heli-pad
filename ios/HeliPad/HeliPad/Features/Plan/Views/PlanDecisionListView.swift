@@ -54,8 +54,10 @@ public struct PlanDecisionListView: View {
     private func decisionCard(item: AnalyzedEvent) -> some View {
         let ev = item.event
         return VStack(alignment: .leading, spacing: 10) {
-            // Top row: Prominent Date Badge + Risk badges
-            HStack(alignment: .center, spacing: 8) {
+            // Keep the date/time independent from the variable-width risk badges.
+            // When several risks are present, one shared row can compress this
+            // capsule until its text wraps a character at a time.
+            VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 5) {
                     Image(systemName: "calendar")
                         .font(.system(size: 11, weight: .semibold))
@@ -77,17 +79,20 @@ public struct PlanDecisionListView: View {
                 .overlay(
                     Capsule().stroke(HeliColors.sageRule, lineWidth: 0.8)
                 )
+                .fixedSize(horizontal: true, vertical: false)
 
-                Spacer()
-
-                ForEach(item.risks, id: \.self) { r in
-                    Text(r.label)
-                        .font(HeliTypography.eyebrow(10))
-                        .foregroundColor(riskColor(r.type))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3.5)
-                        .background(riskBg(r.type))
-                        .clipShape(Capsule())
+                if !item.risks.isEmpty {
+                    HStack(spacing: 8) {
+                        ForEach(item.risks, id: \.self) { r in
+                            Text(r.label)
+                                .font(HeliTypography.eyebrow(10))
+                                .foregroundColor(riskColor(r.type))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3.5)
+                                .background(riskBg(r.type))
+                                .clipShape(Capsule())
+                        }
+                    }
                 }
             }
 

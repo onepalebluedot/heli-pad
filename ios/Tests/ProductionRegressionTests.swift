@@ -278,6 +278,32 @@ final class SQLProtocol: URLProtocol {
             preconditionFailure("Expected zero-row conflict")
         } catch NeonError.conflict {}
 
-        print("Production regression checks passed: credentials, sync races/conflicts/retry, rollover, clock, and analysis caching.")
+        // Solo events without children & stats accuracy verification
+        check(FamilyCore.resolveChildren(kids: [], kid: "").isEmpty, "empty kids resolves to empty list, not all kids")
+        check(FamilyCore.resolveChildren(kids: ["Maya"], kid: "") == ["Maya"], "single kid preserved")
+        check(FamilyCore.resolveChildren(kids: nil, kid: nil) == FamilyCore.KIDS, "nil fallback returns all kids")
+
+        let statsStore = store()
+        let soloDoctor = TaskRecord(id: "solo-doc", date: "2026-09-14", time: "10:00", endTime: "11:00", title: "Doctor", owner: "Dad", kids: [], location: "Medical Center", mode: "Drive", kind: .clinic)
+        let soniSoccer = TaskRecord(id: "soni-soccer", date: "2026-09-14", time: "15:00", endTime: "16:00", title: "Soccer", owner: "Mom", kids: ["Soni"], location: "Field", mode: "Drive", kind: .practice)
+        statsStore.replaceRecords([soloDoctor, soniSoccer])
+
+        let familyVM = FamilyViewModel()
+        let counts = familyVM.driveCounts(store: statsStore)
+        check(counts["Dad"] == 1, "caregiver drive count reflects solo adult drive")
+        check(counts["Mom"] == 1, "caregiver drive count reflects kid drive")
+
+        let soniStats = familyVM.statsForKid(kid: "Soni", store: statsStore)
+        check(soniStats.eventCount == 1, "Soni stats include only Soni's soccer event")
+        check(soniStats.travelCount == 1, "Soni travel count includes only Soni's soccer event")
+
+        let mayaStats = familyVM.statsForKid(kid: "Maya", store: statsStore)
+        check(mayaStats.eventCount == 0, "Maya stats strictly exclude solo adult doctor event")
+        check(mayaStats.travelCount == 0, "Maya travel count strictly excludes solo adult doctor event")
+
+        let noahStats = familyVM.statsForKid(kid: "Noah", store: statsStore)
+        check(noahStats.eventCount == 0, "Noah stats strictly exclude solo adult doctor event")
+
+        print("Production regression checks passed: credentials, sync races/conflicts/retry, rollover, clock, analysis caching, solo events, and stats tracking.")
     }
 }

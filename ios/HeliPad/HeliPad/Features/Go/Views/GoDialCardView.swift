@@ -37,9 +37,15 @@ public struct GoDialCardView: View {
         }
 
         let cand = PlanCore.candidate(e, e.owner, [], options)
-        let noTravel = !PlanCore.needsTravel(e)
+        let effectiveEta: Int? = liveDriveTime ?? (isDeviceLocationLive ? nil : cand.eta)
+        let hasTravelRequired: Bool = {
+            if let live = liveDriveTime {
+                return live > 0
+            }
+            return PlanCore.needsTravel(e)
+        }()
+        let noTravel = !hasTravelRequired
         let start = PlanCore.mins(e.time)
-        let effectiveEta = liveDriveTime ?? cand.eta
         let depart: Int
         if effectiveEta == nil || e.allDay || noTravel {
             depart = start
@@ -131,14 +137,24 @@ public struct GoDialCardView: View {
                 }
                 .buttonStyle(.plain)
 
-                // Centered Child Badge (Dark translucent pill)
+                // Centered Child / Solo Badge (Dark translucent pill)
                 let childNames = e.kids.isEmpty ? (e.kid?.isEmpty == false ? [e.kid!] : []) : e.kids
-                let displayChild = childNames.first ?? "All"
+                let isSolo = childNames.isEmpty
+                let badgeLabel: String = {
+                    if isSolo {
+                        let who = (e.owner.isEmpty || e.owner == "TBD") ? "Adult" : e.owner
+                        return "Solo · \(who)"
+                    } else if childNames.contains("All") {
+                        return "All kids"
+                    } else {
+                        return childNames.joined(separator: ", ")
+                    }
+                }()
                 HStack(spacing: 6) {
                     Image(systemName: "person")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(Color.white.opacity(0.85))
-                    Text(displayChild == "All" ? "All kids" : displayChild)
+                    Text(badgeLabel)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.white)
                 }
@@ -298,7 +314,7 @@ public struct GoDialCardView: View {
                         Text(TimeFormat.formatTime(start))
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(.white)
-                        Text("ARRIVE")
+                        Text((e.mode == "Home" || e.location.lowercased() == "home") ? "HOME" : "ARRIVE")
                             .font(HeliTypography.eyebrow(9))
                             .foregroundColor(Color.white.opacity(0.72))
                             .tracking(1.4)

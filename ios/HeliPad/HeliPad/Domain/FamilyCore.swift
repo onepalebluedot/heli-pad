@@ -42,14 +42,17 @@ public enum FamilyCore {
 
     public static func resolveChildren(kids: [String]?, kid: String?) -> [String] {
         let list: [String]
-        if let kids = kids, !kids.isEmpty {
+        if let kids = kids {
             list = kids
-        } else if let kid = kid, !kid.isEmpty {
-            list = kid.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        } else if let kid = kid {
+            list = kid.isEmpty ? [] : kid.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
         } else {
             list = ["All"]
         }
 
+        if list.isEmpty {
+            return []
+        }
         if list.contains("All") {
             return KIDS
         }
@@ -98,9 +101,6 @@ public enum FamilyCore {
         guard !t.location.trimmingCharacters(in: .whitespaces).isEmpty else {
             throw NSError(domain: "FamilyCore", code: 2, userInfo: [NSLocalizedDescriptionKey: "Choose a saved location."])
         }
-        guard !t.kids.isEmpty else {
-            throw NSError(domain: "FamilyCore", code: 3, userInfo: [NSLocalizedDescriptionKey: "Choose at least one child."])
-        }
 
         guard let a = minutes(t.time), let b = minutes(t.endTime) else {
             throw NSError(domain: "FamilyCore", code: 4, userInfo: [NSLocalizedDescriptionKey: "Choose an end time after the start time on the same day."])
@@ -112,9 +112,6 @@ public enum FamilyCore {
         }
 
         let normalized = normalize(t)
-        guard !normalized.kids.isEmpty else {
-            throw NSError(domain: "FamilyCore", code: 5, userInfo: [NSLocalizedDescriptionKey: "Choose at least one current child."])
-        }
         return normalized
     }
 

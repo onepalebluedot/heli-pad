@@ -104,8 +104,8 @@ public struct GoAddEditStopSheet: View {
     }
 
     private let presets: [(id: TaskKind, label: String, icon: String, defaultMins: Int, place: String)] = [
-        (.dropoff, "Drop-off", "car", 20, "Oak Ridge Elementary"),
-        (.pickup, "Pickup", "car", 20, "Oak Ridge Elementary"),
+        (.dropoff, "Drop-off", "car", 20, ""),
+        (.pickup, "Pickup", "car", 20, ""),
         (.practice, "Practice", "ball", 90, "Lakeside Sports Complex"),
         (.lesson, "Lesson", "music", 60, "Community Center"),
         (.clinic, "Health", "care", 60, "Pediatric Clinic"),
@@ -135,7 +135,7 @@ public struct GoAddEditStopSheet: View {
                         fieldRow(
                             id: "who",
                             label: "Who",
-                            value: selectedKids.isEmpty ? "All kids" : selectedKids.sorted().joined(separator: ", "),
+                            value: selectedKids.isEmpty ? "No child (Solo)" : selectedKids.sorted().joined(separator: ", "),
                             icon: "user-round"
                         ) {
                             whoPicker
@@ -144,9 +144,9 @@ public struct GoAddEditStopSheet: View {
                         fieldRow(
                             id: "where",
                             label: "Where",
-                            value: location.isEmpty ? store.home() : location,
-                            subtitle: selectedAddress,
-                            icon: "house"
+                            value: location,
+                            subtitle: location.isEmpty ? "" : selectedAddress,
+                            icon: location.isEmpty ? "map-pin" : (location == store.home() ? "house" : "map-pin")
                         ) {
                             wherePicker
                         }
@@ -333,7 +333,7 @@ public struct GoAddEditStopSheet: View {
             kind = seed?.kind ?? .pickup
 
             let seedLocation = (seed?.location ?? "").trimmingCharacters(in: .whitespaces)
-            location = seedLocation.isEmpty ? "Oak Ridge Elementary" : seedLocation
+            location = seedLocation
             selectedAddress = seed?.formattedAddress
                 ?? store.locations.first(where: { $0.name == location })?.address
                 ?? ""
@@ -443,7 +443,7 @@ public struct GoAddEditStopSheet: View {
             HStack(spacing: 8) {
                 HeliIcon(mode == "Home" ? "house" : "car", size: 12)
                     .foregroundColor(.white)
-                Text(location.isEmpty ? store.home() : location)
+                Text(location.isEmpty ? "No location set" : location)
                     .font(HeliTypography.railMeta(12))
                     .foregroundColor(Color.white.opacity(0.85))
             }
@@ -456,14 +456,24 @@ public struct GoAddEditStopSheet: View {
 
                 Spacer()
 
-                ForEach(Array(selectedKids), id: \.self) { kid in
-                    Text(kid)
+                if selectedKids.isEmpty {
+                    Text("Solo · No child")
                         .font(HeliTypography.railMeta(10.5))
                         .foregroundColor(HeliColors.greenInk)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(HeliColors.butterYellow)
                         .clipShape(Capsule())
+                } else {
+                    ForEach(Array(selectedKids), id: \.self) { kid in
+                        Text(kid)
+                            .font(HeliTypography.railMeta(10.5))
+                            .foregroundColor(HeliColors.greenInk)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(HeliColors.butterYellow)
+                            .clipShape(Capsule())
+                    }
                 }
             }
         }
@@ -570,41 +580,71 @@ public struct GoAddEditStopSheet: View {
             }
 
             // Custom Title escape hatch
-            HStack {
+            HStack(spacing: 8) {
                 Text("✎")
                     .foregroundColor(HeliColors.mutedGray)
                 TextField("Custom activity name", text: $customTitle)
-                    .textFieldStyle(.roundedBorder)
+                    .font(HeliTypography.body(13.5))
+                    .foregroundColor(HeliColors.greenInk)
+                    .tint(HeliColors.forestGreen)
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(HeliColors.cardWarmWhite)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
         }
     }
 
     // MARK: - Who Picker
 
     private var whoPicker: some View {
-        HStack(spacing: 8) {
-            ForEach(store.children(), id: \.self) { child in
-                let selected = selectedKids.contains(child)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                // No child / Solo option
+                let isSolo = selectedKids.isEmpty
                 Button(action: {
-                    if selectedKids.contains(child) {
-                        selectedKids.remove(child)
-                    } else {
-                        selectedKids.insert(child)
-                    }
+                    selectedKids.removeAll()
                 }) {
                     HStack(spacing: 6) {
-                        AvatarDisc(name: child, size: 20, isKid: true)
-                        Text(child)
+                        Image(systemName: "person.slash")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("No child")
                             .font(HeliTypography.railMeta(12))
                     }
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, 12)
                     .frame(height: 38)
-                    .foregroundColor(selected ? HeliColors.forestGreen : HeliColors.greenInk)
-                    .background(selected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
+                    .foregroundColor(isSolo ? HeliColors.forestGreen : HeliColors.greenInk)
+                    .background(isSolo ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
                     .clipShape(Capsule())
                     .overlay(
-                        Capsule().stroke(selected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
+                        Capsule().stroke(isSolo ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
                     )
+                }
+
+                ForEach(store.children(), id: \.self) { child in
+                    let selected = selectedKids.contains(child)
+                    Button(action: {
+                        if selectedKids.contains(child) {
+                            selectedKids.remove(child)
+                        } else {
+                            selectedKids.insert(child)
+                        }
+                    }) {
+                        HStack(spacing: 6) {
+                            AvatarDisc(name: child, size: 20, isKid: true)
+                            Text(child)
+                                .font(HeliTypography.railMeta(12))
+                        }
+                        .padding(.horizontal, 10)
+                        .frame(height: 38)
+                        .foregroundColor(selected ? HeliColors.forestGreen : HeliColors.greenInk)
+                        .background(selected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule().stroke(selected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
+                        )
+                    }
                 }
             }
         }
@@ -624,7 +664,10 @@ public struct GoAddEditStopSheet: View {
                 ForEach(store.locations) { loc in
                     let selected = (location == loc.name)
                     Button(action: {
-                        isSelectingPrediction = true
+                        // `onChange` only fires when the search text actually
+                        // changes. Do not leave its suppression flag armed when
+                        // the field is already empty.
+                        isSelectingPrediction = !customLocation.isEmpty
                         location = loc.name
                         mode = (loc.name == store.home()) ? "Home" : "Drive"
                         customLocation = ""
@@ -688,6 +731,8 @@ public struct GoAddEditStopSheet: View {
 
                     TextField("Type school, business, or address...", text: $customLocation)
                         .font(HeliTypography.body(13.5))
+                        .foregroundColor(HeliColors.greenInk)
+                        .tint(HeliColors.forestGreen)
                         .onChange(of: customLocation) { _, val in
                             if isSelectingPrediction {
                                 isSelectingPrediction = false
@@ -695,6 +740,13 @@ public struct GoAddEditStopSheet: View {
                             }
                             searchTask?.cancel()
                             let query = val.trimmingCharacters(in: .whitespaces)
+                            // The text field is also a valid free-form address
+                            // entry. Keep the value that will be saved in sync
+                            // instead of silently retaining a prefilled place.
+                            location = query
+                            selectedAddress = query
+                            selectedCoordinate = nil
+                            mode = "Drive"
                             guard query.count >= 1 else {
                                 placePredictions = []
                                 isSearchingPlaces = false
@@ -742,8 +794,9 @@ public struct GoAddEditStopSheet: View {
                         ForEach(placePredictions) { pred in
                             Button(action: {
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                isSelectingPrediction = true
+                                isSelectingPrediction = customLocation != pred.primaryText
                                 location = pred.primaryText
+                                mode = "Drive"
                                 customLocation = pred.primaryText
                                 let immediateAddress = pred.secondaryText.isEmpty ? pred.fullText : pred.secondaryText
                                 selectedAddress = immediateAddress
@@ -972,20 +1025,25 @@ public struct GoAddEditStopSheet: View {
                     .foregroundColor(HeliColors.mutedGray)
                     .tracking(1.2)
 
-                HStack(spacing: 12) {
-                    Stepper("Start: \(TimeFormat.formatTime(startMinutes))", onIncrement: {
+                // One per row: side by side, the stepper controls take a fixed
+                // width and the times get truncated to "3:0..." and "Len...".
+                VStack(spacing: 8) {
+                    Stepper(onIncrement: {
                         startMinutes = min(23 * 60, startMinutes + 15)
                     }, onDecrement: {
                         startMinutes = max(6 * 60, startMinutes - 15)
-                    })
+                    }) {
+                        stepperLabel("Start", TimeFormat.formatTime(startMinutes))
+                    }
 
-                    Stepper("Length: \(TimeFormat.formatDurationShort(durationMinutes))", onIncrement: {
+                    Stepper(onIncrement: {
                         durationMinutes = min(240, durationMinutes + 15)
                     }, onDecrement: {
                         durationMinutes = max(10, durationMinutes - 15)
-                    })
+                    }) {
+                        stepperLabel("Length", TimeFormat.formatDurationShort(durationMinutes))
+                    }
                 }
-                .font(HeliTypography.body(13))
             }
 
             // 4. Hour Presets (7 AM to 8 PM)
@@ -1007,6 +1065,21 @@ public struct GoAddEditStopSheet: View {
                 }
             }
         }
+    }
+
+    /// Stepper takes its label from a view builder, so the value has to carry
+    /// its own colour — a plain string label inherits the system label colour.
+    private func stepperLabel(_ title: String, _ value: String) -> some View {
+        HStack(spacing: 4) {
+            Text(title)
+                .font(HeliTypography.body(13))
+                .foregroundColor(HeliColors.mutedGray)
+            Text(value)
+                .font(HeliTypography.body(13))
+                .foregroundColor(HeliColors.greenInk)
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
     }
 
     // MARK: - Driver Picker
@@ -1148,7 +1221,7 @@ public struct GoAddEditStopSheet: View {
                 lead: driver,
                 kids: Array(selectedKids),
                 kid: selectedKids.sorted().joined(separator: ", "),
-                location: location.isEmpty ? store.home() : location,
+                location: location,
                 mode: mode,
                 kind: kind,
                 done: existingStop?.done ?? false,
@@ -1192,7 +1265,7 @@ public struct GoAddEditStopSheet: View {
                     lead: driver,
                     kids: Array(selectedKids),
                     kid: selectedKids.sorted().joined(separator: ", "),
-                    location: location.isEmpty ? store.home() : location,
+                    location: location,
                     mode: mode,
                     kind: kind,
                     done: prior?.done ?? false,
@@ -1225,44 +1298,56 @@ public struct GoAddEditStopSheet: View {
 
     private func weekdayIndex(for date: Date) -> Int {
         var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+        // `DatePicker` presents dates in the device's calendar time zone. Keep
+        // the weekday calculation on that same calendar day; using UTC here can
+        // turn a locally selected Sunday into Monday before it reaches the
+        // Monday-through-Sunday recurrence row.
+        cal.timeZone = .current
         let w = cal.component(.weekday, from: date) // 1=Sun, 2=Mon...
         return (w + 5) % 7 // 0=Mon ... 6=Sun
     }
 
     private func dateFromString(_ str: String) -> Date {
         let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
         df.dateFormat = "yyyy-MM-dd"
-        df.timeZone = TimeZone(secondsFromGMT: 0)
+        // This Date exists only to back the UI picker. Parsing at local midnight
+        // prevents a date-only Monday from rendering as Sunday west of UTC.
+        df.timeZone = .current
         return df.date(from: str) ?? Date()
     }
 
     private func stringFromDate(_ d: Date) -> String {
         let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
         df.dateFormat = "yyyy-MM-dd"
-        df.timeZone = TimeZone(secondsFromGMT: 0)
+        df.timeZone = .current
         return df.string(from: d)
     }
 
     private func formatDisplayDate(_ str: String) -> String {
         let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
         df.dateFormat = "yyyy-MM-dd"
-        df.timeZone = TimeZone(secondsFromGMT: 0)
+        df.timeZone = .current
         guard let d = df.date(from: str) else { return str }
         let out = DateFormatter()
+        out.locale = Locale.current
         out.dateFormat = "EEE, MMM d, yyyy"
-        out.timeZone = TimeZone(secondsFromGMT: 0)
+        out.timeZone = .current
         return out.string(from: d)
     }
 
     private func formatDayShort(_ dStr: String) -> String {
         let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
         df.dateFormat = "yyyy-MM-dd"
-        df.timeZone = TimeZone(secondsFromGMT: 0)
+        df.timeZone = .current
         guard let d = df.date(from: dStr) else { return dStr }
         let out = DateFormatter()
+        out.locale = Locale.current
         out.dateFormat = "EEE, MMM d"
-        out.timeZone = TimeZone(secondsFromGMT: 0)
+        out.timeZone = .current
         return out.string(from: d)
     }
 

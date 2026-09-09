@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct FamilyRosterView: View {
     public var caregivers: [Person]
+    /// Driving stops per caregiver for the week, keyed by name.
     public var loads: [String: Int]
     public var settings: [String: Any]
     public var onEditRules: () -> Void
@@ -33,8 +34,7 @@ public struct FamilyRosterView: View {
             // Caregiver Cards
             VStack(spacing: 10) {
                 ForEach(caregivers) { p in
-                    let mins = loads[p.name] ?? 0
-                    caregiverCard(person: p, minutes: mins)
+                    caregiverCard(person: p, drives: loads[p.name] ?? 0)
                 }
             }
             .padding(.horizontal, 16)
@@ -80,7 +80,7 @@ public struct FamilyRosterView: View {
         }
     }
 
-    private func caregiverCard(person: Person, minutes: Int) -> some View {
+    private func caregiverCard(person: Person, drives: Int) -> some View {
         HStack(alignment: .center, spacing: 14) {
             AvatarDisc(name: person.name, size: 42)
 
@@ -106,10 +106,10 @@ public struct FamilyRosterView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text("\(minutes)m")
+                Text("\(drives)")
                     .font(HeliTypography.headline(15))
                     .foregroundColor(HeliColors.forestGreen)
-                Text("driving")
+                Text(drives == 1 ? "driving stop" : "driving stops")
                     .font(HeliTypography.caption(10))
                     .foregroundColor(HeliColors.mutedGray)
             }

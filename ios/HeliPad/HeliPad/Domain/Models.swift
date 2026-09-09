@@ -2,6 +2,62 @@ import Foundation
 
 // MARK: - Task Kinds & Urgency
 
+/// A record that takes part in two-phone merging.
+public protocol StampedRecord: Codable {
+    /// Stable identity within its own collection.
+    var stampKey: String { get }
+    var stamp: RecordStamp? { get set }
+}
+
+/// Orders two edits without trusting either phone's wall clock.
+///
+/// A Lamport counter: every local edit takes a number above anything the device
+/// has seen, including stamps that arrived from the other phone. So a higher
+/// counter means "this happened after, or at the same time as" — never "this
+/// device's clock happens to be ahead". The device id only breaks exact ties, so
+/// both phones resolve a simultaneous edit the same way.
+public struct RecordStamp: Codable, Hashable, Comparable {
+    public var counter: Int
+    public var deviceID: String
+
+    public init(counter: Int = 0, deviceID: String = "") {
+        self.counter = counter
+        self.deviceID = deviceID
+    }
+
+    public static func < (lhs: RecordStamp, rhs: RecordStamp) -> Bool {
+        if lhs.counter != rhs.counter { return lhs.counter < rhs.counter }
+        return lhs.deviceID < rhs.deviceID
+    }
+}
+
+/// A record that was deleted, remembered on purpose.
+///
+/// Without this, deleting a stop on one phone is undone the moment the other
+/// phone uploads a household that still contains it. The stamp says when the
+/// delete happened relative to other edits; `deletedAt` exists only so old
+/// tombstones can be swept up.
+public struct Tombstone: Codable, Hashable, Identifiable {
+    public enum Kind: String, Codable, Hashable {
+        case event, person, template, location
+    }
+
+    public var id: String
+    public var kind: Kind
+    public var stamp: RecordStamp
+    public var deletedAt: Date
+
+    public init(id: String, kind: Kind, stamp: RecordStamp, deletedAt: Date) {
+        self.id = id
+        self.kind = kind
+        self.stamp = stamp
+        self.deletedAt = deletedAt
+    }
+
+    /// Key that keeps ids from different collections apart.
+    public var key: String { "\(kind.rawValue):\(id)" }
+}
+
 public enum TaskKind: String, Codable, CaseIterable, Hashable {
     case drive
     case cook
@@ -60,6 +116,7 @@ public struct Person: Identifiable, Codable, Hashable {
     public var kind: String         // "caregiver" | "child"
     public var color: String
     public var baseLocation: String?
+    public var stamp: RecordStamp? = nil
 
     public var role: String { relationship }
 
@@ -116,6 +173,7 @@ public struct LocationItem: Identifiable, Codable, Hashable {
     public var latitude: Double?
     public var longitude: Double?
     public var placeId: String?
+    public var stamp: RecordStamp? = nil
 
     public init(
         name: String,
@@ -211,6 +269,8 @@ public struct TaskRecord: Identifiable, Codable, Hashable {
     public var latitude: Double?
     public var longitude: Double?
     public var formattedAddress: String?
+    /// Set on save when this record's content actually changed.
+    public var stamp: RecordStamp? = nil
 
     public init(
         id: String,
@@ -287,6 +347,7 @@ public struct TemplateItem: Identifiable, Codable, Hashable {
     /// Weekdays this shortcut normally lands on, 0 = Monday. Optional so a
     /// household saved before shortcuts had days still decodes.
     public var weekdays: [Int]?
+    public var stamp: RecordStamp? = nil
 
     public init(
         id: String,
@@ -475,17 +536,22 @@ public struct PlanMetadata: Codable, Hashable {
     public var priorities: [String: WeekPriority]
     public var reviewed: [String: String] // week -> fingerprint
     public var calendar: CalendarMetadata
+    /// Deletes that must outlive the record, so the other phone cannot
+    /// resurrect them. Swept once they are older than the retention horizon.
+    public var tombstones: [Tombstone]? = nil
 
     public init(
         future: [TaskRecord] = [],
         priorities: [String: WeekPriority] = [:],
         reviewed: [String: String] = [:],
-        calendar: CalendarMetadata = CalendarMetadata()
+        calendar: CalendarMetadata = CalendarMetadata(),
+        tombstones: [Tombstone]? = nil
     ) {
         self.future = future
         self.priorities = priorities
         self.reviewed = reviewed
         self.calendar = calendar
+        self.tombstones = tombstones
     }
 }
 
@@ -601,3 +667,24 @@ public struct DayAgenda {
     }
 }
 
+
+
+// MARK: - Merge participation
+
+extension TaskRecord: StampedRecord {
+    public var stampKey: String { id }
+}
+
+extension Person: StampedRecord {
+    public var stampKey: String { id }
+}
+
+extension TemplateItem: StampedRecord {
+    public var stampKey: String { id }
+}
+
+extension LocationItem: StampedRecord {
+    /// A place is identified by its name, so renaming one reads as a delete plus
+    /// an add rather than an edit.
+    public var stampKey: String { name }
+}

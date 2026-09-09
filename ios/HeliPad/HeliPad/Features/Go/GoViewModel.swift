@@ -159,7 +159,7 @@ public class GoViewModel: ObservableObject {
         )
     }
 
-    public func dialState(event: TaskRecord?, now: Int, options: PlanningOptions) -> (tone: UrgencyTone, fraction: Double, centerTitle: String, centerUnit: String, isWord: Bool, isHours: Bool) {
+    public func dialState(event: TaskRecord?, now: Int, options: PlanningOptions, liveDriveTime: Int? = nil, isDeviceLocationLive: Bool = false) -> (tone: UrgencyTone, fraction: Double, centerTitle: String, centerUnit: String, isWord: Bool, isHours: Bool) {
         guard let e = event else {
             return (.clear, 1.0, "DONE", "all clear", true, false)
         }
@@ -169,9 +169,21 @@ public class GoViewModel: ObservableObject {
         }
 
         let start = PlanCore.mins(e.time)
-        let noTravel = !PlanCore.needsTravel(e)
         let cand = PlanCore.candidate(e, e.owner, [], options)
-        let depart = (cand.eta == nil || e.allDay) ? start : cand.leave
+        let effectiveEta: Int? = liveDriveTime ?? (isDeviceLocationLive ? nil : cand.eta)
+        let hasTravelRequired: Bool = {
+            if let live = liveDriveTime {
+                return live > 0
+            }
+            return PlanCore.needsTravel(e)
+        }()
+        let noTravel = !hasTravelRequired
+        let depart: Int
+        if effectiveEta == nil || e.allDay || noTravel {
+            depart = start
+        } else {
+            depart = start - (effectiveEta! + options.buffer)
+        }
 
         let target = noTravel ? start : depart
         let minsUntil = target - now
