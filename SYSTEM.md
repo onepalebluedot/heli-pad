@@ -280,6 +280,21 @@ Gate Avery’s Today port against this map; escalate gaps — do not approximate
 6. **Live adapters** — Google Calendar OAuth + real routing + shared backend
 7. **Hardening** — notifications, offline TTL, place mapping, kind coverage beyond drive UX
 
+
+## 10. AI chat agent (branch-only — do not merge to main)
+
+**Branch:** `feature/ai-chat-agent` only. No merge to `main` until John greenlights.
+
+**Storage:** reuse Neon `helipad_household` (`id`, `state_data` JSONB, `updated_at`). Agent reads/writes the existing `PersistedState` blob via `cloudPayload()` — **no parallel chat schema**.
+
+**Source of truth for ops:** see [`docs/AI-CHAT-OPS.md`](./docs/AI-CHAT-OPS.md) on this branch (tool contract against `PersistedState` / `TaskRecord`).
+
+**Hard rules**
+- Confirm before any crew-visible write (Tell-the-crew grammar)
+- Push with `expectedRevision` (compare-and-swap); on conflict → pull, re-propose, confirm again
+- Secrets never enter `cloudPayload()` (maps key, Neon connection string, sync metadata stripped)
+- Chat UI must not bury Today leave-by / hottest Task hero
+
 ## 9. Doc ownership
 
 - Software Lead maintains this document
