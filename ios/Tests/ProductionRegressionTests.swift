@@ -46,6 +46,7 @@ actor TestCloud: HouseholdCloudService {
         return String(revision)
     }
     func pullHousehold(householdId: String, rawConnectionString: String) async throws -> RemoteHousehold? { remote }
+    func fetchRevision(householdId: String, rawConnectionString: String) async throws -> String? { remote?.revision }
 }
 
 // Intercepts Neon SQL at the URLSession boundary. Never sends credentials or
@@ -227,11 +228,21 @@ final class SQLProtocol: URLProtocol {
         await cloud.setRemote(remoteEdit)
         retry.buffer = 21
         retry.save(syncToCloud: false)
-        do { try await retry.syncWithNeon(); preconditionFailure("Expected conflict") }
-        catch NeonError.conflict {} 
-        check(retry.buffer == 21 && retry.syncPending, "stale upload preserves local edits")
+        // A stale revision no longer strands the device: sync folds the cloud
+        // household in and republishes, and the newer stamp decides the value.
+        try await retry.syncWithNeon()
+        check(retry.buffer == 21 && !retry.syncPending, "newer local settings survive a remote write and still upload")
+        check(await cloud.lastUpload()?.buffer == 21, "merged settings reach the cloud")
+
+        var newerRemote = await cloud.lastUpload()!
+        newerRemote.buffer = 44
+        newerRemote.settingsStamp = RecordStamp(counter: 9_000, deviceID: "other-phone")
+        await cloud.setRemote(newerRemote)
+        try await retry.syncWithNeon()
+        check(retry.buffer == 44, "a newer remote settings stamp wins")
+
         let downloaded = try await retry.pullFromNeon()
-        check(downloaded && retry.buffer == 33 && !retry.syncPending, "explicit download establishes baseline")
+        check(downloaded && !retry.syncPending, "explicit download establishes baseline")
         check(retry.hasCompletedOnboarding, "cloud restore retains onboarding completion")
 
         // Switching connection during a write must not acknowledge the old write for the new identity.
@@ -262,6 +273,107 @@ final class SQLProtocol: URLProtocol {
         check(await manualCloud.uploadCount() == 2, "manual sync also drains in-flight edits with auto-sync off")
         check(!manual.syncPending, "manual sync acknowledges the newest revision")
 
+        // Two phones, one household: the case this whole mechanism exists for.
+        let shared = TestCloud()
+        let suiteA = "helipad.deviceA.\(UUID().uuidString)"
+        let suiteB = "helipad.deviceB.\(UUID().uuidString)"
+        let defaultsA = UserDefaults(suiteName: suiteA)!
+        let defaultsB = UserDefaults(suiteName: suiteB)!
+        defer { defaults.removePersistentDomain(forName: suiteA) }
+        defer { defaults.removePersistentDomain(forName: suiteB) }
+
+        func phone(_ store: AppStore, _ defaults: UserDefaults) -> AppStore {
+            store.restore(from: defaults)
+            store.hasCompletedOnboarding = true
+            store.neonConnectionString = "postgresql://pair:private@example.neon.tech/db"
+            store.cloudHouseholdID = "shared-household"
+            store.neonSyncEnabled = true
+            store.save(syncToCloud: false)
+            return store
+        }
+        let phoneA = phone(store(shared), defaultsA)
+        let phoneB = phone(store(shared), defaultsB)
+
+        // A publishes a stop; B has never seen this household.
+        let soccer = TaskRecord(id: "ev-soccer", date: "2026-10-05", title: "Soccer", owner: "Mom")
+        phoneA.replaceRecords([soccer])
+        try await phoneA.syncWithNeon()
+        try await phoneB.syncWithNeon()
+        check(phoneB.records().contains { $0.id == "ev-soccer" }, "second phone receives the first phone's stop")
+
+        // Each phone adds a different stop without seeing the other's first.
+        var aRecords = phoneA.records()
+        aRecords.append(TaskRecord(id: "ev-piano", date: "2026-10-06", title: "Piano", owner: "Mom"))
+        phoneA.replaceRecords(aRecords)
+        var bRecords = phoneB.records()
+        bRecords.append(TaskRecord(id: "ev-swim", date: "2026-10-07", title: "Swim", owner: "Dad"))
+        phoneB.replaceRecords(bRecords)
+        try await phoneA.syncWithNeon()
+        try await phoneB.syncWithNeon()
+        try await phoneA.syncWithNeon()
+        let aIds = Set(phoneA.records().map(\.id))
+        let bIds = Set(phoneB.records().map(\.id))
+        check(aIds == ["ev-soccer", "ev-piano", "ev-swim"], "concurrent adds all survive on the first phone")
+        check(aIds == bIds, "both phones converge on the same schedule")
+
+        // A delete must not be resurrected by the other phone's copy.
+        phoneA.replaceRecords(phoneA.records().filter { $0.id != "ev-soccer" })
+        try await phoneA.syncWithNeon()
+        try await phoneB.syncWithNeon()
+        check(!phoneB.records().contains { $0.id == "ev-soccer" }, "a delete propagates instead of being undone")
+        check(phoneB.records().count == 2, "the other two stops are untouched")
+
+        // Editing the same stop on both phones: the later stamp wins, and both agree.
+        func retitle(_ store: AppStore, _ title: String) {
+            var list = store.records()
+            guard let index = list.firstIndex(where: { $0.id == "ev-piano" }) else { return }
+            list[index].title = title
+            store.replaceRecords(list)
+        }
+        // Concurrent edits — neither phone saw the other's — have no "later".
+        // The guarantee is that both land on the *same* one, not on a
+        // particular one, so that is what gets asserted.
+        retitle(phoneA, "Piano lesson")
+        retitle(phoneB, "Piano recital")
+        try await phoneA.syncWithNeon()
+        try await phoneB.syncWithNeon()
+        try await phoneA.syncWithNeon()
+        let aTitle = phoneA.records().first { $0.id == "ev-piano" }?.title
+        let bTitle = phoneB.records().first { $0.id == "ev-piano" }?.title
+        check(aTitle == bTitle, "both phones agree after a concurrent edit to one stop")
+        check(aTitle == "Piano lesson" || aTitle == "Piano recital", "the surviving edit is one of the two")
+
+        // A causal edit is different: B has seen A's title before changing it,
+        // so B's must win on both phones.
+        retitle(phoneA, "Piano practice")
+        try await phoneA.syncWithNeon()
+        try await phoneB.syncWithNeon()
+        check(phoneB.records().first { $0.id == "ev-piano" }?.title == "Piano practice", "B sees A's edit first")
+        retitle(phoneB, "Piano exam")
+        try await phoneB.syncWithNeon()
+        try await phoneA.syncWithNeon()
+        check(phoneA.records().first { $0.id == "ev-piano" }?.title == "Piano exam", "an edit made after seeing the other phone's wins")
+
+        // A phone that is behind picks the change up from a revision probe.
+        var laterRecords = phoneA.records()
+        laterRecords.append(TaskRecord(id: "ev-dentist", date: "2026-10-08", title: "Dentist", owner: "Mom"))
+        phoneA.replaceRecords(laterRecords)
+        try await phoneA.syncWithNeon()
+        await phoneB.liveSyncTick()
+        check(phoneB.records().contains { $0.id == "ev-dentist" }, "live tick pulls the other phone's new stop")
+        let quiet = await shared.uploadCount()
+        await phoneB.liveSyncTick()
+        check(await shared.uploadCount() == quiet, "an idle tick with no change uploads nothing")
+
+        // Two settled phones must go quiet. If each answered the other's write
+        // with a write of its own they would trade revisions forever.
+        let settled = await shared.uploadCount()
+        for _ in 0..<6 {
+            await phoneA.liveSyncTick()
+            await phoneB.liveSyncTick()
+        }
+        check(await shared.uploadCount() == settled, "settled phones stop writing to each other")
+
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [SQLProtocol.self]
         let transport = NeonDatabaseService(session: URLSession(configuration: config))
@@ -286,7 +398,8 @@ final class SQLProtocol: URLProtocol {
         let statsStore = store()
         let soloDoctor = TaskRecord(id: "solo-doc", date: "2026-09-14", time: "10:00", endTime: "11:00", title: "Doctor", owner: "Dad", kids: [], location: "Medical Center", mode: "Drive", kind: .clinic)
         let soniSoccer = TaskRecord(id: "soni-soccer", date: "2026-09-14", time: "15:00", endTime: "16:00", title: "Soccer", owner: "Mom", kids: ["Soni"], location: "Field", mode: "Drive", kind: .practice)
-        statsStore.replaceRecords([soloDoctor, soniSoccer])
+        let soniOrphan = TaskRecord(id: "soni-orphan", date: "2026-09-15", time: "15:00", endTime: "16:00", title: "Swim", owner: "TBD", kids: ["Soni"], location: "Pool", mode: "Drive", kind: .practice)
+        statsStore.replaceRecords([soloDoctor, soniSoccer, soniOrphan])
 
         let familyVM = FamilyViewModel()
         let counts = familyVM.driveCounts(store: statsStore)
@@ -294,16 +407,16 @@ final class SQLProtocol: URLProtocol {
         check(counts["Mom"] == 1, "caregiver drive count reflects kid drive")
 
         let soniStats = familyVM.statsForKid(kid: "Soni", store: statsStore)
-        check(soniStats.eventCount == 1, "Soni stats include only Soni's soccer event")
-        check(soniStats.travelCount == 1, "Soni travel count includes only Soni's soccer event")
+        check(soniStats.eventCount == 2, "Soni stats include only Soni's own events")
+        check(soniStats.needsDriverCount == 1, "Soni needs-a-driver count sees the unassigned swim only")
 
         let mayaStats = familyVM.statsForKid(kid: "Maya", store: statsStore)
         check(mayaStats.eventCount == 0, "Maya stats strictly exclude solo adult doctor event")
-        check(mayaStats.travelCount == 0, "Maya travel count strictly excludes solo adult doctor event")
+        check(mayaStats.needsDriverCount == 0, "Maya needs-a-driver count strictly excludes other kids' events")
 
         let noahStats = familyVM.statsForKid(kid: "Noah", store: statsStore)
         check(noahStats.eventCount == 0, "Noah stats strictly exclude solo adult doctor event")
 
-        print("Production regression checks passed: credentials, sync races/conflicts/retry, rollover, clock, analysis caching, solo events, and stats tracking.")
+        print("Production regression checks passed: credentials, sync races/conflicts/retry, two-phone merge and convergence, live sync quiescence, rollover, clock, analysis caching, solo events, and stats tracking.")
     }
 }

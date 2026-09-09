@@ -89,6 +89,9 @@ public struct RemoteHousehold {
 public protocol HouseholdCloudService {
     func pushHousehold(state: PersistedState, householdId: String, expectedRevision: String?, rawConnectionString: String) async throws -> String
     func pullHousehold(householdId: String, rawConnectionString: String) async throws -> RemoteHousehold?
+    /// Just the revision, so a phone can ask "has anything changed?" without
+    /// pulling the whole household every few seconds.
+    func fetchRevision(householdId: String, rawConnectionString: String) async throws -> String?
 }
 
 public class NeonDatabaseService: HouseholdCloudService {
@@ -213,6 +216,18 @@ public class NeonDatabaseService: HouseholdCloudService {
         }
         guard let revision = rows.first?["revision"] as? String else { throw NeonError.conflict }
         return revision
+    }
+
+    public func fetchRevision(
+        householdId: String,
+        rawConnectionString: String
+    ) async throws -> String? {
+        guard let config = NeonConfig.parse(from: rawConnectionString), !householdId.isEmpty else {
+            throw NeonError.invalidConfig("Enter a personal connection and household ID.")
+        }
+        let rows = try await executeSQL(query: "SELECT updated_at::text AS revision FROM helipad_household WHERE id = $1;",
+                                        params: [householdId], config: config)
+        return rows.first?["revision"] as? String
     }
 
     public func pullHousehold(

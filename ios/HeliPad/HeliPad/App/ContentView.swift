@@ -58,6 +58,12 @@ public struct ContentView: View {
             if scenePhase == .active {
                 store.syncWithDeviceDate()
                 await store.resumePendingSync()
+                // Pick up whatever the other phone did while this one was away,
+                // then keep watching for as long as we are on screen.
+                await store.liveSyncTick()
+                store.startLiveSync()
+            } else {
+                store.stopLiveSync()
             }
         }
         .task {

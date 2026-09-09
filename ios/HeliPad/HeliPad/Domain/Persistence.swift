@@ -36,6 +36,10 @@ public struct PersistedState: Codable {
     public var dismissedEventIds: [String]? = []
     public var weekStart: String? = nil
     public var syncMetadata: HouseholdSyncMetadata? = nil
+    /// Household-wide settings have no per-record identity, so they travel as
+    /// one block under a single stamp. Without it a merge has no way to tell
+    /// whose buffer or home address is the newer one.
+    public var settingsStamp: RecordStamp? = nil
 
     public func cloudPayload() -> PersistedState {
         var state = self
@@ -47,7 +51,7 @@ public struct PersistedState: Codable {
         return state
     }
     enum CodingKeys: String, CodingKey {
-        case version, people, locations, eventsByDay, plan, templates, parentLocations, routes, homeAddress, homePlaceName, buffer, trafficMode, dinnerProtection, currentUser, timeZone, notifyLeaveBy, notifyDriverNeeded, notifyCrew, connections, hasCompletedOnboarding, onboardingDraft, googleMapsApiKey, neonConnectionString, neonSyncEnabled, lastNeonSyncDate, dismissedEventIds, weekStart, syncMetadata
+        case version, people, locations, eventsByDay, plan, templates, parentLocations, routes, homeAddress, homePlaceName, buffer, trafficMode, dinnerProtection, currentUser, timeZone, notifyLeaveBy, notifyDriverNeeded, notifyCrew, connections, hasCompletedOnboarding, onboardingDraft, googleMapsApiKey, neonConnectionString, neonSyncEnabled, lastNeonSyncDate, dismissedEventIds, weekStart, syncMetadata, settingsStamp
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -78,6 +82,7 @@ public struct PersistedState: Codable {
         try container.encodeIfPresent(dismissedEventIds, forKey: .dismissedEventIds)
         try container.encodeIfPresent(weekStart, forKey: .weekStart)
         try container.encodeIfPresent(syncMetadata, forKey: .syncMetadata)
+        try container.encodeIfPresent(settingsStamp, forKey: .settingsStamp)
     }
 
 }

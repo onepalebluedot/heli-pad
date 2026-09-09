@@ -57,6 +57,9 @@ public class AppStore: ObservableObject {
     @Published public private(set) var syncError: String?
     @Published public private(set) var syncPending: Bool = false
     private var syncMetadata = HouseholdSyncMetadata()
+    /// Stamp covering the household-wide settings block. Records carry their
+    /// own; the loose settings need one shared stamp to be mergeable at all.
+    private var settingsStamp: RecordStamp?
     private var syncTask: Task<Void, Error>?
     private let cloudService: HouseholdCloudService
     private let secretStore: IntegrationSecretStore
@@ -429,8 +432,108 @@ public class AppStore: ObservableObject {
         return encoder
     }()
 
+    /// The household-wide settings, as one comparable blob. Anything a second
+    /// phone should see when the first one changes it belongs here; anything
+    /// that describes *this* phone (who is holding it, which reminders it
+    /// shows) deliberately does not.
+    private struct SettingsBlock: Encodable {
+        var parentLocations: [String: String]
+        var routes: [String: [String: Int]]
+        var homeAddress: String
+        var homePlaceName: String
+        var buffer: Int
+        var trafficMode: Bool
+        var dinnerProtection: Bool
+        var timeZone: String
+        var connections: [String: Bool]
+        var priorities: [String: WeekPriority]
+        var calendar: CalendarMetadata
+    }
+
+    private func settingsBlock() -> SettingsBlock {
+        SettingsBlock(
+            parentLocations: parentLocations,
+            routes: routes,
+            homeAddress: homeAddress,
+            homePlaceName: homePlaceName,
+            buffer: buffer,
+            trafficMode: trafficMode,
+            dinnerProtection: dinnerProtection,
+            timeZone: timeZone,
+            connections: connections,
+            priorities: plan.priorities,
+            calendar: plan.calendar
+        )
+    }
+
+    private static let settingsBaselineKey = "settings:household"
+
+    /// Hash of only the parts of a household that both phones share.
+    ///
+    /// The payload also carries fields that belong to one handset — who is
+    /// using it, which reminders it shows, what it has dismissed. Those must
+    /// not count towards "has anything changed?", or each phone would see the
+    /// other's copy as different, push it back, and the two would trade
+    /// revisions for as long as both apps were open.
+    private func sharedFingerprint(_ state: PersistedState) -> String {
+        struct Shared: Encodable {
+            var people: [Person]
+            var locations: [LocationItem]
+            var templates: [TemplateItem]
+            var events: [TaskRecord]
+            var tombstones: [Tombstone]
+            var priorities: [String: WeekPriority]
+            var reviewed: [String: String]
+            var calendar: CalendarMetadata
+            var parentLocations: [String: String]
+            var routes: [String: [String: Int]]
+            var homeAddress: String
+            var homePlaceName: String
+            var buffer: Int
+            var trafficMode: Bool
+            var dinnerProtection: Bool
+            var timeZone: String
+            var connections: [String: Bool]
+            var settingsStamp: RecordStamp?
+            var hasCompletedOnboarding: Bool
+        }
+        let shared = Shared(
+            people: state.people.sorted { $0.stampKey < $1.stampKey },
+            locations: state.locations.sorted { $0.stampKey < $1.stampKey },
+            templates: state.templates.sorted { $0.stampKey < $1.stampKey },
+            events: (state.eventsByDay.values.flatMap { $0 } + state.plan.future)
+                .sorted { $0.stampKey < $1.stampKey },
+            tombstones: (state.plan.tombstones ?? []).sorted { $0.key < $1.key },
+            priorities: state.plan.priorities,
+            reviewed: state.plan.reviewed,
+            calendar: state.plan.calendar,
+            parentLocations: state.parentLocations,
+            routes: state.routes,
+            homeAddress: state.homeAddress,
+            homePlaceName: state.homePlaceName,
+            buffer: state.buffer,
+            trafficMode: state.trafficMode,
+            dinnerProtection: state.dinnerProtection,
+            timeZone: state.timeZone,
+            connections: state.connections,
+            settingsStamp: state.settingsStamp,
+            hasCompletedOnboarding: state.hasCompletedOnboarding
+        )
+        return fingerprint(shared)
+    }
+
     /// Content hash that is stable across launches. `Hashable` is seeded per
     /// process, so it would report every record as changed after a relaunch.
+    private func fingerprint<T: Encodable>(_ value: T) -> String {
+        guard let data = try? Self.fingerprintEncoder.encode(value) else { return UUID().uuidString }
+        var hash: UInt64 = 0xcbf29ce484222325            // FNV-1a
+        for byte in data {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x100000001b3
+        }
+        return String(hash, radix: 16)
+    }
+
     private func fingerprint<T: StampedRecord>(_ record: T) -> String {
         var bare = record
         bare.stamp = nil
@@ -463,6 +566,7 @@ public class AppStore: ObservableObject {
         state.people.forEach { note($0.stamp) }
         state.templates.forEach { note($0.stamp) }
         state.locations.forEach { note($0.stamp) }
+        note(state.settingsStamp)
         syncMetadata.lamport = highest
     }
 
@@ -477,6 +581,7 @@ public class AppStore: ObservableObject {
         note(people, .person)
         note(templates, .template)
         note(locations, .location)
+        baseline[Self.settingsBaselineKey] = fingerprint(settingsBlock())
         contentBaseline = baseline
     }
 
@@ -509,6 +614,13 @@ public class AppStore: ObservableObject {
         _ = stampChanged(&people, kind: .person, seen: &seen)
         _ = stampChanged(&templates, kind: .template, seen: &seen)
         _ = stampChanged(&locations, kind: .location, seen: &seen)
+
+        // Settings move as one block, under one stamp.
+        let settingsPrint = fingerprint(settingsBlock())
+        seen[Self.settingsBaselineKey] = settingsPrint
+        if contentBaseline[Self.settingsBaselineKey] != settingsPrint || settingsStamp == nil {
+            settingsStamp = nextStamp()
+        }
 
         // Anything the baseline knew about that is no longer here was deleted.
         var graves = plan.tombstones ?? []
@@ -587,7 +699,8 @@ public class AppStore: ObservableObject {
             lastNeonSyncDate: lastNeonSyncDate,
             dismissedEventIds: Array(dismissedEventIds),
             weekStart: weekStart,
-            syncMetadata: syncMetadata
+            syncMetadata: syncMetadata,
+            settingsStamp: settingsStamp
         )
     }
 
@@ -660,6 +773,7 @@ public class AppStore: ObservableObject {
         connections = state.connections
         hasCompletedOnboarding = state.hasCompletedOnboarding
         savedOnboardingDraft = state.onboardingDraft
+        settingsStamp = state.settingsStamp
         if let dismissed = state.dismissedEventIds {
             dismissedEventIds = Set(dismissed)
         }
@@ -671,6 +785,105 @@ public class AppStore: ObservableObject {
         rebaselineContent()
     }
 
+    // MARK: - Merge
+
+    /// Folds the cloud household into this one, record by record.
+    ///
+    /// Both phones run this and reach the same answer, because "newer" is the
+    /// Lamport stamp on each record rather than either phone's wall clock. A
+    /// record that exists on both sides keeps the higher stamp; a tombstone
+    /// removes a record only when the delete is newer than the record itself,
+    /// so re-adding a stop after someone else deleted it keeps the stop.
+    ///
+    /// Unlike `apply`, nothing local is discarded: this is what lets both
+    /// phones edit the same week without one of them losing its work.
+    func merge(_ remote: PersistedState) {
+        // Newest delete wins, per record.
+        var graves: [String: Tombstone] = [:]
+        for stone in (plan.tombstones ?? []) + (remote.plan.tombstones ?? []) {
+            if let seen = graves[stone.key], stone.stamp < seen.stamp { continue }
+            graves[stone.key] = stone
+        }
+
+        func combine<T: StampedRecord>(_ mine: [T], _ theirs: [T], _ kind: Tombstone.Kind) -> [T] {
+            var byKey: [String: T] = [:]
+            var order: [String] = []
+            for item in mine + theirs {
+                guard let existing = byKey[item.stampKey] else {
+                    byKey[item.stampKey] = item
+                    order.append(item.stampKey)
+                    continue
+                }
+                // Ties keep the local copy; the stamp's device id makes that
+                // choice the same on both phones.
+                if (existing.stamp ?? RecordStamp()) < (item.stamp ?? RecordStamp()) {
+                    byKey[item.stampKey] = item
+                }
+            }
+            return order.compactMap { key in
+                guard let item = byKey[key] else { return nil }
+                guard let grave = graves["\(kind.rawValue):\(key)"] else { return item }
+                // The delete only sticks while it is newer than the record.
+                return grave.stamp < (item.stamp ?? RecordStamp()) ? item : nil
+            }
+        }
+
+        let mergedEvents = combine(records(), remote.eventsByDay.values.flatMap { $0 } + remote.plan.future, .event)
+        let mergedPeople = combine(people, remote.people, .person)
+        let mergedTemplates = combine(templates, remote.templates, .template)
+        let mergedLocations = combine(locations, remote.locations, .location)
+
+        // Settings are one block: the newer stamp takes the whole thing, so the
+        // two phones never end up with half of each other's planning rules.
+        if (settingsStamp ?? RecordStamp()) < (remote.settingsStamp ?? RecordStamp()) {
+            parentLocations = remote.parentLocations
+            routes = remote.routes
+            homeAddress = remote.homeAddress
+            homePlaceName = remote.homePlaceName
+            buffer = remote.buffer
+            trafficMode = remote.trafficMode
+            dinnerProtection = remote.dinnerProtection
+            timeZone = remote.timeZone
+            connections = remote.connections
+            plan.priorities = remote.plan.priorities
+            plan.calendar = remote.plan.calendar
+            settingsStamp = remote.settingsStamp
+        }
+
+        people = mergedPeople
+        templates = mergedTemplates
+        locations = mergedLocations
+        partitionRecords(mergedEvents)
+
+        // Weeks either phone has reviewed stay reviewed.
+        plan.reviewed.merge(remote.plan.reviewed) { mine, _ in mine }
+
+        // A record that outlived its own delete no longer needs the grave.
+        let surviving = Set(
+            records().map { "event:\($0.stampKey)" }
+                + people.map { "person:\($0.stampKey)" }
+                + templates.map { "template:\($0.stampKey)" }
+                + locations.map { "location:\($0.stampKey)" }
+        )
+        let now = nowProvider()
+        var settled = graves.values.filter { !surviving.contains($0.key) }
+        settled.removeAll { now.timeIntervalSince($0.deletedAt) > Self.tombstoneHorizon }
+        plan.tombstones = settled.isEmpty ? nil : settled.sorted { $0.key < $1.key }
+
+        // Setup done anywhere in the household is done here.
+        hasCompletedOnboarding = hasCompletedOnboarding || remote.hasCompletedOnboarding
+        if savedOnboardingDraft == nil { savedOnboardingDraft = remote.onboardingDraft }
+
+        // Deliberately not merged: currentUser and the notification switches
+        // describe this handset, not the household.
+
+        reconcile()
+        observeStamps(in: remote)
+        // The merged content is the new baseline. Re-stamping it here would
+        // mark records this phone never touched as its own fresh edits.
+        rebaselineContent()
+    }
+
     // MARK: - Cloud & Services Operations
 
     @MainActor
@@ -679,6 +892,18 @@ public class AppStore: ObservableObject {
         let w = await WeatherService.shared.fetchWeather(coordinate: coord, forceRefresh: forceRefresh)
         self.liveWeather = w
     }
+
+    /// A household id or connection edited mid-flight must never have another
+    /// household's response attached to it.
+    private func assertIdentity(connection: String, household: String) throws {
+        guard neonConnectionString == connection, cloudHouseholdID == household else {
+            throw NeonError.invalidConfig("Cloud connection changed during sync. Sync the selected household again.")
+        }
+    }
+
+    /// How many times a push may lose the compare-and-swap race before we stop
+    /// and report it. Two phones saving at once resolve on the first retry.
+    private static let syncConflictRetries = 4
 
     private func prepareSyncIdentity() {
         let fingerprint = SHA256.hash(data: Data(neonConnectionString.utf8)).map { String(format: "%02x", $0) }.joined()
@@ -708,20 +933,60 @@ public class AppStore: ObservableObject {
         let connection = neonConnectionString
         let householdID = cloudHouseholdID
         let task = Task { @MainActor in
+            var attempt = 0
             repeat {
                 let revision = self.syncMetadata.localRevision
-                let remoteRevision = try await self.cloudService.pushHousehold(
-                    state: self.snapshot().cloudPayload(), householdId: householdID,
-                    expectedRevision: self.syncMetadata.remoteRevision, rawConnectionString: connection
+
+                // 1. Take what the other phone has published and fold it in.
+                //    Doing this before every push is what makes two phones
+                //    converge instead of one of them being refused forever.
+                let incoming = try await self.cloudService.pullHousehold(
+                    householdId: householdID, rawConnectionString: connection
                 )
-                // A settings edit while awaiting the server must not attach the
-                // old response to a different household or database.
-                guard self.neonConnectionString == connection, self.cloudHouseholdID == householdID else {
-                    throw NeonError.invalidConfig("Cloud connection changed during sync. Sync the selected household again.")
+                try self.assertIdentity(connection: connection, household: householdID)
+                if let incoming {
+                    self.merge(incoming.state)
+                    self.syncMetadata.remoteRevision = incoming.revision
+                } else {
+                    self.syncMetadata.remoteRevision = nil
                 }
-                self.syncMetadata.remoteRevision = remoteRevision
-                self.syncMetadata.uploadedRevision = revision
-                self.syncPending = self.syncMetadata.localRevision != revision
+
+                // 2. Publish the union — unless the cloud already holds every
+                //    shared record we have. Re-publishing an identical
+                //    household would only bump the revision, which the other
+                //    phone would read as news and answer with a write of its
+                //    own, forever.
+                if let incoming,
+                   self.sharedFingerprint(self.snapshot()) == self.sharedFingerprint(incoming.state) {
+                    self.syncMetadata.uploadedRevision = revision
+                    self.syncPending = self.syncMetadata.localRevision != revision
+                    if !self.syncPending { self.lastNeonSyncDate = self.nowProvider() }
+                    self.persist()
+                    continue
+                }
+
+                do {
+                    let remoteRevision = try await self.cloudService.pushHousehold(
+                        state: self.snapshot().cloudPayload(), householdId: householdID,
+                        expectedRevision: self.syncMetadata.remoteRevision, rawConnectionString: connection
+                    )
+                    // A settings edit while awaiting the server must not attach
+                    // the old response to a different household or database.
+                    try self.assertIdentity(connection: connection, household: householdID)
+                    self.syncMetadata.remoteRevision = remoteRevision
+                    self.syncMetadata.uploadedRevision = revision
+                    self.syncPending = self.syncMetadata.localRevision != revision
+                    attempt = 0
+                } catch NeonError.conflict {
+                    // The other phone wrote between our pull and our push. Its
+                    // work is now the baseline, so go round again rather than
+                    // stranding this device the way a bare push did.
+                    try self.assertIdentity(connection: connection, household: householdID)
+                    attempt += 1
+                    guard attempt <= Self.syncConflictRetries else { throw NeonError.conflict }
+                    self.syncPending = true
+                    continue
+                }
                 if !self.syncPending { self.lastNeonSyncDate = self.nowProvider() }
                 self.persist()
             } while self.syncPending
@@ -769,6 +1034,61 @@ public class AppStore: ObservableObject {
     public func resumePendingSync() async {
         guard hasCompletedOnboarding, neonSyncEnabled, syncPending, !neonConnectionString.isEmpty else { return }
         do { try await syncWithNeon() } catch { syncError = error.localizedDescription }
+    }
+
+    // MARK: - Live sync
+
+    /// How often an open app asks whether the household has moved on. Neon is
+    /// reached over plain HTTP with no push channel, so the other phone's edit
+    /// lands within one of these rather than instantly.
+    public static let liveSyncInterval: TimeInterval = 4
+
+    private var liveSyncTask: Task<Void, Never>?
+
+    /// Starts watching the cloud household while the app is on screen. Each tick
+    /// asks only for the revision, and pulls the household itself when that
+    /// revision has actually moved — a full pull every few seconds would be a
+    /// lot of traffic to learn that nothing happened.
+    @MainActor
+    public func startLiveSync() {
+        guard liveSyncTask == nil else { return }
+        liveSyncTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(Self.liveSyncInterval * 1_000_000_000))
+                if Task.isCancelled { return }
+                guard let self else { return }
+                await self.liveSyncTick()
+            }
+        }
+    }
+
+    @MainActor
+    public func stopLiveSync() {
+        liveSyncTask?.cancel()
+        liveSyncTask = nil
+    }
+
+    @MainActor
+    func liveSyncTick() async {
+        guard hasCompletedOnboarding, neonSyncEnabled, !neonConnectionString.isEmpty else { return }
+        // Never race the sync already running; it will publish what we have.
+        guard syncTask == nil else { return }
+        do {
+            if !syncPending {
+                let revision = try await cloudService.fetchRevision(
+                    householdId: cloudHouseholdID, rawConnectionString: neonConnectionString
+                )
+                // Nothing new upstream and nothing waiting here: stay quiet.
+                guard revision != syncMetadata.remoteRevision else { return }
+            }
+            try await syncWithNeon()
+        } catch is CancellationError {
+            return
+        } catch {
+            // A dropped tick is normal on the school run. Keep the message for
+            // Settings, and let the next tick try again.
+            syncError = error.localizedDescription
+        }
     }
 
     /// Fills in coordinates for saved places that only have a street address.
