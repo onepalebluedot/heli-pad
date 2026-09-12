@@ -309,8 +309,7 @@ public enum PlanCore {
 
             let mon = monday(event.date)
             let priority = options.priorities[mon] ?? (options.dinnerProtection ? WeekPriority(enabled: true, days: [0, 1, 2, 3, 4, 5, 6], time: "18:30") : nil)
-            if options.dinnerProtection,
-               let priority = priority,
+            if let priority = priority,
                priority.enabled,
                priority.days.contains(weekdayIndex(event.date)),
                !event.allDay,
@@ -442,12 +441,11 @@ public enum PlanCore {
 
     public static func occurrences(
         _ draft: TaskRecord,
-        repeatMode: String = "none",
-        count: Int = 1,
-        weekdays: [Int]? = nil
+        recurrence pattern: RecurrencePattern,
+        seriesId requestedSeriesId: String? = nil
     ) throws -> [TaskRecord] {
-        guard dateFormatter.date(from: draft.date) != nil else {
-            throw NSError(domain: "PlanCore", code: 1, userInfo: [NSLocalizedDescriptionKey: "Choose a date."])
+        guard dateFormatter.date(from: pattern.startDate) != nil else {
+            throw NSError(domain: "PlanCore", code: 1, userInfo: [NSLocalizedDescriptionKey: "Choose a valid start date."])
         }
         guard !draft.title.trimmingCharacters(in: .whitespaces).isEmpty else {
             throw NSError(domain: "PlanCore", code: 2, userInfo: [NSLocalizedDescriptionKey: "Give this event a name."])
@@ -460,43 +458,94 @@ public enum PlanCore {
               mins(draft.endTime) > mins(draft.time) else {
             throw NSError(domain: "PlanCore", code: 3, userInfo: [NSLocalizedDescriptionKey: "End time must be after start time on the same day."])
         }
-
-        let realCount = (repeatMode == "weekly") ? count : 1
-        guard realCount >= 1 && realCount <= 52 else {
-            throw NSError(domain: "PlanCore", code: 4, userInfo: [NSLocalizedDescriptionKey: "Choose 1 to 52 weeks."])
+        guard pattern.timeZone == "device" || TimeZone(identifier: pattern.timeZone) != nil else {
+            throw NSError(domain: "PlanCore", code: 7, userInfo: [NSLocalizedDescriptionKey: "Choose a valid household time zone."])
         }
 
-        let actualWeekdays: [Int]
-        if let weekdays = weekdays {
-            actualWeekdays = weekdays
-        } else {
-            actualWeekdays = [daysBetween(monday(draft.date), draft.date)]
+        if pattern.mode == .none {
+            var single = draft
+            single.date = pattern.startDate
+            single.seriesId = nil
+            single.originalOccurrenceDate = nil
+            single.recurrenceOverride = nil
+            return [single]
         }
 
-        guard !actualWeekdays.isEmpty, actualWeekdays.allSatisfy({ $0 >= 0 && $0 <= 6 }) else {
-            throw NSError(domain: "PlanCore", code: 5, userInfo: [NSLocalizedDescriptionKey: "Choose at least one weekday."])
+        let selectedDays = Array(Set(pattern.weekdays)).sorted()
+        guard !selectedDays.isEmpty, selectedDays.allSatisfy({ (0...6).contains($0) }) else {
+            throw NSError(domain: "PlanCore", code: 5, userInfo: [NSLocalizedDescriptionKey: "Choose at least one valid weekday."])
         }
 
-        let selectedDays = Array(Set(actualWeekdays)).sorted()
-        let startMonday = monday(draft.date)
-        var dates: [TaskRecord] = []
-
-        for week in 0..<realCount {
-            for day in selectedDays {
-                let date = dateAdd(startMonday, week * 7 + day)
-                if repeatMode != "weekly" || date >= draft.date {
-                    var copy = draft
-                    copy.date = date
-                    dates.append(copy)
-                }
+        let throughDate: String
+        switch pattern.end {
+        case .weekCount(let count):
+            guard (1...52).contains(count) else {
+                throw NSError(domain: "PlanCore", code: 4, userInfo: [NSLocalizedDescriptionKey: "Choose 1 to 52 calendar weeks, including the starting week."])
             }
+            throughDate = dateAdd(monday(pattern.startDate), count * 7 - 1)
+        case .throughDate(let date):
+            guard dateFormatter.date(from: date) != nil,
+                  let span = dayOffset(from: pattern.startDate, to: date), span >= 0 else {
+                throw NSError(domain: "PlanCore", code: 8, userInfo: [NSLocalizedDescriptionKey: "The repeat-through date must be on or after the start date."])
+            }
+            guard span <= 3_660 else {
+                throw NSError(domain: "PlanCore", code: 9, userInfo: [NSLocalizedDescriptionKey: "Choose a repeat-through date within 10 years."])
+            }
+            throughDate = date
         }
 
-        guard !dates.isEmpty else {
-            throw NSError(domain: "PlanCore", code: 6, userInfo: [NSLocalizedDescriptionKey: "Choose a day on or after the start date, or add another week."])
+        let seriesId = requestedSeriesId ?? draft.seriesId ?? "series-\(UUID().uuidString)"
+        let span = dayOffset(from: pattern.startDate, to: throughDate) ?? 0
+        var generated: [TaskRecord] = []
+        for offset in 0...span {
+            let date = dateAdd(pattern.startDate, offset)
+            guard selectedDays.contains(weekdayIndex(date)) else { continue }
+            var copy = draft
+            copy.id = "ev-\(seriesId)-\(date)"
+            copy.date = date
+            copy.seriesId = seriesId
+            copy.originalOccurrenceDate = date
+            copy.recurrenceOverride = nil
+            generated.append(copy)
         }
 
-        return dates
+        guard !generated.isEmpty else {
+            throw NSError(domain: "PlanCore", code: 6, userInfo: [NSLocalizedDescriptionKey: "No selected weekday occurs on or after the start date in this range. Add another week or choose another day."])
+        }
+        return generated
+    }
+
+    /// Calendar slots only, for validating persisted rows against a durable
+    /// rule without generating or mutating any schedule content.
+    public static func occurrenceDates(for pattern: RecurrencePattern) throws -> [String] {
+        let probe = TaskRecord(
+            id: "recurrence-date-probe",
+            date: pattern.startDate,
+            time: "12:00",
+            endTime: "13:00",
+            title: "Recurrence date probe",
+            location: "Home",
+            mode: "Home"
+        )
+        return try occurrences(probe, recurrence: pattern, seriesId: "recurrence-date-probe").map(\.date)
+    }
+
+    /// Compatibility bridge for older callers. New code should pass the typed
+    /// pattern so end-date and time-zone semantics cannot be lost in strings.
+    public static func occurrences(
+        _ draft: TaskRecord,
+        repeatMode: String = "none",
+        count: Int = 1,
+        weekdays: [Int]? = nil
+    ) throws -> [TaskRecord] {
+        let days = weekdays ?? [weekdayIndex(draft.date)]
+        let pattern = RecurrencePattern(
+            mode: repeatMode == "weekly" ? .weekly : .none,
+            startDate: draft.date,
+            weekdays: days,
+            end: .weekCount(count)
+        )
+        return try occurrences(draft, recurrence: pattern, seriesId: draft.seriesId)
     }
 
     public static func schedule(_ e: TaskRecord) -> [String: String] {

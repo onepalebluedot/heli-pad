@@ -29,19 +29,34 @@ public struct OnboardingDraft: Codable, Hashable {
         public var address: String
         public var icon: String
         public var minutesFromHome: Int
+        public var latitude: Double?
+        public var longitude: Double?
+        public var placeId: String?
+        public var source: String?
+        public var routeKey: String?
 
         public init(
             id: String = UUID().uuidString,
             name: String = "",
             address: String = "",
             icon: String = "map-pin",
-            minutesFromHome: Int = 15
+            minutesFromHome: Int = 15,
+            latitude: Double? = nil,
+            longitude: Double? = nil,
+            placeId: String? = nil,
+            source: String? = nil,
+            routeKey: String? = nil
         ) {
             self.id = id
             self.name = name
             self.address = address
             self.icon = icon
             self.minutesFromHome = minutesFromHome
+            self.latitude = latitude
+            self.longitude = longitude
+            self.placeId = placeId
+            self.source = source
+            self.routeKey = routeKey
         }
     }
 
@@ -55,6 +70,10 @@ public struct OnboardingDraft: Codable, Hashable {
         public var durationMinutes: Int
         public var ownerName: String      // a caregiver name, or "TBD" / "Family"
         public var category: String
+        public var startDate: String?
+        public var recurrenceMode: RecurrenceMode?
+        public var recurrenceWeekCount: Int?
+        public var recurrenceThroughDate: String?
 
         public init(
             id: String = UUID().uuidString,
@@ -65,7 +84,11 @@ public struct OnboardingDraft: Codable, Hashable {
             time: String = "16:00",
             durationMinutes: Int = 60,
             ownerName: String = "TBD",
-            category: String = "Sports"
+            category: String = "Sports",
+            startDate: String? = PlanCore.currentDeviceDate(),
+            recurrenceMode: RecurrenceMode? = .weekly,
+            recurrenceWeekCount: Int? = 20,
+            recurrenceThroughDate: String? = nil
         ) {
             self.id = id
             self.title = title
@@ -76,6 +99,10 @@ public struct OnboardingDraft: Codable, Hashable {
             self.durationMinutes = durationMinutes
             self.ownerName = ownerName
             self.category = category
+            self.startDate = startDate
+            self.recurrenceMode = recurrenceMode
+            self.recurrenceWeekCount = recurrenceWeekCount
+            self.recurrenceThroughDate = recurrenceThroughDate
         }
     }
 
@@ -85,6 +112,11 @@ public struct OnboardingDraft: Codable, Hashable {
     public var yourRelationship: String
     public var homePlaceName: String
     public var homeAddress: String
+    public var homeLatitude: Double?
+    public var homeLongitude: Double?
+    public var homePlaceId: String?
+    public var homeSource: String?
+    public var homeRouteKey: String?
     public var crew: [DraftPerson]        // caregivers besides you
     public var kids: [DraftPerson]
     public var places: [DraftPlace]
@@ -95,6 +127,11 @@ public struct OnboardingDraft: Codable, Hashable {
         yourRelationship: String = "Mother",
         homePlaceName: String = "Home",
         homeAddress: String = "",
+        homeLatitude: Double? = nil,
+        homeLongitude: Double? = nil,
+        homePlaceId: String? = nil,
+        homeSource: String? = nil,
+        homeRouteKey: String? = nil,
         crew: [DraftPerson] = [],
         kids: [DraftPerson] = [],
         places: [DraftPlace] = [],
@@ -104,6 +141,11 @@ public struct OnboardingDraft: Codable, Hashable {
         self.yourRelationship = yourRelationship
         self.homePlaceName = homePlaceName
         self.homeAddress = homeAddress
+        self.homeLatitude = homeLatitude
+        self.homeLongitude = homeLongitude
+        self.homePlaceId = homePlaceId
+        self.homeSource = homeSource
+        self.homeRouteKey = homeRouteKey
         self.crew = crew
         self.kids = kids
         self.places = places
@@ -190,4 +232,31 @@ public struct OnboardingDraft: Codable, Hashable {
     public var youStepIsComplete: Bool { OnboardingDraft.isUsableName(yourName) }
     public var homeStepIsComplete: Bool { !homeAddress.trimmingCharacters(in: .whitespaces).isEmpty }
     public var kidsStepIsComplete: Bool { !kidNames.isEmpty }
+
+    public var activitiesValidationError: String? {
+        for activity in activities {
+            let title = activity.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            if title.isEmpty { continue }
+            let start = activity.startDate ?? PlanCore.currentDeviceDate()
+            let mode = activity.recurrenceMode ?? (activity.weekdays.isEmpty ? .none : .weekly)
+            let end: RecurrenceEnd = activity.recurrenceThroughDate.map(RecurrenceEnd.throughDate)
+                ?? .weekCount(activity.recurrenceWeekCount ?? 1)
+            let pattern = RecurrencePattern(
+                mode: mode,
+                startDate: start,
+                weekdays: activity.weekdays,
+                end: end
+            )
+            let draft = TaskRecord(
+                id: "validation",
+                date: start,
+                time: activity.time,
+                endTime: PlanCore.addMinutes(time: activity.time, mins: activity.durationMinutes),
+                title: title
+            )
+            do { _ = try PlanCore.occurrences(draft, recurrence: pattern, seriesId: "validation") }
+            catch { return "\(title): \(error.localizedDescription)" }
+        }
+        return nil
+    }
 }

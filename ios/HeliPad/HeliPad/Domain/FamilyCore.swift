@@ -90,7 +90,9 @@ public enum FamilyCore {
             mode: mode,
             duration: duration,
             notes: t.notes,
-            category: t.category
+            category: t.category,
+            weekdays: t.weekdays,
+            recurrenceWeekCount: t.recurrenceWeekCount
         )
     }
 

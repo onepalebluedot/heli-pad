@@ -96,6 +96,11 @@ public class GoogleMapsService {
     public static let shared = GoogleMapsService()
 
     private var routeCache: [RouteCacheKey: (duration: Int, miles: Double, timestamp: Date)] = [:]
+    private struct AppleRouteCacheKey: Hashable {
+        let route: RouteCacheKey
+        let arrivalBucket: Int
+    }
+    private var appleRouteCache: [AppleRouteCacheKey: (duration: Int, miles: Double, timestamp: Date)] = [:]
     private let cacheTTL: TimeInterval = 15 * 60 // 15 minutes
 
     // Known seed places for intelligent fallback when offline or no API key
@@ -476,6 +481,30 @@ public class GoogleMapsService {
         return result
     }
 
+    /// Apple Maps route estimate from the device's current GPS position. The
+    /// appointment time is supplied as the desired arrival so MapKit can account
+    /// for the traffic expected when this trip will actually happen.
+    public func calculateAppleDriveTime(
+        from: CLLocationCoordinate2D,
+        to: CLLocationCoordinate2D,
+        arrivingAt arrivalDate: Date
+    ) async -> (durationMinutes: Int, distanceMiles: Double)? {
+        let route = RouteCacheKey(from: from, to: to)
+        let key = AppleRouteCacheKey(
+            route: route,
+            arrivalBucket: Int(arrivalDate.timeIntervalSince1970 / (15 * 60))
+        )
+        if let cached = appleRouteCache[key], Date().timeIntervalSince(cached.timestamp) < cacheTTL {
+            return (cached.duration, cached.miles)
+        }
+
+        guard let result = await fetchMapKitDriveTime(from: from, to: to, arrivingAt: arrivalDate) else {
+            return nil
+        }
+        appleRouteCache[key] = (result.durationMinutes, result.distanceMiles, Date())
+        return result
+    }
+
     private func fetchGoogleDistanceMatrix(
         from: CLLocationCoordinate2D,
         to: CLLocationCoordinate2D,
@@ -512,13 +541,18 @@ public class GoogleMapsService {
 
     private func fetchMapKitDriveTime(
         from: CLLocationCoordinate2D,
-        to: CLLocationCoordinate2D
+        to: CLLocationCoordinate2D,
+        arrivingAt arrivalDate: Date? = nil
     ) async -> (durationMinutes: Int, distanceMiles: Double)? {
         let request = MKDirections.Request()
         request.source = MKMapItem(placemark: MKPlacemark(coordinate: from))
         request.destination = MKMapItem(placemark: MKPlacemark(coordinate: to))
         request.transportType = .automobile
-        request.departureDate = Date()
+        if let arrivalDate {
+            request.arrivalDate = arrivalDate
+        } else {
+            request.departureDate = Date()
+        }
 
         let directions = MKDirections(request: request)
         do {

@@ -15,6 +15,10 @@ struct OnboardingActivitiesStep: View {
                 OnboardingNotice(text: "Add a child first — a routine needs someone to be for.")
             }
 
+            if let error = draft.activitiesValidationError {
+                OnboardingNotice(text: error)
+            }
+
             ForEach($draft.activities) { $activity in
                 OnboardingActivityRow(
                     activity: $activity,
@@ -74,7 +78,58 @@ struct OnboardingActivityRow: View {
                 }
             }
 
-            OnboardingWeekdayPicker(weekdays: $activity.weekdays)
+            labelled("Starts") {
+                DatePicker("Start date", selection: startDateBinding, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+            }
+
+            labelled("Repeat") {
+                Picker("Repeat", selection: recurrenceModeBinding) {
+                    Text("Does not repeat").tag(RecurrenceMode.none)
+                    Text("Weekly").tag(RecurrenceMode.weekly)
+                }
+                .pickerStyle(.segmented)
+            }
+
+            if recurrenceModeBinding.wrappedValue == .weekly {
+                OnboardingWeekdayPicker(weekdays: $activity.weekdays)
+
+                labelled("Ends") {
+                    Picker("Ends", selection: endModeBinding) {
+                        Text("For weeks").tag("weeks")
+                        Text("Until date").tag("date")
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                if endModeBinding.wrappedValue == "weeks" {
+                    HStack {
+                        Button("20 weeks") { activity.recurrenceWeekCount = 20 }
+                        Button("30 weeks") { activity.recurrenceWeekCount = 30 }
+                        Spacer()
+                        Stepper(
+                            "\(activity.recurrenceWeekCount ?? 20)",
+                            value: Binding(
+                                get: { activity.recurrenceWeekCount ?? 20 },
+                                set: { activity.recurrenceWeekCount = $0 }
+                            ),
+                            in: 1...52
+                        )
+                        .fixedSize()
+                    }
+                    Text("Calendar weeks include the partial starting week.")
+                        .font(HeliTypography.caption(11))
+                        .foregroundColor(HeliColors.mutedGray)
+                } else {
+                    DatePicker("Repeat through", selection: throughDateBinding, displayedComponents: .date)
+                        .datePickerStyle(.compact)
+                }
+
+                Text(recurrenceSummary)
+                    .font(HeliTypography.caption(11))
+                    .foregroundColor(HeliColors.mutedGray)
+            }
 
             HStack(alignment: .bottom, spacing: 14) {
                 OnboardingTimeField(label: "Starts", time: $activity.time)
@@ -126,5 +181,81 @@ struct OnboardingActivityRow: View {
         } else {
             activity.kidNames.append(name)
         }
+    }
+
+    private var recurrenceModeBinding: Binding<RecurrenceMode> {
+        Binding(
+            get: { activity.recurrenceMode ?? (activity.weekdays.isEmpty ? .none : .weekly) },
+            set: { mode in
+                activity.recurrenceMode = mode
+                if mode == .weekly && activity.weekdays.isEmpty {
+                    activity.weekdays = [PlanCore.weekdayIndex(activity.startDate ?? PlanCore.currentDeviceDate())]
+                }
+            }
+        )
+    }
+
+    private var endModeBinding: Binding<String> {
+        Binding(
+            get: { activity.recurrenceThroughDate == nil ? "weeks" : "date" },
+            set: { mode in
+                if mode == "weeks" {
+                    activity.recurrenceThroughDate = nil
+                    if activity.recurrenceWeekCount == nil { activity.recurrenceWeekCount = 20 }
+                } else {
+                    activity.recurrenceThroughDate = activity.startDate ?? PlanCore.currentDeviceDate()
+                }
+            }
+        )
+    }
+
+    private var startDateBinding: Binding<Date> {
+        dateBinding(
+            get: { activity.startDate ?? PlanCore.currentDeviceDate() },
+            set: { activity.startDate = $0 }
+        )
+    }
+
+    private var throughDateBinding: Binding<Date> {
+        dateBinding(
+            get: { activity.recurrenceThroughDate ?? activity.startDate ?? PlanCore.currentDeviceDate() },
+            set: { activity.recurrenceThroughDate = $0 }
+        )
+    }
+
+    private func dateBinding(get: @escaping () -> String, set: @escaping (String) -> Void) -> Binding<Date> {
+        Binding(
+            get: {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd"
+                formatter.timeZone = .current
+                return formatter.date(from: get()) ?? Date()
+            },
+            set: { date in
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd"
+                formatter.timeZone = .current
+                set(formatter.string(from: date))
+            }
+        )
+    }
+
+    private var recurrenceSummary: String {
+        let start = activity.startDate ?? PlanCore.currentDeviceDate()
+        let end: RecurrenceEnd = activity.recurrenceThroughDate.map(RecurrenceEnd.throughDate)
+            ?? .weekCount(activity.recurrenceWeekCount ?? 20)
+        let pattern = RecurrencePattern(mode: .weekly, startDate: start, weekdays: activity.weekdays, end: end)
+        let draft = TaskRecord(
+            id: "preview",
+            date: start,
+            time: activity.time,
+            endTime: PlanCore.addMinutes(time: activity.time, mins: activity.durationMinutes),
+            title: activity.title.isEmpty ? "Preview" : activity.title
+        )
+        guard let rows = try? PlanCore.occurrences(draft, recurrence: pattern, seriesId: "preview"),
+              let first = rows.first, let last = rows.last else {
+            return "Choose a weekday that occurs in the selected range."
+        }
+        return "\(rows.count) occurrence\(rows.count == 1 ? "" : "s") · \(first.date) through \(last.date)"
     }
 }

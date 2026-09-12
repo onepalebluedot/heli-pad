@@ -27,6 +27,7 @@ public struct GoView: View {
                     options: options,
                     liveDriveTime: store.realTimeDeviceEta,
                     isDeviceLocationLive: LocationService.shared.isUsingDeviceFix,
+                    restingState: viewData.restingState,
                     onEdit: {
                         if let hero = heroEvent {
                             viewModel.selectedStopForEdit = hero
@@ -83,7 +84,6 @@ public struct GoView: View {
         .background(HeliColors.canvasIvory)
         .onAppear {
             if scenePhase == .active { viewModel.startClock() }
-            LocationService.shared.startUpdating()
             if let hero = heroEvent {
                 Task {
                     _ = await store.calculateDeviceDriveTime(for: hero)
@@ -92,7 +92,6 @@ public struct GoView: View {
         }
         .onDisappear {
             viewModel.stopClock()
-            LocationService.shared.stopUpdating()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { viewModel.startClock() } else { viewModel.stopClock() }
@@ -115,35 +114,13 @@ public struct GoView: View {
         .sheet(isPresented: $viewModel.showAddEditSheet) {
             GoAddEditStopSheet(
                 store: store,
-                existingStop: viewModel.selectedStopForEdit,
-                onSave: { updatedStops in
-                    saveStops(updatedStops)
-                },
-                onDelete: { id in
-                    deleteStop(id)
-                }
+                existingStop: viewModel.selectedStopForEdit
             )
         }
     }
 
     private func toggleStopDone(_ stop: TaskRecord) {
-        var records = store.records()
-        guard let index = records.firstIndex(where: { $0.id == stop.id }) else { return }
-        records[index].done.toggle()
-        store.replaceRecords(records)
-    }
-
-    private func saveStops(_ stops: [TaskRecord]) {
-        var records = store.records()
-        for stop in stops {
-            if let index = records.firstIndex(where: { $0.id == stop.id }) { records[index] = stop }
-            else { records.append(stop) }
-        }
-        store.replaceRecords(records)
-    }
-
-    private func deleteStop(_ id: String) {
-        store.replaceRecords(store.records().filter { $0.id != id })
+        store.toggleEventDone(id: stop.id)
     }
 
     private func launchMaps(for stop: TaskRecord) {

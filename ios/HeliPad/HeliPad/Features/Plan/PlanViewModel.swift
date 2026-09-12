@@ -7,12 +7,25 @@ public struct RoutineGroup: Identifiable {
     public var location: String
     public var kids: [String]
     public var events: [TaskRecord]
+    public var weekEvents: [TaskRecord]
+    public var definition: SeriesDefinition?
 
     public var id: String { key }
 
     public var owner: String {
         let owners = Array(Set(events.map { $0.owner }))
         return owners.count == 1 ? (owners.first ?? "Mixed") : "Mixed"
+    }
+
+    public var weekdays: [Int] {
+        definition?.pattern.weekdays
+            ?? Array(Set(events.map { PlanCore.weekdayIndex($0.originalOccurrenceDate ?? $0.date) })).sorted()
+    }
+
+    public var firstDate: String { events.map(\.date).min() ?? "" }
+    public var lastDate: String { events.map(\.date).max() ?? "" }
+    public var historicalCount: Int {
+        events.filter { $0.date < PlanCore.currentDeviceDate() }.count
     }
 }
 
@@ -54,16 +67,25 @@ public class PlanViewModel: ObservableObject {
     }
 
     public func routineGroups(store: AppStore) -> [RoutineGroup] {
-        var groups: [String: RoutineGroup] = [:]
-        for e in weekRecords(store: store) {
-            let key = e.seriesId ?? "\(e.title.lowercased())|\(e.location.lowercased())|\(e.kids.sorted().joined(separator: ",").lowercased())"
-            if groups[key] == nil {
-                groups[key] = RoutineGroup(key: key, title: e.title, location: e.location, kids: e.kids, events: [e])
-            } else {
-                groups[key]?.events.append(e)
-            }
+        let visible = weekRecords(store: store)
+        let visibleSeries = Set(visible.compactMap(\.seriesId))
+        let all = store.records()
+        var groups: [RoutineGroup] = []
+        for seriesId in visibleSeries {
+            let every = all.filter { $0.seriesId == seriesId }.sorted { $0.date < $1.date }
+            let week = visible.filter { $0.seriesId == seriesId }.sorted { $0.date < $1.date }
+            guard let representative = week.first ?? every.first else { continue }
+            groups.append(RoutineGroup(
+                key: seriesId,
+                title: representative.title,
+                location: representative.location,
+                kids: representative.kids,
+                events: every,
+                weekEvents: week,
+                definition: store.seriesDefinition(id: seriesId)
+            ))
         }
-        return groups.values.filter { $0.events.count > 1 }.sorted {
+        return groups.sorted {
             if $0.events.count != $1.events.count {
                 return $0.events.count > $1.events.count
             }
@@ -75,17 +97,6 @@ public class PlanViewModel: ObservableObject {
         currentWeek = PlanCore.dateAdd(currentWeek, delta * 7)
         selectedDay = currentWeek
         scheduleOpen = false
-    }
-
-    public func setCaregiverForRoutine(routine: RoutineGroup, caregiver: String, store: AppStore) {
-        let eventIds = Set(routine.events.map { $0.id })
-        var all = store.records()
-        for i in all.indices where eventIds.contains(all[i].id) {
-            all[i].owner = caregiver
-            all[i].lead = caregiver
-            all[i].tentative = false
-        }
-        store.replaceRecords(all)
     }
 
     public func summary(store: AppStore) -> SummaryResult {
@@ -216,4 +227,3 @@ public class PlanViewModel: ObservableObject {
         return out.string(from: d)
     }
 }
-

@@ -4,18 +4,24 @@ public struct FamilyRosterView: View {
     public var caregivers: [Person]
     /// Driving stops per caregiver for the week, keyed by name.
     public var loads: [String: Int]
-    public var settings: [String: Any]
+    public var bufferMinutes: Int
+    public var peakTraffic: Bool
+    public var dinnerRule: WeekPriority
     public var onEditRules: () -> Void
 
     public init(
         caregivers: [Person],
         loads: [String: Int],
-        settings: [String: Any],
+        bufferMinutes: Int,
+        peakTraffic: Bool,
+        dinnerRule: WeekPriority,
         onEditRules: @escaping () -> Void
     ) {
         self.caregivers = caregivers
         self.loads = loads
-        self.settings = settings
+        self.bufferMinutes = bufferMinutes
+        self.peakTraffic = peakTraffic
+        self.dinnerRule = dinnerRule
         self.onEditRules = onEditRules
     }
 
@@ -58,17 +64,17 @@ public struct FamilyRosterView: View {
                     ruleRow(
                         icon: "clock.arrow.circlepath",
                         title: "Buffer Between Stops",
-                        value: "\(settings["bufferMinutes"] as? Int ?? 10) min"
+                        value: "\(bufferMinutes) min"
                     )
                     ruleRow(
                         icon: "car.side.fill",
                         title: "Peak Traffic Calibration",
-                        value: (settings["peakTraffic"] as? Bool ?? true) ? "1.15x Active" : "Disabled"
+                        value: peakTraffic ? "1.15x Active" : "Disabled"
                     )
                     ruleRow(
                         icon: "fork.knife",
                         title: "Dinner Protection",
-                        value: (settings["dinnerProtected"] as? Bool ?? true) ? "\(settings["dinnerTime"] as? String ?? "18:00") Target" : "Disabled"
+                        value: dinnerRule.enabled ? "\(TimeFormat.formatTime(dinnerRule.time)) Target" : "Disabled"
                     )
                 }
             }

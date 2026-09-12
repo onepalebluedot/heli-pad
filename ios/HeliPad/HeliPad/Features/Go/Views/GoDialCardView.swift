@@ -6,6 +6,7 @@ public struct GoDialCardView: View {
     public var options: PlanningOptions
     public var liveDriveTime: Int?
     public var isDeviceLocationLive: Bool
+    public var restingState: GoRestingState
     public var onEdit: () -> Void
     public var onToggleDone: () -> Void
     public var onDirections: () -> Void
@@ -16,6 +17,7 @@ public struct GoDialCardView: View {
         options: PlanningOptions,
         liveDriveTime: Int? = nil,
         isDeviceLocationLive: Bool = false,
+        restingState: GoRestingState = .empty,
         onEdit: @escaping () -> Void,
         onToggleDone: @escaping () -> Void,
         onDirections: @escaping () -> Void
@@ -25,6 +27,7 @@ public struct GoDialCardView: View {
         self.options = options
         self.liveDriveTime = liveDriveTime
         self.isDeviceLocationLive = isDeviceLocationLive
+        self.restingState = restingState
         self.onEdit = onEdit
         self.onToggleDone = onToggleDone
         self.onDirections = onDirections
@@ -200,16 +203,16 @@ public struct GoDialCardView: View {
                 GoDialInstrument(
                     fraction: 1.0,
                     tone: .clear,
-                    centerTitle: "✓",
-                    centerUnit: "ALL CLEAR",
+                    centerTitle: restingState.isOutstanding ? "!" : "✓",
+                    centerUnit: restingState.isOutstanding ? "OPEN" : "ALL CLEAR",
                     isWord: true,
                     isHours: false
                 )
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("All clear")
+                    Text(restingTitle)
                         .font(.system(size: 24, weight: .bold, design: .serif))
                         .foregroundColor(.white)
-                    Text("Every handoff done for today.")
+                    Text(restingMessage)
                         .font(HeliTypography.body(13))
                         .foregroundColor(Color.white.opacity(0.8))
                 }
@@ -220,6 +223,23 @@ public struct GoDialCardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(HeliColors.toneForest)
         .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+    }
+
+    private var restingTitle: String {
+        switch restingState {
+        case .empty: return "No stops today"
+        case .complete: return "All clear"
+        case .outstanding: return "Still needs attention"
+        }
+    }
+
+    private var restingMessage: String {
+        switch restingState {
+        case .empty: return "Nothing is scheduled in this view."
+        case .complete: return "Every handoff is marked done for today."
+        case .outstanding(let count):
+            return "\(count) all-day \(count == 1 ? "item is" : "items are") still unfinished."
+        }
     }
 
     private func routeColumn(e: TaskRecord, depart: Int, start: Int, noTravel: Bool, eta: Int?, isLiveGPS: Bool) -> some View {
@@ -402,6 +422,13 @@ public struct GoDialCardView: View {
             let str = TimeFormat.formatDurationShort(minsUntil)
             return (str, noTravel ? "TO ARRIVAL" : "TO LEAVE", false, true)
         }
+    }
+}
+
+private extension GoRestingState {
+    var isOutstanding: Bool {
+        if case .outstanding = self { return true }
+        return false
     }
 }
 

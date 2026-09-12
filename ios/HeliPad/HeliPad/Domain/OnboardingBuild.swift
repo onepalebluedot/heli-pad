@@ -9,6 +9,8 @@ public struct OnboardingResult {
     public var parentLocations: [String: String]
     public var templates: [TemplateItem]
     public var eventsByDay: [Int: [TaskRecord]]
+    public var records: [TaskRecord]
+    public var seriesDefinitions: [SeriesDefinition]
     public var homePlaceName: String
     public var homeAddress: String
     public var currentUser: String
@@ -18,7 +20,7 @@ public extension OnboardingDraft {
 
     /// Builds the whole household from the answers. Pure — it reads nothing and
     /// writes nothing, so it can be exercised without a store.
-    func build(baseWeek: String = AppStore.BASE_WEEK) -> OnboardingResult {
+    func build(baseWeek: String = AppStore.BASE_WEEK, timeZone: String = "device") -> OnboardingResult {
         let crewNames = caregiverNames
         let kidRoster = kidNames
 
@@ -37,13 +39,24 @@ public extension OnboardingDraft {
             template(from: activity, crewNames: crewNames, kidRoster: kidRoster)
         }
 
-        var eventsByDay: [Int: [TaskRecord]] = [:]
-        for day in 0...6 { eventsByDay[day] = [] }
+        var allRecords: [TaskRecord] = []
+        var seriesDefinitions: [SeriesDefinition] = []
         for activity in usableActivities {
-            for day in activity.weekdays.sorted() where (0...6).contains(day) {
-                eventsByDay[day, default: []].append(
-                    event(from: activity, day: day, baseWeek: baseWeek, crewNames: crewNames, kidRoster: kidRoster)
-                )
+            let start = activity.startDate ?? baseWeek
+            let seriesId = "onb-\(activity.id)"
+            let pattern = recurrencePattern(for: activity, startDate: start, timeZone: timeZone)
+            let draft = event(from: activity, date: start, seriesId: seriesId, crewNames: crewNames, kidRoster: kidRoster)
+            if let generated = try? PlanCore.occurrences(draft, recurrence: pattern, seriesId: seriesId) {
+                allRecords.append(contentsOf: generated)
+                if pattern.mode == .weekly {
+                    seriesDefinitions.append(SeriesDefinition(seriesId: seriesId, pattern: pattern))
+                }
+            }
+        }
+        var eventsByDay: [Int: [TaskRecord]] = [:]
+        for event in allRecords {
+            if let day = PlanCore.dayOffset(from: baseWeek, to: event.date), (0...6).contains(day) {
+                eventsByDay[day, default: []].append(event)
             }
         }
         for day in eventsByDay.keys {
@@ -57,6 +70,8 @@ public extension OnboardingDraft {
             parentLocations: bases,
             templates: templates,
             eventsByDay: eventsByDay,
+            records: allRecords,
+            seriesDefinitions: seriesDefinitions,
             homePlaceName: homeName,
             homeAddress: homeAddress.trimmingCharacters(in: .whitespaces),
             currentUser: crewNames.first ?? "All"
@@ -114,8 +129,11 @@ public extension OnboardingDraft {
                 name: homeName,
                 address: homeAddress.trimmingCharacters(in: .whitespaces),
                 icon: "house",
-                routeKey: homeName,
-                source: "manual"
+                routeKey: homeRouteKey ?? homeName,
+                source: homeSource ?? "manual",
+                latitude: homeLatitude,
+                longitude: homeLongitude,
+                placeId: homePlaceId
             )
         ]
 
@@ -128,8 +146,11 @@ public extension OnboardingDraft {
                 name: name,
                 address: place.address.trimmingCharacters(in: .whitespaces),
                 icon: place.icon,
-                routeKey: name,
-                source: "manual"
+                routeKey: place.routeKey ?? name,
+                source: place.source ?? "manual",
+                latitude: place.latitude,
+                longitude: place.longitude,
+                placeId: place.placeId
             ))
         }
 
@@ -199,14 +220,33 @@ public extension OnboardingDraft {
             location: place,
             mode: place == homeName ? "Home" : "Drive",
             duration: activity.durationMinutes,
-            category: activity.category
+            category: activity.category,
+            weekdays: activity.weekdays.isEmpty ? nil : Array(Set(activity.weekdays)).sorted(),
+            recurrenceWeekCount: activity.recurrenceMode == .weekly ? (activity.recurrenceWeekCount ?? 1) : nil
+        )
+    }
+
+    private func recurrencePattern(for activity: DraftActivity, startDate: String, timeZone: String) -> RecurrencePattern {
+        let mode = activity.recurrenceMode ?? (activity.weekdays.isEmpty ? .none : .weekly)
+        let end: RecurrenceEnd
+        if let through = activity.recurrenceThroughDate, !through.isEmpty {
+            end = .throughDate(through)
+        } else {
+            end = .weekCount(activity.recurrenceWeekCount ?? 1)
+        }
+        return RecurrencePattern(
+            mode: mode,
+            startDate: startDate,
+            timeZone: timeZone,
+            weekdays: Array(Set(activity.weekdays)).sorted(),
+            end: end
         )
     }
 
     private func event(
         from activity: DraftActivity,
-        day: Int,
-        baseWeek: String,
+        date: String,
+        seriesId: String,
         crewNames: [String],
         kidRoster: [String]
     ) -> TaskRecord {
@@ -214,8 +254,8 @@ public extension OnboardingDraft {
         let place = resolvedPlace(activity.placeName)
         let atHome = place == homeName
         return TaskRecord(
-            id: "onb-\(activity.id)-\(day)",
-            date: PlanCore.dateAdd(baseWeek, day),
+            id: "onb-\(activity.id)-\(date)",
+            date: date,
             time: activity.time,
             endTime: PlanCore.addMinutes(time: activity.time, mins: activity.durationMinutes),
             title: activity.title.trimmingCharacters(in: .whitespaces),
@@ -225,7 +265,8 @@ public extension OnboardingDraft {
             location: place,
             mode: atHome ? "Home" : "Drive",
             kind: atHome ? .home : .drive,
-            seriesId: "onb-\(activity.id)"
+            seriesId: seriesId,
+            originalOccurrenceDate: date
         )
     }
 
@@ -242,6 +283,13 @@ public extension OnboardingDraft {
         draft.yourRelationship = active?.relationship ?? "Mother"
         draft.homePlaceName = store.home()
         draft.homeAddress = store.homeAddress
+        if let home = store.locations.first(where: { $0.name == store.home() }) {
+            draft.homeLatitude = home.latitude
+            draft.homeLongitude = home.longitude
+            draft.homePlaceId = home.placeId
+            draft.homeSource = home.source
+            draft.homeRouteKey = home.routeKey
+        }
         draft.crew = crew
             .filter { $0.name != active?.name }
             .map { DraftPerson(name: $0.name, relationship: $0.relationship) }
@@ -254,7 +302,12 @@ public extension OnboardingDraft {
                     name: location.name,
                     address: location.address,
                     icon: location.icon ?? "map-pin",
-                    minutesFromHome: store.travel(origin: store.home(), destination: location.name, at: nil) ?? 15
+                    minutesFromHome: store.travel(origin: store.home(), destination: location.name, at: nil) ?? 15,
+                    latitude: location.latitude,
+                    longitude: location.longitude,
+                    placeId: location.placeId,
+                    source: location.source,
+                    routeKey: location.routeKey
                 )
             }
 
@@ -267,7 +320,9 @@ public extension OnboardingDraft {
                 time: template.time,
                 durationMinutes: template.duration,
                 ownerName: template.owner,
-                category: template.category ?? "Sports"
+                category: template.category ?? "Sports",
+                recurrenceMode: template.repeatDays.isEmpty ? RecurrenceMode.none : .weekly,
+                recurrenceWeekCount: template.recurrenceWeekCount ?? 1
             )
         }
 
@@ -284,6 +339,6 @@ public extension OnboardingDraft {
             } ?? false
             if matches { days.append(day) }
         }
-        return days
+        return template.repeatDays.isEmpty ? days : template.repeatDays.sorted()
     }
 }

@@ -8,6 +8,8 @@ public struct PlanView: View {
     @State private var seriesToEdit: RoutineGroup? = nil
     /// Usual days carried in from a shortcut, so it opens ready to repeat.
     @State private var templateDays: Set<Int> = []
+    @State private var templateWeekCount: Int? = nil
+    @State private var showTemplateCreator = false
 
     public init(store: AppStore) {
         self.store = store
@@ -18,8 +20,9 @@ public struct PlanView: View {
         let decisions = viewModel.decisionQueue(store: store)
         let routines = viewModel.routineGroups(store: store)
 
-        ScrollView {
-            VStack(spacing: 20) {
+        ScrollViewReader { scrollProxy in
+            ScrollView {
+                VStack(spacing: 20) {
                 // 1. Week Masthead with prev/next week arrows
                 PlanMastheadView(
                     weekRange: viewModel.formatWeekRange(),
@@ -47,7 +50,13 @@ public struct PlanView: View {
                         viewModel.showReviewSheet = true
                     },
                     onTapRoutines: {
-                        // Focus on shortcuts
+                        if store.templates.isEmpty {
+                            showTemplateCreator = true
+                        } else {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                scrollProxy.scrollTo("plan-shortcuts", anchor: .center)
+                            }
+                        }
                     }
                 )
 
@@ -70,40 +79,7 @@ public struct PlanView: View {
                     }
                 )
 
-                // 4. Template Shortcuts Strip
-                PlanTemplateStripView(
-                    templates: store.templates,
-                    onSelectTemplate: { tmpl in
-                        // A shortcut with usual days lands on the first of them
-                        // in the week on screen; otherwise on the day in view.
-                        let usual = tmpl.repeatDays
-                        let date = usual.sorted().first
-                            .map { PlanCore.dateAdd(viewModel.currentWeek, $0) }
-                            ?? viewModel.selectedDay
-                        templateDays = usual
-                        eventToEdit = FamilyCore.eventDraft(template: tmpl, date: date)
-                        viewModel.showEventSheet = true
-                    }
-
-                )
-
-                // 5. Recurring stops — one card per series, edited as a set
-                PlanRoutinesView(
-                    routines: routines,
-                    onSetCaregiver: { group in
-                        viewModel.activeRoutineForAssign = group
-                        viewModel.activeEventForAssign = nil
-                        viewModel.showAssignSheet = true
-                    },
-                    onEditSeries: { group in
-                        guard let first = group.events.min(by: { $0.date < $1.date }) else { return }
-                        seriesToEdit = group
-                        eventToEdit = first
-                        viewModel.showEventSheet = true
-                    }
-                )
-
-                // 6. Expandable 7-day schedule with day selection
+                // 4. Expandable 7-day schedule with day selection
                 PlanScheduleView(
                     viewModel: viewModel,
                     store: store,
@@ -128,9 +104,45 @@ public struct PlanView: View {
                     }
                 )
 
+                // 5. Template Shortcuts Strip
+                PlanTemplateStripView(
+                    templates: store.templates,
+                    onSelectTemplate: { tmpl in
+                        // A shortcut with usual days lands on the first of them
+                        // in the week on screen; otherwise on the day in view.
+                        let usual = tmpl.repeatDays
+                        let date = usual.sorted().first
+                            .map { PlanCore.dateAdd(viewModel.currentWeek, $0) }
+                            ?? viewModel.selectedDay
+                        templateDays = usual
+                        templateWeekCount = tmpl.recurrenceWeekCount
+                        eventToEdit = FamilyCore.eventDraft(template: tmpl, date: date)
+                        viewModel.showEventSheet = true
+                    }
+
+                )
+                .id("plan-shortcuts")
+
+                // 6. Recurring stops — one card per series, edited as a set
+                PlanRoutinesView(
+                    routines: routines,
+                    onSetCaregiver: { group in
+                        viewModel.activeRoutineForAssign = group
+                        viewModel.activeEventForAssign = nil
+                        viewModel.showAssignSheet = true
+                    },
+                    onEditSeries: { group in
+                        guard let first = group.weekEvents.min(by: { $0.date < $1.date }) else { return }
+                        seriesToEdit = group
+                        eventToEdit = first
+                        viewModel.showEventSheet = true
+                    }
+                )
+
                 Spacer().frame(height: 80)
+                }
+                .padding(.top, 8)
             }
-            .padding(.top, 8)
         }
         .background(HeliColors.canvasIvory.ignoresSafeArea())
         // MARK: - Sheets
@@ -178,31 +190,22 @@ public struct PlanView: View {
             PlanAssignSheet(
                 store: store,
                 event: viewModel.activeEventForAssign,
-                routine: viewModel.activeRoutineForAssign,
-                onAssignEvent: { ev, newOwner in
-                    var all = store.records()
-                    if let idx = all.firstIndex(where: { $0.id == ev.id }) {
-                        all[idx].owner = newOwner
-                        all[idx].lead = newOwner
-                        all[idx].tentative = false
-                        store.replaceRecords(all)
-                    }
-                },
-                onAssignRoutine: { routine, newOwner in
-                    viewModel.setCaregiverForRoutine(routine: routine, caregiver: newOwner, store: store)
-                }
+                routine: viewModel.activeRoutineForAssign
             )
         }
         .sheet(isPresented: $viewModel.showRebalanceSheet) {
             PlanRebalanceSheet(store: store, currentWeek: viewModel.currentWeek)
         }
         .sheet(isPresented: $viewModel.showPrioritiesSheet) {
-            PlanPrioritiesSheet(store: store)
+            PlanPrioritiesSheet(store: store, week: viewModel.currentWeek)
         }
         .sheet(isPresented: $viewModel.showCalendarSheet) {
             PlanCalendarReviewSheet(store: store)
         }
-        .sheet(isPresented: $viewModel.showEventSheet, onDismiss: { seriesToEdit = nil; templateDays = [] }) {
+        .sheet(isPresented: $showTemplateCreator) {
+            FamilyTemplateSheet(store: store, template: nil, isNew: true)
+        }
+        .sheet(isPresented: $viewModel.showEventSheet, onDismiss: { seriesToEdit = nil; templateDays = []; templateWeekCount = nil }) {
             if let ev = eventToEdit {
                 // A stop the week already holds is an edit; anything else is a new
                 // stop that should open on the day (or template) it came from.
@@ -212,38 +215,11 @@ public struct PlanView: View {
                     store: store,
                     existingStop: isExisting ? ev : nil,
                     prefill: isExisting ? nil : ev,
-                    seriesEvents: series?.events ?? [],
                     preselectedDays: isExisting || templateDays.isEmpty ? nil : templateDays,
-                    onSave: { updatedStops in
-                        var all = store.records()
-                        if let series = series {
-                            // Days switched off in the editor leave the series.
-                            let kept = Set(updatedStops.map { $0.id })
-                            let original = Set(series.events.map { $0.id })
-                            all.removeAll { original.contains($0.id) && !kept.contains($0.id) }
-                        }
-                        for updated in updatedStops {
-                            if let idx = all.firstIndex(where: { $0.id == updated.id }) {
-                                all[idx] = updated
-                            } else {
-                                all.append(updated)
-                            }
-                        }
-                        store.replaceRecords(all)
-                    },
-                    onDelete: { id in
-                        var all = store.records()
-                        if let series = series {
-                            let original = Set(series.events.map { $0.id })
-                            all.removeAll { original.contains($0.id) }
-                        } else {
-                            all.removeAll { $0.id == id }
-                        }
-                        store.replaceRecords(all)
-                    }
+                    preselectedWeekCount: templateWeekCount,
+                    initialEditScope: series == nil ? .occurrence : .series
                 )
             }
         }
-
     }
 }

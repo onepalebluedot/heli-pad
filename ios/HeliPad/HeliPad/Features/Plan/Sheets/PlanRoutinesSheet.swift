@@ -29,8 +29,8 @@ public struct PlanRoutinesSheet: View {
                             .font(HeliTypography.mastheadDate(22))
                             .foregroundColor(HeliColors.greenInk)
 
-                        let totalStops = routines.reduce(0) { $0 + $1.events.count }
-                        Text("\(routines.count) recurring series · \(totalStops) total stops this week")
+                        let totalStops = routines.reduce(0) { $0 + $1.weekEvents.count }
+                        Text("\(routines.count) recurring series · \(totalStops) stops this week")
                             .font(HeliTypography.caption(12))
                             .foregroundColor(HeliColors.mutedGray)
 
@@ -102,8 +102,8 @@ public struct PlanRoutinesSheet: View {
 
                 // Day badges
                 HStack(spacing: 4) {
-                    ForEach(group.events.map { formatDayShort($0.date) }, id: \.self) { day in
-                        Text(day)
+                    ForEach(group.weekdays, id: \.self) { day in
+                        Text(weekdayLabel(day))
                             .font(HeliTypography.eyebrow(9))
                             .foregroundColor(HeliColors.forestGreen)
                             .padding(.horizontal, 6)
@@ -116,7 +116,7 @@ public struct PlanRoutinesSheet: View {
 
             // Scheduled occurrences breakdown
             VStack(spacing: 6) {
-                ForEach(group.events) { ev in
+                ForEach(group.weekEvents) { ev in
                     Button(action: {
                         dismiss()
                         onSelectEvent?(ev)
@@ -158,7 +158,7 @@ public struct PlanRoutinesSheet: View {
                         Text(group.owner == "TBD" ? "Unassigned Series" : "\(group.owner)")
                             .font(HeliTypography.cardTitle(12))
                             .foregroundColor(group.owner == "TBD" ? HeliColors.clayText : HeliColors.greenInk)
-                        Text("\(group.events.count) stops this week")
+                        Text("\(group.events.count) total · \(group.firstDate)–\(group.lastDate)")
                             .font(HeliTypography.caption(10))
                             .foregroundColor(HeliColors.mutedGray)
                     }
@@ -211,15 +211,9 @@ public struct PlanRoutinesSheet: View {
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(HeliColors.sageRule, lineWidth: 0.8))
     }
 
-    private func formatDayShort(_ dStr: String) -> String {
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd"
-        df.timeZone = TimeZone(secondsFromGMT: 0)
-        guard let d = df.date(from: dStr) else { return dStr }
-        let out = DateFormatter()
-        out.dateFormat = "EEE"
-        out.timeZone = TimeZone(secondsFromGMT: 0)
-        return out.string(from: d)
+    private func weekdayLabel(_ day: Int) -> String {
+        let names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        return names.indices.contains(day) ? names[day] : "?"
     }
 
     private func formatDayDate(_ dStr: String) -> String {

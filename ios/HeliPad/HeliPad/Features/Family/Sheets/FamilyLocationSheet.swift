@@ -10,10 +10,15 @@ public struct FamilyLocationSheet: View {
     @State private var address: String = ""
     @State private var latitude: Double? = nil
     @State private var longitude: Double? = nil
+    @State private var placeId: String? = nil
+    @State private var source: String? = nil
     @State private var placePredictions: [PlacePrediction] = []
     @State private var isSearching: Bool = false
     @State private var isSelecting: Bool = false
     @State private var searchTask: Task<Void, Never>? = nil
+    @State private var resolutionToken = UUID()
+    @State private var isApplyingResolvedAddress = false
+    @State private var errorMessage: String? = nil
 
     public init(store: AppStore, location: LocationItem?, isNew: Bool) {
         self.store = store
@@ -53,6 +58,7 @@ public struct FamilyLocationSheet: View {
                                         )
                                         if !Task.isCancelled {
                                             await MainActor.run {
+                                                guard name.trimmingCharacters(in: .whitespaces) == query else { return }
                                                 self.placePredictions = results
                                                 self.isSearching = false
                                             }
@@ -75,12 +81,17 @@ public struct FamilyLocationSheet: View {
                                         isSelecting = true
                                         name = pred.primaryText
                                         let addr = pred.secondaryText.isEmpty ? pred.fullText : pred.secondaryText
+                                        isApplyingResolvedAddress = true
                                         address = addr
                                         if let lat = pred.latitude, let lng = pred.longitude {
                                             latitude = lat
                                             longitude = lng
+                                            source = "resolved"
                                         }
+                                        placeId = pred.placeId
                                         placePredictions = []
+                                        let token = UUID()
+                                        resolutionToken = token
 
                                         Task {
                                             if let details = try? await GoogleMapsService.shared.fetchPlaceDetails(
@@ -90,11 +101,16 @@ public struct FamilyLocationSheet: View {
                                                 fallbackAddress: addr
                                             ) {
                                                 await MainActor.run {
+                                                    guard resolutionToken == token,
+                                                          address.caseInsensitiveCompare(addr) == .orderedSame else { return }
                                                     if !details.formattedAddress.isEmpty && details.formattedAddress != "Address unavailable" {
+                                                        self.isApplyingResolvedAddress = true
                                                         self.address = details.formattedAddress
                                                     }
                                                     self.latitude = details.latitude
                                                     self.longitude = details.longitude
+                                                    self.placeId = details.placeId
+                                                    self.source = "resolved"
                                                 }
                                             }
                                         }
@@ -136,6 +152,17 @@ public struct FamilyLocationSheet: View {
 
                     TextField("Street Address", text: $address)
                         .font(HeliTypography.body(14))
+                        .onChange(of: address) { _, _ in
+                            if isApplyingResolvedAddress {
+                                isApplyingResolvedAddress = false
+                                return
+                            }
+                            resolutionToken = UUID()
+                            latitude = nil
+                            longitude = nil
+                            placeId = nil
+                            source = "manual"
+                        }
 
                     if latitude != nil && longitude != nil {
                         HStack(spacing: 4) {
@@ -152,8 +179,7 @@ public struct FamilyLocationSheet: View {
                 if !isNew {
                     Section {
                         Button("Delete Location", role: .destructive) {
-                            deleteLocation()
-                            dismiss()
+                            if deleteLocation() { dismiss() }
                         }
                     }
                 }
@@ -169,8 +195,7 @@ public struct FamilyLocationSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        saveLocation()
-                        dismiss()
+                        if saveLocation() { dismiss() }
                     }
                     .font(HeliTypography.actionButton(14))
                     .foregroundColor(HeliColors.forestGreen)
@@ -180,64 +205,59 @@ public struct FamilyLocationSheet: View {
             .onAppear {
                 if let loc = location {
                     name = loc.name
+                    isApplyingResolvedAddress = true
                     address = loc.address
                     latitude = loc.latitude
                     longitude = loc.longitude
+                    placeId = loc.placeId
+                    source = loc.source
                 }
+            }
+            .alert("Couldn’t Save Place", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "Please check the place and try again.")
             }
         }
     }
 
-    private func saveLocation() {
+    private func saveLocation() -> Bool {
         let cleanName = name.trimmingCharacters(in: .whitespaces)
-        let cleanAddr = address.trimmingCharacters(in: .whitespaces)
-
-        if let loc = location {
-            // Updating existing location
-            var all = store.locations
-            if let idx = all.firstIndex(where: { $0.id == loc.id }) {
-                let addressChanged = (loc.address.lowercased() != cleanAddr.lowercased())
-                let oldName = loc.name
-
-                all[idx].name = cleanName
-                all[idx].address = cleanAddr
-                all[idx].latitude = latitude
-                all[idx].longitude = longitude
-                if addressChanged {
-                    all[idx].routeKey = nil
-                }
-                store.locations = all
-
-                // Cascade rename across events and templates if name changed
-                if oldName != cleanName {
-                    var recs = store.records()
-                    for i in recs.indices where recs[i].location == oldName {
-                        recs[i].location = cleanName
-                    }
-                    store.replaceRecords(recs)
-
-                    var tmpls = store.templates
-                    for i in tmpls.indices where tmpls[i].location == oldName {
-                        tmpls[i].location = cleanName
-                    }
-                    store.templates = tmpls
-                }
-            }
-        } else {
-            // New location
-            let newLoc = LocationItem(
+        let cleanAddr = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        let item = LocationItem(
                 name: cleanName,
                 address: cleanAddr,
+                icon: location?.icon,
+                routeKey: location?.routeKey,
+                source: source,
                 latitude: latitude,
-                longitude: longitude
-            )
-            store.locations.append(newLoc)
+                longitude: longitude,
+                placeId: placeId
+        )
+        do {
+            let index = location.flatMap { original in
+                store.locations.firstIndex(where: { $0.name == original.name })
+            } ?? store.locations.endIndex
+            try store.updateLocation(index: index, data: item)
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
         }
     }
 
-    private func deleteLocation() {
-        if let loc = location {
-            store.locations.removeAll { $0.id == loc.id }
+    private func deleteLocation() -> Bool {
+        guard let loc = location,
+              let index = store.locations.firstIndex(where: { $0.name == loc.name }) else { return true }
+        do {
+            try store.removeLocation(index: index)
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
         }
     }
 }

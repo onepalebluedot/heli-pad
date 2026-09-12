@@ -13,14 +13,25 @@ import UserNotifications
 public final class NotificationService {
     public static let shared = NotificationService()
 
-    /// How far ahead of the stop we nudge.
+    /// How far ahead of the calculated leave-by time we nudge.
     public static let leadMinutes = 10
 
     /// iOS keeps at most 64 pending local notifications per app; stay well under
     /// so we never silently lose the near-term ones to a far-future stop.
     private static let maxScheduled = 48
 
-    private static let identifierPrefix = "helipad.leave."
+    private static let identifierPrefix = "helipad."
+
+    private enum ReminderKind: Equatable {
+        case leave
+        case driverNeeded
+    }
+
+    private struct ReminderCandidate {
+        var fireDate: Date
+        var record: TaskRecord
+        var kind: ReminderKind
+    }
 
     private let center = UNUserNotificationCenter.current()
     private var pendingWork: Task<Void, Never>?
@@ -56,6 +67,10 @@ public final class NotificationService {
         records: [TaskRecord],
         timeZoneId: String,
         enabled: Bool,
+        driverNeededEnabled: Bool = false,
+        bufferMinutes: Int = 0,
+        travelTimeProvider: ((TaskRecord, Date) async -> Int?)? = nil,
+        onError: ((String?) -> Void)? = nil,
         debounce: Bool = true
     ) {
         pendingWork?.cancel()
@@ -64,13 +79,29 @@ public final class NotificationService {
                 try? await Task.sleep(nanoseconds: 400_000_000)
                 if Task.isCancelled { return }
             }
-            await self?.applySchedule(records: records, timeZoneId: timeZoneId, enabled: enabled)
+            await self?.applySchedule(
+                records: records,
+                timeZoneId: timeZoneId,
+                enabled: enabled,
+                driverNeededEnabled: driverNeededEnabled,
+                bufferMinutes: bufferMinutes,
+                travelTimeProvider: travelTimeProvider,
+                onError: onError
+            )
         }
     }
 
     /// Replaces every reminder this app owns with a fresh set. Other pending
     /// notifications are left alone — we only ever remove our own prefix.
-    private func applySchedule(records: [TaskRecord], timeZoneId: String, enabled: Bool) async {
+    private func applySchedule(
+        records: [TaskRecord],
+        timeZoneId: String,
+        enabled: Bool,
+        driverNeededEnabled: Bool,
+        bufferMinutes: Int,
+        travelTimeProvider: ((TaskRecord, Date) async -> Int?)?,
+        onError: ((String?) -> Void)?
+    ) async {
         let existing = await center.pendingNotificationRequests()
             .map(\.identifier)
             .filter { $0.hasPrefix(Self.identifierPrefix) }
@@ -78,7 +109,14 @@ public final class NotificationService {
             center.removePendingNotificationRequests(withIdentifiers: existing)
         }
 
-        guard enabled, await isAuthorized() else { return }
+        guard enabled || driverNeededEnabled else {
+            await MainActor.run { onError?(nil) }
+            return
+        }
+        guard await isAuthorized() else {
+            await MainActor.run { onError?("Notifications are not authorized for HeliPad. Enable them in iOS Settings.") }
+            return
+        }
 
         var calendar = Calendar(identifier: .gregorian)
         if timeZoneId != "device", let tz = TimeZone(identifier: timeZoneId) {
@@ -89,31 +127,81 @@ public final class NotificationService {
         let upcoming = records
             .filter { !$0.done && !$0.allDay }
             .compactMap { record -> (Date, TaskRecord)? in
-                guard let fire = Self.reminderDate(for: record, calendar: calendar),
-                      fire > now else { return nil }
-                return (fire, record)
+                guard let start = Self.startDate(for: record, calendar: calendar),
+                      start > now else { return nil }
+                return (start, record)
             }
             .sorted { $0.0 < $1.0 }
-            .prefix(Self.maxScheduled)
 
-        for (fireDate, record) in upcoming {
+        var candidates: [ReminderCandidate] = []
+        for (startDate, record) in upcoming {
+            guard !Task.isCancelled else { return }
+
+            if enabled {
+                let needsTravel = PlanCore.needsTravel(record)
+                let travelMinutes: Int
+                if needsTravel, let travelTimeProvider {
+                    travelMinutes = max(0, await travelTimeProvider(record, startDate) ?? 0)
+                } else {
+                    travelMinutes = 0
+                }
+
+                if let fireDate = Self.reminderDate(
+                    for: record,
+                    calendar: calendar,
+                    travelMinutes: travelMinutes,
+                    bufferMinutes: needsTravel && travelMinutes > 0 ? bufferMinutes : 0
+                ), fireDate > now {
+                    candidates.append(ReminderCandidate(fireDate: fireDate, record: record, kind: .leave))
+                }
+            }
+
+            if driverNeededEnabled,
+               PlanCore.unassigned(record),
+               let fireDate = Self.driverNeededDate(for: record, calendar: calendar),
+               fireDate > now {
+                candidates.append(ReminderCandidate(fireDate: fireDate, record: record, kind: .driverNeeded))
+            }
+        }
+
+        var schedulingErrors: [String] = []
+        for candidate in candidates.sorted(by: { $0.fireDate < $1.fireDate }).prefix(Self.maxScheduled) {
+            guard !Task.isCancelled else { return }
+
             let content = UNMutableNotificationContent()
-            content.title = "Leave in \(Self.leadMinutes) minutes"
-            content.body = Self.body(for: record, calendar: calendar)
+            switch candidate.kind {
+            case .leave:
+                content.title = "Leave in \(Self.leadMinutes) minutes"
+                content.body = Self.body(for: candidate.record, calendar: calendar)
+            case .driverNeeded:
+                content.title = "Driver needed in 12 hours"
+                content.body = Self.driverNeededBody(for: candidate.record)
+            }
             content.sound = .default
 
-            let parts = calendar.dateComponents(
+            var parts = calendar.dateComponents(
                 [.year, .month, .day, .hour, .minute],
-                from: fireDate
+                from: candidate.fireDate
             )
+            parts.timeZone = calendar.timeZone
             let trigger = UNCalendarNotificationTrigger(dateMatching: parts, repeats: false)
+            let kindId = candidate.kind == .leave ? "leave." : "driver-needed."
             let request = UNNotificationRequest(
-                identifier: Self.identifierPrefix + record.id,
+                identifier: Self.identifierPrefix + kindId + candidate.record.id,
                 content: content,
                 trigger: trigger
             )
-            try? await center.add(request)
+            do {
+                try await center.add(request)
+            } catch {
+                schedulingErrors.append("\(candidate.record.title.isEmpty ? "Untitled stop" : candidate.record.title): \(error.localizedDescription)")
+            }
         }
+
+        let errorMessage = schedulingErrors.isEmpty
+            ? nil
+            : "Some reminders could not be scheduled. \(schedulingErrors[0])"
+        await MainActor.run { onError?(errorMessage) }
     }
 
     public func cancelAll() async {
@@ -125,10 +213,10 @@ public final class NotificationService {
 
     // MARK: - Helpers
 
-    /// The stop's start time, less the lead. The stored date is a plain calendar
-    /// day and the time a plain wall clock, so both are resolved in the
-    /// household's own calendar rather than parsed as an instant.
-    static func reminderDate(for record: TaskRecord, calendar: Calendar) -> Date? {
+    /// The stored date is a plain calendar day and the time a plain wall clock,
+    /// so both are resolved in the household's own calendar rather than parsed
+    /// as an instant.
+    static func startDate(for record: TaskRecord, calendar: Calendar) -> Date? {
         let day = record.date.split(separator: "-").compactMap { Int($0) }
         let clock = record.time.split(separator: ":").compactMap { Int($0) }
         guard day.count == 3, clock.count >= 2 else { return nil }
@@ -140,8 +228,25 @@ public final class NotificationService {
         parts.hour = clock[0]
         parts.minute = clock[1]
 
-        guard let start = calendar.date(from: parts) else { return nil }
-        return start.addingTimeInterval(-Double(leadMinutes) * 60)
+        return calendar.date(from: parts)
+    }
+
+    /// Fires before the actual leave-by time: appointment start minus the live
+    /// Apple Maps drive time, household arrival buffer, and reminder lead.
+    static func reminderDate(
+        for record: TaskRecord,
+        calendar: Calendar,
+        travelMinutes: Int = 0,
+        bufferMinutes: Int = 0
+    ) -> Date? {
+        guard let start = startDate(for: record, calendar: calendar) else { return nil }
+        let minutesBeforeStart = max(0, travelMinutes) + max(0, bufferMinutes) + leadMinutes
+        return start.addingTimeInterval(-Double(minutesBeforeStart) * 60)
+    }
+
+    static func driverNeededDate(for record: TaskRecord, calendar: Calendar) -> Date? {
+        guard let start = startDate(for: record, calendar: calendar) else { return nil }
+        return calendar.date(byAdding: .hour, value: -12, to: start)
     }
 
     static func body(for record: TaskRecord, calendar: Calendar) -> String {
@@ -151,5 +256,10 @@ public final class NotificationService {
             line += " · \(record.location)"
         }
         return line
+    }
+
+    static func driverNeededBody(for record: TaskRecord) -> String {
+        let title = record.title.isEmpty ? "An upcoming stop" : record.title
+        return "\(title) at \(TimeFormat.formatTime(record.time)) still needs a caregiver."
     }
 }

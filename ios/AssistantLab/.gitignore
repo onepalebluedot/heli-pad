@@ -1,0 +1,8 @@
+.build/
+.swiftpm/
+
+# Belt and braces: the repository root already ignores .env*, but this package
+# is the one that reads a provider key, so the rule lives next to it too.
+.env
+.env.local
+!.env.example

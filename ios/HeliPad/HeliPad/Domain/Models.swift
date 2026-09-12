@@ -107,6 +107,113 @@ public enum UrgencyTone: String, Codable, Hashable {
     case clear
 }
 
+// MARK: - Finite recurrence
+
+public enum RecurrenceMode: String, Codable, CaseIterable, Hashable {
+    case none
+    case weekly
+}
+
+public enum RecurrenceEditScope: String, CaseIterable, Identifiable, Hashable {
+    case occurrence
+    case series
+
+    public var id: String { rawValue }
+}
+
+public enum RecurrenceEnd: Codable, Hashable {
+    case weekCount(Int)
+    case throughDate(String)
+}
+
+/// A value used by every recurrence entry point. Dates are calendar dates and
+/// times remain wall-clock strings, so DST changes never shift a routine by an
+/// hour or turn a selected weekday into another day.
+public struct RecurrencePattern: Codable, Hashable {
+    public var mode: RecurrenceMode
+    public var startDate: String
+    public var timeZone: String
+    public var weekdays: [Int]
+    public var end: RecurrenceEnd
+
+    public init(
+        mode: RecurrenceMode = .none,
+        startDate: String,
+        timeZone: String = "device",
+        weekdays: [Int] = [],
+        end: RecurrenceEnd = .weekCount(1)
+    ) {
+        self.mode = mode
+        self.startDate = startDate
+        self.timeZone = timeZone
+        self.weekdays = weekdays
+        self.end = end
+    }
+}
+
+/// The independently mergeable definition of one finite materialized series.
+/// `deleted` is intentionally durable; unlike ordinary row tombstones it is
+/// never swept after 30 days and therefore cannot resurrect a long routine.
+public struct SeriesDefinition: Identifiable, StampedRecord, Hashable {
+    public var seriesId: String
+    public var pattern: RecurrencePattern
+    public var deleted: Bool
+    public var stamp: RecordStamp? = nil
+
+    public var id: String { seriesId }
+    public var stampKey: String { seriesId }
+
+    public init(seriesId: String, pattern: RecurrencePattern, deleted: Bool = false, stamp: RecordStamp? = nil) {
+        self.seriesId = seriesId
+        self.pattern = pattern
+        self.deleted = deleted
+        self.stamp = stamp
+    }
+}
+
+public enum SeriesExceptionKind: String, Codable, Hashable {
+    case excluded
+    case modified
+}
+
+/// A durable decision about one original series slot. Exclusions prevent a
+/// deleted occurrence from being regenerated; modifications bind a moved or
+/// edited row to the slot it came from.
+public struct SeriesException: Identifiable, StampedRecord, Hashable {
+    public var seriesId: String
+    public var originalDate: String
+    public var kind: SeriesExceptionKind
+    public var occurrenceId: String?
+    public var stamp: RecordStamp? = nil
+
+    public var id: String { "\(seriesId)|\(originalDate)" }
+    public var stampKey: String { id }
+
+    public init(
+        seriesId: String,
+        originalDate: String,
+        kind: SeriesExceptionKind,
+        occurrenceId: String? = nil,
+        stamp: RecordStamp? = nil
+    ) {
+        self.seriesId = seriesId
+        self.originalDate = originalDate
+        self.kind = kind
+        self.occurrenceId = occurrenceId
+        self.stamp = stamp
+    }
+}
+
+public struct OccurrenceOverride: Codable, Hashable {
+    public var modified: Bool
+    public var moved: Bool
+
+    public init(modified: Bool = true, moved: Bool = false) {
+        self.modified = modified
+        self.moved = moved
+    }
+}
+
 // MARK: - Person
 
 public struct Person: Identifiable, Codable, Hashable {
@@ -264,6 +371,9 @@ public struct TaskRecord: Identifiable, Codable, Hashable {
     public var bufferMinutes: Int?
     public var color: String?
     public var seriesId: String?
+    /// The calendar slot this row represents, even if the occurrence is moved.
+    public var originalOccurrenceDate: String?
+    public var recurrenceOverride: OccurrenceOverride?
     public var calendarId: String?
     public var locationMissing: Bool?
     public var latitude: Double?
@@ -294,6 +404,8 @@ public struct TaskRecord: Identifiable, Codable, Hashable {
         bufferMinutes: Int? = nil,
         color: String? = nil,
         seriesId: String? = nil,
+        originalOccurrenceDate: String? = nil,
+        recurrenceOverride: OccurrenceOverride? = nil,
         calendarId: String? = nil,
         locationMissing: Bool? = nil,
         latitude: Double? = nil,
@@ -321,6 +433,8 @@ public struct TaskRecord: Identifiable, Codable, Hashable {
         self.bufferMinutes = bufferMinutes
         self.color = color
         self.seriesId = seriesId
+        self.originalOccurrenceDate = originalOccurrenceDate
+        self.recurrenceOverride = recurrenceOverride
         self.calendarId = calendarId
         self.locationMissing = locationMissing
         self.latitude = latitude
@@ -347,6 +461,9 @@ public struct TemplateItem: Identifiable, Codable, Hashable {
     /// Weekdays this shortcut normally lands on, 0 = Monday. Optional so a
     /// household saved before shortcuts had days still decodes.
     public var weekdays: [Int]?
+    /// Relative finite duration for newly scheduled copies. Nil keeps legacy
+    /// shortcuts bounded to the single displayed week until someone changes it.
+    public var recurrenceWeekCount: Int?
     public var stamp: RecordStamp? = nil
 
     public init(
@@ -362,7 +479,8 @@ public struct TemplateItem: Identifiable, Codable, Hashable {
         duration: Int = 60,
         notes: String? = nil,
         category: String? = nil,
-        weekdays: [Int]? = nil
+        weekdays: [Int]? = nil,
+        recurrenceWeekCount: Int? = nil
     ) {
         self.id = id
         self.title = title
@@ -377,6 +495,7 @@ public struct TemplateItem: Identifiable, Codable, Hashable {
         self.notes = notes
         self.category = category
         self.weekdays = weekdays
+        self.recurrenceWeekCount = recurrenceWeekCount
     }
 
     /// Days this shortcut repeats on, cleaned and ordered Monday-first.
@@ -523,11 +642,30 @@ public struct CalendarMetadata: Codable, Hashable {
     public var exports: [String: String] // id -> signature
     public var pulled: [String]
     public var lastReview: String?
+    public var appleCalendarIDs: [String]? = nil
+    public var lastAppleImport: Date? = nil
+    public var googleCalendarIDs: [String]? = nil
+    public var lastGoogleImport: Date? = nil
+    public var googleExportCalendarID: String? = nil
 
-    public init(exports: [String: String] = [:], pulled: [String] = [], lastReview: String? = nil) {
+    public init(
+        exports: [String: String] = [:],
+        pulled: [String] = [],
+        lastReview: String? = nil,
+        appleCalendarIDs: [String]? = nil,
+        lastAppleImport: Date? = nil,
+        googleCalendarIDs: [String]? = nil,
+        lastGoogleImport: Date? = nil,
+        googleExportCalendarID: String? = nil
+    ) {
         self.exports = exports
         self.pulled = pulled
         self.lastReview = lastReview
+        self.appleCalendarIDs = appleCalendarIDs
+        self.lastAppleImport = lastAppleImport
+        self.googleCalendarIDs = googleCalendarIDs
+        self.lastGoogleImport = lastGoogleImport
+        self.googleExportCalendarID = googleExportCalendarID
     }
 }
 
@@ -536,22 +674,34 @@ public struct PlanMetadata: Codable, Hashable {
     public var priorities: [String: WeekPriority]
     public var reviewed: [String: String] // week -> fingerprint
     public var calendar: CalendarMetadata
+    /// Notes belong to the week being planned, rather than to every future week.
+    /// Optional keeps snapshots written before weekly notes were introduced
+    /// backward compatible with synthesized Codable decoding.
+    public var weeklyNotes: [String: String]? = nil
     /// Deletes that must outlive the record, so the other phone cannot
     /// resurrect them. Swept once they are older than the retention horizon.
     public var tombstones: [Tombstone]? = nil
+    public var seriesDefinitions: [SeriesDefinition]? = nil
+    public var seriesExceptions: [SeriesException]? = nil
 
     public init(
         future: [TaskRecord] = [],
         priorities: [String: WeekPriority] = [:],
         reviewed: [String: String] = [:],
         calendar: CalendarMetadata = CalendarMetadata(),
-        tombstones: [Tombstone]? = nil
+        weeklyNotes: [String: String]? = nil,
+        tombstones: [Tombstone]? = nil,
+        seriesDefinitions: [SeriesDefinition]? = nil,
+        seriesExceptions: [SeriesException]? = nil
     ) {
         self.future = future
         self.priorities = priorities
         self.reviewed = reviewed
         self.calendar = calendar
+        self.weeklyNotes = weeklyNotes
         self.tombstones = tombstones
+        self.seriesDefinitions = seriesDefinitions
+        self.seriesExceptions = seriesExceptions
     }
 }
 

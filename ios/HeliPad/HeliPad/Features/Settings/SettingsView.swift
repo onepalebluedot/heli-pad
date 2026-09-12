@@ -6,13 +6,23 @@ public struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var expandedSection: String? = nil
+    @State private var assistantProbing = false
+    @State private var assistantProbe: (ok: Bool, message: String)? = nil
+    // Mirrors of the two device-local assistant settings. They live in
+    // UserDefaults, which SwiftUI does not observe, so the status badge would
+    // otherwise not update until some other state changed.
+    @State private var assistantRelayURL = ""
+    @State private var assistantSessionToken = ""
+    @State private var assistantFieldsLoaded = false
     @State private var editingName: [String: String] = [:]
     @State private var homeAddressInput: String = ""
     @State private var errorMessage: String? = nil
     @State private var showResetConfirm: Bool = false
     @State private var toastMessage: String? = nil
     @State private var showIntegrationsGuide: Bool = false
+    @State private var showCalendarReview: Bool = false
     @State private var showGoogleApiKey: Bool = false
+    @State private var showGoogleClientId: Bool = false
     @State private var showNeonConnString: Bool = false
     @State private var isTestingGoogle: Bool = false
     @State private var isTestingNeon: Bool = false
@@ -29,6 +39,7 @@ public struct SettingsView: View {
     @State private var homeLatitude: Double? = nil
     @State private var homeLongitude: Double? = nil
     @State private var homePlaceId: String? = nil
+    @State private var homeResolutionToken = UUID()
 
     public init(store: AppStore) {
         self.store = store
@@ -70,6 +81,10 @@ public struct SettingsView: View {
                         integrationsSectionContent
                     }
 
+                    accordionSection(id: "assistant", title: "Assistant", icon: "sparkles") {
+                        assistantSectionContent
+                    }
+
                     accordionSection(id: "data", title: "Your data", icon: "list") {
                         dataSectionContent
                     }
@@ -78,8 +93,14 @@ public struct SettingsView: View {
                 .padding(.vertical, 16)
             }
             .background(HeliColors.canvasIvory)
+            .onAppear {
+                reconcileCalendarConnections()
+            }
             .sheet(isPresented: $showIntegrationsGuide) {
                 IntegrationsGuideSheet()
+            }
+            .sheet(isPresented: $showCalendarReview) {
+                PlanCalendarReviewSheet(store: store)
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -103,6 +124,14 @@ public struct SettingsView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("This will restore the default August sample week and clear custom event edits.")
+            }
+            .alert("Couldn’t Save", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "Please check the value and try again.")
             }
             .confirmationDialog("Replace this device's household with the cloud copy?", isPresented: $showCloudDownloadConfirm, titleVisibility: .visible) {
                 Button("Download and replace local household", role: .destructive) { downloadNeonHousehold() }
@@ -197,6 +226,12 @@ public struct SettingsView: View {
                                 isSelectingHome = false
                                 return
                             }
+                            if val.caseInsensitiveCompare(store.homeAddress) != .orderedSame {
+                                homeResolutionToken = UUID()
+                                homeLatitude = nil
+                                homeLongitude = nil
+                                homePlaceId = nil
+                            }
                             homeSearchTask?.cancel()
                             let query = val.trimmingCharacters(in: .whitespaces)
                             guard query.count >= 2 else {
@@ -243,6 +278,9 @@ public struct SettingsView: View {
                                 homeLongitude = pred.longitude
                                 homePlaceId = pred.placeId
                                 homePredictions = []
+                                let token = UUID()
+                                homeResolutionToken = token
+                                let selectedAddress = fullAddr
 
                                 Task {
                                     if let details = try? await GoogleMapsService.shared.fetchPlaceDetails(
@@ -252,11 +290,15 @@ public struct SettingsView: View {
                                         fallbackAddress: fullAddr
                                     ) {
                                         await MainActor.run {
+                                            guard homeResolutionToken == token,
+                                                  homeAddressInput.caseInsensitiveCompare(selectedAddress) == .orderedSame else { return }
                                             if !details.formattedAddress.isEmpty && details.formattedAddress != "Address unavailable" {
+                                                self.isSelectingHome = true
                                                 self.homeAddressInput = details.formattedAddress
                                             }
                                             self.homeLatitude = details.latitude
                                             self.homeLongitude = details.longitude
+                                            self.homePlaceId = details.placeId
                                         }
                                     }
                                 }
@@ -357,14 +399,14 @@ public struct SettingsView: View {
                     ))
                     .textFieldStyle(.roundedBorder)
                     .onSubmit {
-                        if let newName = editingName[p.id], newName != p.name {
-                            do {
-                                try store.renamePerson(id: p.id, value: newName)
-                                toastMessage = "Renamed to \(newName)."
-                            } catch {
-                                errorMessage = error.localizedDescription
-                            }
-                        }
+                        saveName(p)
+                    }
+
+                    if editingName[p.id] != nil {
+                        Button("Cancel") { editingName[p.id] = nil }
+                            .font(HeliTypography.caption(11))
+                        Button("Save") { saveName(p) }
+                            .font(HeliTypography.actionButton(11))
                     }
 
                     Button(role: .destructive, action: {
@@ -397,14 +439,14 @@ public struct SettingsView: View {
                     ))
                     .textFieldStyle(.roundedBorder)
                     .onSubmit {
-                        if let newName = editingName[c.id], newName != c.name {
-                            do {
-                                try store.renamePerson(id: c.id, value: newName)
-                                toastMessage = "Renamed child to \(newName)."
-                            } catch {
-                                errorMessage = error.localizedDescription
-                            }
-                        }
+                        saveName(c)
+                    }
+
+                    if editingName[c.id] != nil {
+                        Button("Cancel") { editingName[c.id] = nil }
+                            .font(HeliTypography.caption(11))
+                        Button("Save") { saveName(c) }
+                            .font(HeliTypography.actionButton(11))
                     }
 
                     Button(role: .destructive, action: {
@@ -427,19 +469,63 @@ public struct SettingsView: View {
     // MARK: - Section 4: Connections
 
     private var connectionsSectionContent: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Calendar integration is currently read-only in v1 per SYSTEM.md.")
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Apple Calendar supports reviewed, selected-calendar import. Google Calendar connects your Google Account to import family events and export stops.")
                 .font(HeliTypography.body(12.5))
                 .foregroundColor(HeliColors.mutedGray)
 
-            Toggle("Google Calendar (Preview)", isOn: Binding(
-                get: { store.connections["google"] ?? false },
-                set: { store.connections["google"] = $0 }
-            ))
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Google Calendar")
+                            .font(HeliTypography.headline(14))
+                            .foregroundColor(HeliColors.greenInk)
+                        if store.isGoogleAuthenticated {
+                            Text("Connected as \(store.googleAccountEmail.isEmpty ? "Google Account" : store.googleAccountEmail)")
+                                .font(HeliTypography.caption(11))
+                                .foregroundColor(HeliColors.forestGreen)
+                        } else {
+                            Text("Not connected")
+                                .font(HeliTypography.caption(11))
+                                .foregroundColor(HeliColors.mutedGray)
+                        }
+                    }
+                    Spacer()
+                    if store.isGoogleAuthenticated {
+                        Button("Disconnect") {
+                            Task { @MainActor in
+                                await store.disconnectGoogleAccount()
+                            }
+                        }
+                        .font(HeliTypography.caption(11))
+                        .foregroundColor(HeliColors.warningClay)
+                    } else {
+                        Button("Connect") {
+                            showCalendarReview = true
+                        }
+                        .font(HeliTypography.actionButton(12))
+                        .foregroundColor(HeliColors.forestGreen)
+                    }
+                }
+            }
+            .padding(10)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(HeliColors.sageRule, lineWidth: 0.8)
+            )
+
             Toggle("Apple Calendar (EventKit)", isOn: Binding(
                 get: { store.connections["apple"] ?? false },
-                set: { store.connections["apple"] = $0 }
+                set: { setConnection("apple", enabled: $0) }
             ))
+
+            Button("Manage Calendars & Sync") {
+                showCalendarReview = true
+            }
+            .font(HeliTypography.actionButton(13))
+            .foregroundColor(HeliColors.forestGreen)
         }
     }
 
@@ -452,24 +538,38 @@ public struct SettingsView: View {
                 isOn: Binding(
                     get: { store.notifyLeaveBy },
                     set: { wantsReminders in
-                        store.notifyLeaveBy = wantsReminders
-                        store.save()
+                        do { try store.setAlertPreference("notifyLeaveBy", enabled: wantsReminders) }
+                        catch { errorMessage = error.localizedDescription; return }
                         Task {
                             if wantsReminders {
                                 await NotificationService.shared.requestAuthorization()
-                                store.refreshDepartureReminders()
-                            } else {
-                                await NotificationService.shared.cancelAll()
                             }
+                            store.refreshDepartureReminders()
                         }
                     }
                 )
             )
-            Text("Nudges you \(NotificationService.leadMinutes) minutes before each stop starts.")
+            Text("Nudges you \(NotificationService.leadMinutes) minutes before it is time to leave, based on Apple Maps travel time and your arrival buffer.")
                 .font(HeliTypography.caption(11))
                 .foregroundColor(HeliColors.mutedGray)
-            Toggle("Driver needed alert (12h prior)", isOn: $store.notifyDriverNeeded)
-            Toggle("Crew informed on reassignments", isOn: $store.notifyCrew)
+            Toggle("Driver needed alert (12h prior)", isOn: Binding(
+                get: { store.notifyDriverNeeded },
+                set: { setAlert("notifyDriverNeeded", enabled: $0) }
+            ))
+            Toggle("Crew informed on reassignments", isOn: Binding(
+                get: { store.notifyCrew },
+                set: { setAlert("notifyCrew", enabled: $0) }
+            ))
+            .disabled(true)
+            Text("Cross-device reassignment alerts require authenticated household membership and APNs registration; they are unavailable in this build.")
+                .font(HeliTypography.caption(11))
+                .foregroundColor(HeliColors.mutedGray)
+
+            if let notificationError = store.notificationScheduleError {
+                Label(notificationError, systemImage: "exclamationmark.triangle")
+                    .font(HeliTypography.caption(11))
+                    .foregroundColor(HeliColors.warningClay)
+            }
 
             HStack {
                 Text("Time Zone")
@@ -484,9 +584,32 @@ public struct SettingsView: View {
 
     private var travelSectionContent: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Stepper("Arrival buffer: \(store.buffer) min", value: $store.buffer, in: 0...45)
-            Toggle("Traffic-aware peak adjustment (1.15x)", isOn: $store.trafficMode)
-            Toggle("Dinner protection window (6:30 PM)", isOn: $store.dinnerProtection)
+            Stepper("Arrival buffer: \(store.buffer) min", value: Binding(
+                get: { store.buffer },
+                set: { setSetting("buffer", value: $0) }
+            ), in: 0...45)
+            Toggle("Traffic-aware peak adjustment (1.15x)", isOn: Binding(
+                get: { store.trafficMode },
+                set: { setSetting("trafficMode", value: $0) }
+            ))
+            let currentDinnerRule = store.planningRules(for: PlanCore.currentMonday())
+            Toggle("Dinner protection (\(TimeFormat.formatTime(currentDinnerRule.time)))", isOn: Binding(
+                get: { currentDinnerRule.enabled },
+                set: { enabled in
+                    do {
+                        try store.updatePlanningRules(
+                            for: PlanCore.currentMonday(),
+                            dinnerProtected: enabled,
+                            dinnerTime: currentDinnerRule.time,
+                            bufferMinutes: store.buffer,
+                            peakTraffic: store.trafficMode,
+                            notes: store.weeklyPlanningNotes(for: PlanCore.currentMonday())
+                        )
+                    } catch {
+                        errorMessage = error.localizedDescription
+                    }
+                }
+            ))
         }
     }
 
@@ -498,7 +621,13 @@ public struct SettingsView: View {
                 .font(HeliTypography.body(13))
                 .foregroundColor(HeliColors.mutedGray)
 
-            Picker("Active Caregiver", selection: $store.currentUser) {
+            Picker("Active Caregiver", selection: Binding(
+                get: { store.currentUser },
+                set: { newValue in
+                    do { try store.setActiveUser(newValue) }
+                    catch { errorMessage = error.localizedDescription }
+                }
+            )) {
                 Text("All (Family)").tag("All")
                 ForEach(store.caregivers(), id: \.self) { name in
                     Text(name).tag(name)
@@ -623,6 +752,79 @@ public struct SettingsView: View {
                             .font(HeliTypography.caption(12))
                             .foregroundColor(status.contains("✓") ? HeliColors.forestGreen : HeliColors.warningClay)
                             .lineLimit(2)
+                    }
+                }
+            }
+
+            Divider().overlay(HeliColors.sageRule)
+
+            // 2. Google Calendar OAuth 2.0 Client ID
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Google Calendar OAuth Client ID")
+                        .font(HeliTypography.railTitle(14))
+                        .foregroundColor(HeliColors.greenInk)
+                    Spacer()
+                    let hasClientId = !store.googleClientId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    Text(hasClientId ? "Configured" : (store.isGoogleAuthenticated ? "Active Session" : "Optional Custom ID"))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor((hasClientId || store.isGoogleAuthenticated) ? HeliColors.forestGreen : HeliColors.mutedGray)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(((hasClientId || store.isGoogleAuthenticated) ? HeliColors.forestTint : Color.black.opacity(0.05)))
+                        .clipShape(Capsule())
+                }
+
+                Text("Enter your Google Cloud iOS OAuth 2.0 Client ID to authenticate your Google Account and sync Google Calendar events.")
+                    .font(HeliTypography.caption(12))
+                    .foregroundColor(HeliColors.mutedGray)
+
+                HStack(spacing: 8) {
+                    if showGoogleClientId {
+                        TextField("...apps.googleusercontent.com", text: Binding(
+                            get: { store.googleClientId },
+                            set: {
+                                store.googleClientId = $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                                store.save()
+                            }
+                        ))
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .font(.system(size: 13, design: .monospaced))
+                    } else {
+                        SecureField("...apps.googleusercontent.com", text: Binding(
+                            get: { store.googleClientId },
+                            set: {
+                                store.googleClientId = $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                                store.save()
+                            }
+                        ))
+                        .font(.system(size: 13, design: .monospaced))
+                    }
+
+                    Button(action: { showGoogleClientId.toggle() }) {
+                        Image(systemName: showGoogleClientId ? "eye.slash" : "eye")
+                            .font(.system(size: 13))
+                            .foregroundColor(HeliColors.mutedGray)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(10)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(HeliColors.sageRule, lineWidth: 0.8)
+                )
+
+                if store.isGoogleAuthenticated {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(HeliColors.forestGreen)
+                            .font(.system(size: 12))
+                        Text("Connected: \(store.googleAccountEmail)")
+                            .font(HeliTypography.caption(11))
+                            .foregroundColor(HeliColors.forestGreen)
                     }
                 }
             }
@@ -952,6 +1154,211 @@ public struct SettingsView: View {
                 let found = try await store.pullFromNeon()
                 neonStatusText = found ? "✓ Cloud household downloaded" : "No cloud household with this ID."
             } catch { neonStatusText = error.localizedDescription }
+        }
+    }
+
+    private func saveName(_ person: Person) {
+        guard let draft = editingName[person.id] else { return }
+        do {
+            try store.renamePerson(id: person.id, value: draft)
+            editingName[person.id] = nil
+            toastMessage = "Saved \(draft.trimmingCharacters(in: .whitespaces))."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func setConnection(_ key: String, enabled: Bool) {
+        if key == "google" && enabled {
+            errorMessage = "Google Calendar cannot connect until an OAuth client ID and callback URL are configured."
+            return
+        }
+        if key == "apple" && enabled {
+            Task { @MainActor in
+                let granted = await AppleCalendarService.shared.requestAccess()
+                do { try store.setConnection("apple", enabled: granted) }
+                catch { errorMessage = error.localizedDescription; return }
+                if granted { showCalendarReview = true }
+                else { errorMessage = "Apple Calendar access was denied or restricted. You can change it in iOS Settings." }
+            }
+            return
+        }
+        do { try store.setConnection(key, enabled: enabled) }
+        catch { errorMessage = error.localizedDescription }
+    }
+
+    private func reconcileCalendarConnections() {
+        if store.connections["google"] == true {
+            do { try store.setConnection("google", enabled: false) }
+            catch { errorMessage = error.localizedDescription }
+        }
+        if store.connections["apple"] == true && !AppleCalendarService.shared.hasReadAccess {
+            do { try store.setConnection("apple", enabled: false) }
+            catch { errorMessage = error.localizedDescription }
+        }
+    }
+
+    private func setAlert(_ key: String, enabled: Bool) {
+        do {
+            try store.setAlertPreference(key, enabled: enabled)
+            if key == "notifyDriverNeeded" && enabled {
+                Task {
+                    await NotificationService.shared.requestAuthorization()
+                    store.refreshDepartureReminders()
+                }
+            }
+        }
+        catch { errorMessage = error.localizedDescription }
+    }
+
+    private func setSetting(_ key: String, value: Any) {
+        do { try store.setSetting(key: key, value: value) }
+        catch { errorMessage = error.localizedDescription }
+    }
+
+    // MARK: - Section: Assistant
+
+    private var assistantSectionContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Color.clear.frame(height: 0).onAppear {
+                guard !assistantFieldsLoaded else { return }
+                assistantRelayURL = store.assistantRelayURL
+                assistantSessionToken = store.assistantSessionToken
+                assistantFieldsLoaded = true
+            }
+
+            HStack {
+                Text("Assistant service")
+                    .font(HeliTypography.railTitle(14))
+                    .foregroundColor(HeliColors.greenInk)
+                Spacer()
+                let ready = !assistantRelayURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    && !assistantSessionToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                Text(ready ? "Configured" : "Not configured")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(ready ? HeliColors.forestGreen : HeliColors.warningClay)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(ready ? HeliColors.forestTint : HeliColors.warningClay.opacity(0.12))
+                    .clipShape(Capsule())
+            }
+
+            Text("The assistant answers through HeliPad's own service, which holds the model credentials. Without it the Assistant tab reports itself unavailable; nothing else in the app is affected.")
+                .font(HeliTypography.caption(12))
+                .foregroundColor(HeliColors.mutedGray)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Service URL")
+                    .font(HeliTypography.caption(11))
+                    .foregroundColor(HeliColors.mutedGray)
+                TextField("https://…", text: Binding(
+                    get: { assistantRelayURL },
+                    set: {
+                        assistantRelayURL = $0
+                        store.assistantRelayURL = $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                        assistantProbe = nil
+                    }
+                ))
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.URL)
+                .font(.system(size: 13, design: .monospaced))
+                .padding(10)
+                .background(HeliColors.canvasIvory)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Session token")
+                    .font(HeliTypography.caption(11))
+                    .foregroundColor(HeliColors.mutedGray)
+                SecureField("token", text: Binding(
+                    get: { assistantSessionToken },
+                    set: {
+                        assistantSessionToken = $0
+                        store.assistantSessionToken = $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                        assistantProbe = nil
+                    }
+                ))
+                .font(.system(size: 13, design: .monospaced))
+                .padding(10)
+                .background(HeliColors.canvasIvory)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
+            }
+
+            // Says whether the service is actually reachable, rather than
+            // leaving "Configured" to imply it.
+            HStack(spacing: 10) {
+                Button(action: { Task { await probeAssistant() } }) {
+                    HStack(spacing: 6) {
+                        if assistantProbing {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "antenna.radiowaves.left.and.right")
+                                .font(.system(size: 12))
+                        }
+                        Text("Test connection")
+                            .font(HeliTypography.buttonLabel(13))
+                    }
+                    .foregroundColor(HeliColors.forestGreen)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(HeliColors.forestTint)
+                    .clipShape(Capsule())
+                }
+                .disabled(assistantProbing || assistantRelayURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                if let assistantProbe {
+                    Text(assistantProbe.message)
+                        .font(HeliTypography.caption(11))
+                        .foregroundColor(assistantProbe.ok ? HeliColors.forestGreen : HeliColors.warningClay)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Running a service locally")
+                    .font(HeliTypography.cardTitle(12))
+                    .foregroundColor(HeliColors.greenInk)
+                Text("For development, start ios/AssistantLab/tools/dev-relay/relay.py on your Mac and use http://localhost:8787 with the token from that package's .env. Plain HTTP is permitted for local addresses only; anything else must be HTTPS.")
+                    .font(HeliTypography.caption(11))
+                    .foregroundColor(HeliColors.mutedGray)
+            }
+            .padding(10)
+            .background(HeliColors.sunOchre.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            Text("What gets sent: event titles, dates, times, saved place names and household first names — only for the question asked. Street addresses, coordinates and event notes are not sent. Chat history stays on this device.")
+                .font(HeliTypography.caption(11))
+                .foregroundColor(HeliColors.mutedGray)
+        }
+    }
+
+    /// Hits the service's health endpoint. Deliberately not a model request:
+    /// this should cost nothing and answer one question — is it reachable.
+    private func probeAssistant() async {
+        let raw = assistantRelayURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let base = URL(string: raw), base.scheme != nil else {
+            assistantProbe = (false, "That is not a valid URL.")
+            return
+        }
+        assistantProbing = true
+        defer { assistantProbing = false }
+
+        var request = URLRequest(url: base.appendingPathComponent("health"))
+        request.timeoutInterval = 8
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            assistantProbe = code == 200
+                ? (true, "Reachable.")
+                : (false, "Reached it, but it answered \\(code).")
+        } catch let error as URLError where error.code == .appTransportSecurityRequiresSecureConnection {
+            assistantProbe = (false, "Plain HTTP is only allowed for local addresses. Use HTTPS.")
+        } catch {
+            assistantProbe = (false, "Could not reach it. Check the URL and that the service is running.")
         }
     }
 

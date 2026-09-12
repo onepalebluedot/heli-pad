@@ -118,8 +118,8 @@ public struct FamilyPlacesView: View {
 
                 Spacer()
 
-                if let rk = loc.routeKey, !rk.isEmpty {
-                    Text("Calibrated")
+                if let confidence = confidenceLabel(for: loc) {
+                    Text(confidence)
                         .font(HeliTypography.eyebrow(9))
                         .foregroundColor(HeliColors.forestGreen)
                         .padding(.horizontal, 5)
@@ -138,6 +138,13 @@ public struct FamilyPlacesView: View {
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(HeliColors.sageRule, lineWidth: 0.8))
         }
         .buttonStyle(PlainButtonStyle())
+    }
+
+    private func confidenceLabel(for location: LocationItem) -> String? {
+        if location.source == "measured" { return "Measured route" }
+        if location.latitude != nil && location.longitude != nil { return "GPS resolved" }
+        if location.routeKey?.isEmpty == false { return "Manual estimate" }
+        return "Unresolved"
     }
 
     private func locationIcon(_ name: String) -> String {

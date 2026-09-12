@@ -160,6 +160,11 @@ struct OnboardingHomeStep: View {
                                 isSelecting = false
                                 return
                             }
+                            draft.homeLatitude = nil
+                            draft.homeLongitude = nil
+                            draft.homePlaceId = nil
+                            draft.homeSource = "manual"
+                            draft.homeRouteKey = nil
                             searchTask?.cancel()
                             let q = val.trimmingCharacters(in: .whitespaces)
                             guard q.count >= 2 else {
@@ -174,6 +179,7 @@ struct OnboardingHomeStep: View {
                                 let results = await GoogleMapsService.shared.autocompletePlaces(query: q, locationBias: nil)
                                 if !Task.isCancelled {
                                     await MainActor.run {
+                                        guard draft.homeAddress.trimmingCharacters(in: .whitespaces) == q else { return }
                                         self.predictions = results
                                         self.isSearching = false
                                     }
@@ -203,6 +209,10 @@ struct OnboardingHomeStep: View {
                                 isSelecting = true
                                 let addr = pred.secondaryText.isEmpty ? pred.primaryText : "\(pred.primaryText), \(pred.secondaryText)"
                                 draft.homeAddress = addr
+                                draft.homeLatitude = pred.latitude
+                                draft.homeLongitude = pred.longitude
+                                draft.homePlaceId = pred.placeId
+                                draft.homeSource = (pred.latitude != nil && pred.longitude != nil) ? "resolved" : "manual"
                                 predictions = []
                             }) {
                                 HStack(spacing: 8) {

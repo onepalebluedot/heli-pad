@@ -4,10 +4,7 @@ struct OnboardingReviewStep: View {
     var draft: OnboardingDraft
 
     private var driveCount: Int {
-        draft.activities.reduce(0) { total, activity in
-            let named = !activity.title.trimmingCharacters(in: .whitespaces).isEmpty
-            return total + (named ? activity.weekdays.count : 0)
-        }
+        draft.build(baseWeek: PlanCore.currentMonday()).records.count
     }
 
     var body: some View {
@@ -46,7 +43,7 @@ struct OnboardingReviewStep: View {
                         .foregroundColor(HeliColors.mutedGray)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
-                    Text("\(driveCount) event\(driveCount == 1 ? "" : "s") across the week, unassigned until you or the crew take them.")
+                    Text("\(driveCount) event\(driveCount == 1 ? "" : "s") across the selected finite ranges, unassigned until you or the crew take them.")
                         .font(HeliTypography.body(13))
                         .foregroundColor(HeliColors.mutedGray)
                         .fixedSize(horizontal: false, vertical: true)

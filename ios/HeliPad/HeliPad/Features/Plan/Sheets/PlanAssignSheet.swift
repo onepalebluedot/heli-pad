@@ -5,21 +5,19 @@ public struct PlanAssignSheet: View {
     @ObservedObject public var store: AppStore
     public var event: TaskRecord?
     public var routine: RoutineGroup?
-    public var onAssignEvent: ((TaskRecord, String) -> Void)?
-    public var onAssignRoutine: ((RoutineGroup, String) -> Void)?
+    @State private var assignScope: RecurrenceEditScope = .occurrence
+    @State private var pendingOwner: String? = nil
+    @State private var showSeriesConfirmation = false
+    @State private var errorMessage: String? = nil
 
     public init(
         store: AppStore,
         event: TaskRecord? = nil,
-        routine: RoutineGroup? = nil,
-        onAssignEvent: ((TaskRecord, String) -> Void)? = nil,
-        onAssignRoutine: ((RoutineGroup, String) -> Void)? = nil
+        routine: RoutineGroup? = nil
     ) {
         self.store = store
         self.event = event
         self.routine = routine
-        self.onAssignEvent = onAssignEvent
-        self.onAssignRoutine = onAssignRoutine
     }
 
     public var body: some View {
@@ -44,6 +42,20 @@ public struct PlanAssignSheet: View {
                     Button("Close") { dismiss() }
                         .foregroundColor(HeliColors.greenInk)
                 }
+            }
+            .confirmationDialog("Assign the entire series?", isPresented: $showSeriesConfirmation, titleVisibility: .visible) {
+                Button("Assign all \(seriesCount) occurrences") { commitPendingSeriesAssignment() }
+                Button("Cancel", role: .cancel) { pendingOwner = nil }
+            } message: {
+                Text("This changes \(seriesCount) total occurrences, including \(historicalCount) in the past.")
+            }
+            .alert("Couldn’t Assign", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "Please try again.")
             }
         }
     }
@@ -78,6 +90,14 @@ public struct PlanAssignSheet: View {
 
     private func candidateList(ev: TaskRecord) -> some View {
         VStack(alignment: .leading, spacing: 10) {
+            if ev.seriesId != nil {
+                Picker("Assignment scope", selection: $assignScope) {
+                    Text("This occurrence").tag(RecurrenceEditScope.occurrence)
+                    Text("Entire series").tag(RecurrenceEditScope.series)
+                }
+                .pickerStyle(.segmented)
+            }
+
             Text("CAREGIVER CANDIDATES")
                 .font(HeliTypography.eyebrow(11))
                 .foregroundColor(HeliColors.mutedGray)
@@ -91,16 +111,14 @@ public struct PlanAssignSheet: View {
                     store.planningOptions()
                 )
                 candidateRow(person: person, detail: detail, isCurrent: ev.owner == person.name) {
-                    onAssignEvent?(ev, person.name)
-                    dismiss()
+                    requestAssignment(event: ev, owner: person.name)
                 }
             }
 
             // Family (All Caregivers) Option
             let isFamily = (ev.owner == "Family")
             Button(action: {
-                onAssignEvent?(ev, "Family")
-                dismiss()
+                requestAssignment(event: ev, owner: "Family")
             }) {
                 HStack {
                     AvatarDisc(name: "Family", size: 28)
@@ -145,8 +163,7 @@ public struct PlanAssignSheet: View {
 
             // TBD / Unassign Option
             Button(action: {
-                onAssignEvent?(ev, "TBD")
-                dismiss()
+                requestAssignment(event: ev, owner: "TBD")
             }) {
                 HStack {
                     Text("Leave unassigned (TBD)")
@@ -285,8 +302,8 @@ public struct PlanAssignSheet: View {
 
             ForEach(store.caregiverPeople()) { person in
                 Button(action: {
-                    onAssignRoutine?(rt, person.name)
-                    dismiss()
+                    pendingOwner = person.name
+                    showSeriesConfirmation = true
                 }) {
                     HStack {
                         AvatarDisc(name: person.name, size: 28)
@@ -313,6 +330,47 @@ public struct PlanAssignSheet: View {
                 }
                 .buttonStyle(PlainButtonStyle())
             }
+        }
+    }
+
+    private var seriesCount: Int {
+        if let routine { return routine.events.count }
+        guard let seriesId = event?.seriesId else { return 1 }
+        return store.events(inSeries: seriesId).count
+    }
+
+    private var historicalCount: Int {
+        let rows: [TaskRecord]
+        if let routine { rows = routine.events }
+        else if let seriesId = event?.seriesId { rows = store.events(inSeries: seriesId) }
+        else { rows = event.map { [$0] } ?? [] }
+        return rows.filter { $0.date < PlanCore.currentDeviceDate() }.count
+    }
+
+    private func requestAssignment(event: TaskRecord, owner: String) {
+        if assignScope == .series, event.seriesId != nil {
+            pendingOwner = owner
+            showSeriesConfirmation = true
+        } else {
+            do {
+                try store.assignEvent(id: event.id, caregiver: owner, scope: .occurrence)
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func commitPendingSeriesAssignment() {
+        guard let owner = pendingOwner else { return }
+        let first = routine?.events.first ?? event
+        guard let first else { return }
+        do {
+            try store.assignEvent(id: first.id, caregiver: owner, scope: .series)
+            pendingOwner = nil
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }

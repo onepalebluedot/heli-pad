@@ -69,9 +69,7 @@ public struct FamilyView: View {
                             viewModel.showTemplateSheet = true
                         },
                         onAdoptSuggestion: { sugg in
-                            var all = store.templates
-                            all.append(sugg)
-                            store.templates = all
+                            store.upsertTemplate(sugg)
                         }
                     )
 
@@ -107,7 +105,9 @@ public struct FamilyView: View {
                     FamilyRosterView(
                         caregivers: store.caregiverPeople(),
                         loads: viewModel.driveCounts(store: store),
-                        settings: store.settings,
+                        bufferMinutes: store.buffer,
+                        peakTraffic: store.trafficMode,
+                        dinnerRule: store.planningRules(for: PlanCore.currentMonday()),
                         onEditRules: {
                             showRulesSheet = true
                         }
@@ -134,7 +134,7 @@ public struct FamilyView: View {
             )
         }
         .sheet(isPresented: $showRulesSheet) {
-            PlanPrioritiesSheet(store: store)
+            PlanPrioritiesSheet(store: store, week: PlanCore.currentMonday())
         }
     }
 }

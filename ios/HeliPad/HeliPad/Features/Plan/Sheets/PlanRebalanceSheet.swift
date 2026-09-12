@@ -4,6 +4,7 @@ public struct PlanRebalanceSheet: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject public var store: AppStore
     public var currentWeek: String
+    @State private var errorMessage: String? = nil
 
     public init(store: AppStore, currentWeek: String) {
         self.store = store
@@ -89,8 +90,7 @@ public struct PlanRebalanceSheet: View {
                     // Apply Button
                     if !proposals.changes.isEmpty {
                         Button(action: {
-                            applyProposals(proposals: proposals)
-                            dismiss()
+                            if applyProposals(proposals: proposals) { dismiss() }
                         }) {
                             HStack(spacing: 6) {
                                 Image(systemName: "checkmark")
@@ -117,6 +117,14 @@ public struct PlanRebalanceSheet: View {
                     Button("Close") { dismiss() }
                         .foregroundColor(HeliColors.greenInk)
                 }
+            }
+            .alert("Couldn’t Rebalance", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "Review the week and try again.")
             }
         }
     }
@@ -204,16 +212,14 @@ public struct PlanRebalanceSheet: View {
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(HeliColors.sageRule, lineWidth: 0.8))
     }
 
-    private func applyProposals(proposals: ProposalsResult) {
-        var all = store.records()
+    private func applyProposals(proposals: ProposalsResult) -> Bool {
         let changesById = Dictionary(uniqueKeysWithValues: proposals.changes.map { ($0.id, $0.to) })
-        for i in all.indices {
-            if let newOwner = changesById[all[i].id] {
-                all[i].owner = newOwner
-                all[i].lead = newOwner
-                all[i].tentative = false
-            }
+        do {
+            try store.assignEvents(changesById)
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
         }
-        store.replaceRecords(all)
     }
 }

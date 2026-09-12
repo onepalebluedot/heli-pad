@@ -53,8 +53,14 @@ public class AppStore: ObservableObject {
     // MARK: - Cloud & Integrations
     @Published public var googleMapsApiKey: String = ""
     @Published public var neonConnectionString: String = ""
+    @Published public var googleClientId: String = ""
+    @Published public var googleAccountEmail: String = ""
+    @Published public var googleCalendars: [GoogleCalendarChoice] = []
+    @Published public var isGoogleAuthenticated: Bool = false
+    private let googleCalendarService: GoogleCalendarProtocol
     @Published public var cloudHouseholdID: String = UUID().uuidString
     @Published public private(set) var syncError: String?
+    @Published public private(set) var notificationScheduleError: String?
     @Published public private(set) var syncPending: Bool = false
     private var syncMetadata = HouseholdSyncMetadata()
     /// Stamp covering the household-wide settings block. Records carry their
@@ -159,18 +165,22 @@ public class AppStore: ObservableObject {
         timeZone: String = "device",
         notifyLeaveBy: Bool = true,
         notifyDriverNeeded: Bool = true,
-        notifyCrew: Bool = true,
+        notifyCrew: Bool = false,
         connections: [String: Bool] = ["google": false, "apple": false],
         routes: [String: [String: Int]] = SeedData.routeMatrix,
         defaultLocations: [LocationItem]? = nil,
         cloudService: HouseholdCloudService = NeonDatabaseService.shared,
         secretStore: IntegrationSecretStore = KeychainIntegrationSecrets(),
+        googleCalendarService: GoogleCalendarProtocol = GoogleCalendarService.shared,
         schedulesNotifications: Bool = true,
         now: @escaping () -> Date = Date.init
     ) {
         self.schedulesNotifications = schedulesNotifications
         self.cloudService = cloudService
         self.secretStore = secretStore
+        self.googleCalendarService = googleCalendarService
+        self.isGoogleAuthenticated = googleCalendarService.isAuthenticated()
+        self.googleAccountEmail = googleCalendarService.currentEmail() ?? ""
         self.nowProvider = now
         self.weekStart = PlanCore.currentMonday(date: now(), timeZone: TimeZone(identifier: timeZone) ?? .current)
         self.people = people
@@ -337,6 +347,28 @@ public class AppStore: ObservableObject {
         weekStart = PlanCore.currentMonday(date: nowProvider(), timeZone: TimeZone(identifier: timeZone) ?? .current)
         partitionRecords(records())
 
+        // Recurrence metadata is authoritative only for deletion/exclusion.
+        // Reconcile never generates future rows; it merely prevents a stale
+        // payload from reviving slots a household explicitly removed.
+        let definitions = plan.seriesDefinitions ?? []
+        let deletedSeries = Set(definitions.filter(\.deleted).map(\.seriesId))
+        var validSlots: [String: Set<String>] = [:]
+        for definition in definitions where !definition.deleted {
+            if let dates = try? PlanCore.occurrenceDates(for: definition.pattern) {
+                validSlots[definition.seriesId] = Set(dates)
+            }
+        }
+        let excludedSlots = Set((plan.seriesExceptions ?? []).filter { $0.kind == .excluded }.map(\.id))
+        if !deletedSeries.isEmpty || !excludedSlots.isEmpty || !validSlots.isEmpty {
+            partitionRecords(records().filter { record in
+                guard let seriesId = record.seriesId else { return true }
+                guard !deletedSeries.contains(seriesId) else { return false }
+                let original = record.originalOccurrenceDate ?? record.date
+                if let allowed = validSlots[seriesId], !allowed.contains(original) { return false }
+                return !excludedSlots.contains("\(seriesId)|\(original)")
+            })
+        }
+
         // Normalize eventsByDay
         for d in eventsByDay.keys {
             if var list = eventsByDay[d] {
@@ -447,6 +479,7 @@ public class AppStore: ObservableObject {
         var timeZone: String
         var connections: [String: Bool]
         var priorities: [String: WeekPriority]
+        var weeklyNotes: [String: String]
         var calendar: CalendarMetadata
     }
 
@@ -462,6 +495,7 @@ public class AppStore: ObservableObject {
             timeZone: timeZone,
             connections: connections,
             priorities: plan.priorities,
+            weeklyNotes: plan.weeklyNotes ?? [:],
             calendar: plan.calendar
         )
     }
@@ -482,7 +516,10 @@ public class AppStore: ObservableObject {
             var templates: [TemplateItem]
             var events: [TaskRecord]
             var tombstones: [Tombstone]
+            var seriesDefinitions: [SeriesDefinition]
+            var seriesExceptions: [SeriesException]
             var priorities: [String: WeekPriority]
+            var weeklyNotes: [String: String]
             var reviewed: [String: String]
             var calendar: CalendarMetadata
             var parentLocations: [String: String]
@@ -504,7 +541,10 @@ public class AppStore: ObservableObject {
             events: (state.eventsByDay.values.flatMap { $0 } + state.plan.future)
                 .sorted { $0.stampKey < $1.stampKey },
             tombstones: (state.plan.tombstones ?? []).sorted { $0.key < $1.key },
+            seriesDefinitions: (state.plan.seriesDefinitions ?? []).sorted { $0.seriesId < $1.seriesId },
+            seriesExceptions: (state.plan.seriesExceptions ?? []).sorted { $0.id < $1.id },
             priorities: state.plan.priorities,
+            weeklyNotes: state.plan.weeklyNotes ?? [:],
             reviewed: state.plan.reviewed,
             calendar: state.plan.calendar,
             parentLocations: state.parentLocations,
@@ -563,6 +603,8 @@ public class AppStore: ObservableObject {
         state.eventsByDay.values.flatMap { $0 }.forEach { note($0.stamp) }
         state.plan.future.forEach { note($0.stamp) }
         state.plan.tombstones?.forEach { note($0.stamp) }
+        state.plan.seriesDefinitions?.forEach { note($0.stamp) }
+        state.plan.seriesExceptions?.forEach { note($0.stamp) }
         state.people.forEach { note($0.stamp) }
         state.templates.forEach { note($0.stamp) }
         state.locations.forEach { note($0.stamp) }
@@ -657,14 +699,24 @@ public class AppStore: ObservableObject {
         }
     }
 
-    /// Re-queues the leave-in-10 reminders from the current schedule. The
-    /// service debounces, so calling this on every save is cheap.
+    /// Re-queues the leave-in-10 reminders from the current schedule. Drive
+    /// reminders use the device's GPS origin and Apple Maps traffic estimate;
+    /// the service debounces, so saves and location updates can both call this.
     public func refreshDepartureReminders() {
         guard schedulesNotifications else { return }
         NotificationService.shared.scheduleReminders(
             records: records(),
             timeZoneId: timeZone,
-            enabled: notifyLeaveBy
+            enabled: notifyLeaveBy,
+            driverNeededEnabled: notifyDriverNeeded,
+            bufferMinutes: buffer,
+            travelTimeProvider: { [weak self] event, appointmentDate in
+                guard let self else { return nil }
+                return await self.appleMapsDriveTime(for: event, arrivingAt: appointmentDate)
+            },
+            onError: { [weak self] message in
+                self?.notificationScheduleError = message
+            }
         )
     }
 
@@ -709,6 +761,7 @@ public class AppStore: ObservableObject {
         do {
             try secretStore.set(googleMapsApiKey, for: "googleMapsApiKey")
             try secretStore.set(neonConnectionString, for: "neonConnectionString")
+            try secretStore.set(googleClientId, for: "googleClientId")
         } catch {
             syncError = "Could not save integration credentials securely. Please try again."
         }
@@ -735,6 +788,12 @@ public class AppStore: ObservableObject {
             googleMapsApiKey = try secretStore.get("googleMapsApiKey") ?? legacyGoogleKey ?? ""
             if !googleMapsApiKey.isEmpty { try secretStore.set(googleMapsApiKey, for: "googleMapsApiKey") }
             neonConnectionString = try secretStore.get("neonConnectionString") ?? ""
+            googleClientId = try secretStore.get("googleClientId") ?? AppConfig.defaultGoogleClientId
+            isGoogleAuthenticated = googleCalendarService.isAuthenticated()
+            googleAccountEmail = googleCalendarService.currentEmail() ?? ""
+            if isGoogleAuthenticated {
+                connections["google"] = true
+            }
         } catch {
             syncError = "Integration credentials are unavailable. Unlock your device and try again."
             neonSyncEnabled = false
@@ -769,7 +828,9 @@ public class AppStore: ObservableObject {
         timeZone = state.timeZone
         notifyLeaveBy = state.notifyLeaveBy
         notifyDriverNeeded = state.notifyDriverNeeded
-        notifyCrew = state.notifyCrew
+        // Older builds exposed this switch without any APNs delivery path.
+        // Keep it off until authenticated household/device membership exists.
+        notifyCrew = false
         connections = state.connections
         hasCompletedOnboarding = state.hasCompletedOnboarding
         savedOnboardingDraft = state.onboardingDraft
@@ -833,6 +894,18 @@ public class AppStore: ObservableObject {
         let mergedTemplates = combine(templates, remote.templates, .template)
         let mergedLocations = combine(locations, remote.locations, .location)
 
+        func mergeIndependent<T: StampedRecord>(_ mine: [T], _ theirs: [T]) -> [T] {
+            var result: [String: T] = [:]
+            for item in mine + theirs {
+                if let existing = result[item.stampKey],
+                   (item.stamp ?? RecordStamp()) <= (existing.stamp ?? RecordStamp()) { continue }
+                result[item.stampKey] = item
+            }
+            return result.keys.sorted().compactMap { result[$0] }
+        }
+        let mergedSeries = mergeIndependent(plan.seriesDefinitions ?? [], remote.plan.seriesDefinitions ?? [])
+        let mergedExceptions = mergeIndependent(plan.seriesExceptions ?? [], remote.plan.seriesExceptions ?? [])
+
         // Settings are one block: the newer stamp takes the whole thing, so the
         // two phones never end up with half of each other's planning rules.
         if (settingsStamp ?? RecordStamp()) < (remote.settingsStamp ?? RecordStamp()) {
@@ -846,6 +919,7 @@ public class AppStore: ObservableObject {
             timeZone = remote.timeZone
             connections = remote.connections
             plan.priorities = remote.plan.priorities
+            plan.weeklyNotes = remote.plan.weeklyNotes
             plan.calendar = remote.plan.calendar
             settingsStamp = remote.settingsStamp
         }
@@ -854,6 +928,18 @@ public class AppStore: ObservableObject {
         templates = mergedTemplates
         locations = mergedLocations
         partitionRecords(mergedEvents)
+        plan.seriesDefinitions = mergedSeries.isEmpty ? nil : mergedSeries
+        plan.seriesExceptions = mergedExceptions.isEmpty ? nil : mergedExceptions
+
+        let deletedSeries = Set(mergedSeries.filter(\.deleted).map(\.seriesId))
+        let excludedSlots = Set(mergedExceptions.filter { $0.kind == .excluded }.map(\.id))
+        let recurrenceFiltered = records().filter { record in
+            guard let seriesId = record.seriesId else { return true }
+            if deletedSeries.contains(seriesId) { return false }
+            let original = record.originalOccurrenceDate ?? record.date
+            return !excludedSlots.contains("\(seriesId)|\(original)")
+        }
+        partitionRecords(recurrenceFiltered)
 
         // Weeks either phone has reviewed stay reviewed.
         plan.reviewed.merge(remote.plan.reviewed) { mine, _ in mine }
@@ -1169,6 +1255,21 @@ public class AppStore: ObservableObject {
         return nil
     }
 
+    /// Resolves the leave-by route used by notifications. This intentionally
+    /// uses Apple Maps even when a Google API key is configured, keeping the
+    /// notification in sync with the app's Apple Maps navigation experience.
+    @MainActor
+    public func appleMapsDriveTime(for event: TaskRecord, arrivingAt appointmentDate: Date) async -> Int? {
+        guard let destination = destinationCoordinate(for: event) else { return nil }
+        let origin = LocationService.shared.effectiveCoordinate
+        if LocationService.distanceInMeters(from: origin, to: destination) < 150 { return 0 }
+        return await GoogleMapsService.shared.calculateAppleDriveTime(
+            from: origin,
+            to: destination,
+            arrivingAt: appointmentDate
+        )?.durationMinutes
+    }
+
     @MainActor
     public func calculateDeviceDriveTime(to destinationName: String) async -> Int? {
         let dummy = TaskRecord(id: "query", date: "", owner: "", location: destinationName)
@@ -1180,15 +1281,22 @@ public class AppStore: ObservableObject {
     /// Replaces the household with the answers from setup. Everything the sample
     /// week held is dropped — after setup the app shows this family, not a demo.
     public func applyOnboarding(_ draft: OnboardingDraft) {
-        let result = draft.build(baseWeek: PlanCore.currentMonday(date: nowProvider(), timeZone: TimeZone(identifier: timeZone) ?? .current))
+        let result = draft.build(
+            baseWeek: PlanCore.currentMonday(date: nowProvider(), timeZone: TimeZone(identifier: timeZone) ?? .current),
+            timeZone: timeZone
+        )
 
         people = result.people
         locations = result.locations
         routes = result.routes
         parentLocations = result.parentLocations
         templates = result.templates
-        eventsByDay = result.eventsByDay
-        plan = PlanMetadata()
+        plan = PlanMetadata(seriesDefinitions: result.seriesDefinitions.map { definition in
+            var stamped = definition
+            stamped.stamp = nextStamp()
+            return stamped
+        })
+        partitionRecords(result.records)
         homePlaceName = result.homePlaceName
         homeAddress = result.homeAddress
         currentUser = result.currentUser
@@ -1209,11 +1317,11 @@ public class AppStore: ObservableObject {
         showOnboarding = true
     }
 
-    /// The draft setup should open with: the saved answers, then the live
-    /// household, and a blank form only on a phone that has neither.
+    /// A rerun always reflects the household as it exists now. Historical setup
+    /// answers must not overwrite later renames, places, or shortcuts.
     public func onboardingStartingPoint() -> OnboardingDraft {
-        if let saved = savedOnboardingDraft { return saved }
         if hasCompletedOnboarding { return OnboardingDraft.from(store: self) }
+        if let saved = savedOnboardingDraft { return saved }
         return OnboardingDraft()
     }
 
@@ -1374,6 +1482,346 @@ public class AppStore: ObservableObject {
         save()
     }
 
+    public func planningRules(for week: String) -> WeekPriority {
+        let monday = PlanCore.monday(week)
+        return plan.priorities[monday]
+            ?? WeekPriority(
+                enabled: dinnerProtection,
+                days: [0, 1, 2, 3, 4, 5, 6],
+                time: "18:30"
+            )
+    }
+
+    public func weeklyPlanningNotes(for week: String) -> String {
+        plan.weeklyNotes?[PlanCore.monday(week)] ?? ""
+    }
+
+    /// One canonical save path for the Planning Rules sheet. The global travel
+    /// settings and the selected week's dinner contract are committed together.
+    public func updatePlanningRules(
+        for week: String,
+        dinnerProtected: Bool,
+        dinnerTime: String,
+        bufferMinutes: Int,
+        peakTraffic: Bool,
+        notes: String
+    ) throws {
+        guard (0...45).contains(bufferMinutes) else {
+            throw NSError(domain: "AppStore", code: 20, userInfo: [NSLocalizedDescriptionKey: "Choose a buffer from 0 to 45 minutes."])
+        }
+        let timeParts = dinnerTime.split(separator: ":").compactMap { Int($0) }
+        guard timeParts.count == 2,
+              (0...23).contains(timeParts[0]),
+              (0...59).contains(timeParts[1]) else {
+            throw NSError(domain: "AppStore", code: 21, userInfo: [NSLocalizedDescriptionKey: "Enter dinner time as HH:mm."])
+        }
+
+        let monday = PlanCore.monday(week)
+        buffer = bufferMinutes
+        trafficMode = peakTraffic
+        dinnerProtection = dinnerProtected
+        plan.priorities[monday] = WeekPriority(
+            enabled: dinnerProtected,
+            days: [0, 1, 2, 3, 4, 5, 6],
+            time: String(format: "%02d:%02d", timeParts[0], timeParts[1])
+        )
+        var allNotes = plan.weeklyNotes ?? [:]
+        let cleanNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanNotes.isEmpty { allNotes.removeValue(forKey: monday) }
+        else { allNotes[monday] = cleanNotes }
+        plan.weeklyNotes = allNotes.isEmpty ? nil : allNotes
+        save()
+    }
+
+    public func setAlertPreference(_ key: String, enabled: Bool) throws {
+        switch key {
+        case "notifyLeaveBy": notifyLeaveBy = enabled
+        case "notifyDriverNeeded": notifyDriverNeeded = enabled
+        case "notifyCrew":
+            guard !enabled else {
+                throw NSError(domain: "AppStore", code: 25, userInfo: [NSLocalizedDescriptionKey: "Crew reassignment alerts require the authenticated household notification service."])
+            }
+            notifyCrew = false
+        default:
+            throw NSError(domain: "AppStore", code: 22, userInfo: [NSLocalizedDescriptionKey: "Unknown alert preference."])
+        }
+        save()
+    }
+
+    public func setConnection(_ key: String, enabled: Bool) throws {
+        guard key == "google" || key == "apple" else {
+            throw NSError(domain: "AppStore", code: 23, userInfo: [NSLocalizedDescriptionKey: "Unknown calendar connection."])
+        }
+        if key == "google" {
+            if enabled {
+                guard isGoogleAuthenticated || googleCalendarService.isAuthenticated() else {
+                    throw NSError(domain: "AppStore", code: 26, userInfo: [NSLocalizedDescriptionKey: "Sign in with Google before enabling Google Calendar sync."])
+                }
+                connections["google"] = true
+                isGoogleAuthenticated = true
+            } else {
+                connections["google"] = false
+                isGoogleAuthenticated = false
+                googleAccountEmail = ""
+                googleCalendars = []
+                Task {
+                    try? await self.googleCalendarService.disconnect()
+                }
+            }
+        } else {
+            connections[key] = enabled
+        }
+        save()
+    }
+
+    public func setActiveUser(_ name: String) throws {
+        guard name == "All" || caregivers().contains(name) else {
+            throw NSError(domain: "AppStore", code: 24, userInfo: [NSLocalizedDescriptionKey: "Choose a current caregiver profile."])
+        }
+        currentUser = name
+        save()
+    }
+
+    public func upsertTemplate(_ template: TemplateItem) {
+        if let index = templates.firstIndex(where: { $0.id == template.id }) {
+            templates[index] = template
+        } else {
+            templates.append(template)
+        }
+        save()
+    }
+
+    public func removeTemplate(id: String) {
+        templates.removeAll { $0.id == id }
+        save()
+    }
+
+    /// Reconciles a bounded EventKit import without replacing app-owned
+    /// overlays such as caregiver assignment, completion, children, and notes.
+    public func mergeAppleCalendarEvents(
+        _ imported: [TaskRecord],
+        calendarIDs: Set<String>,
+        from startDate: String,
+        through endDate: String
+    ) {
+        let incomingKeys = Set(imported.compactMap(\.calendarId))
+        var all = records().filter { existing in
+            guard let key = existing.calendarId, key.hasPrefix("apple|") else { return true }
+            let fields = key.split(separator: "|", omittingEmptySubsequences: false)
+            guard fields.count >= 2, calendarIDs.contains(String(fields[1])) else { return true }
+            guard existing.date >= startDate && existing.date <= endDate else { return true }
+            return incomingKeys.contains(key)
+        }
+
+        for providerEvent in imported {
+            if let index = all.firstIndex(where: { $0.calendarId == providerEvent.calendarId }) {
+                all[index].date = providerEvent.date
+                all[index].time = providerEvent.time
+                all[index].endTime = providerEvent.endTime
+                all[index].title = providerEvent.title
+                all[index].location = providerEvent.location
+                all[index].mode = providerEvent.mode
+                all[index].kind = providerEvent.kind
+                all[index].allDay = providerEvent.allDay
+                all[index].seriesId = providerEvent.seriesId
+                all[index].originalOccurrenceDate = providerEvent.originalOccurrenceDate
+            } else {
+                all.append(providerEvent)
+            }
+        }
+
+        plan.calendar.appleCalendarIDs = calendarIDs.sorted()
+        plan.calendar.pulled = imported.compactMap(\.calendarId).sorted()
+        plan.calendar.lastAppleImport = nowProvider()
+        partitionRecords(all)
+        save()
+    }
+
+    // MARK: - Google Calendar Operations
+
+    @MainActor
+    public func connectGoogleAccount() async throws {
+        let clientId = googleClientId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? AppConfig.defaultGoogleClientId
+            : googleClientId
+        guard !clientId.isEmpty else {
+            throw GoogleCalendarError.missingClientId
+        }
+        let result = try await googleCalendarService.authenticate(clientId: clientId)
+        googleAccountEmail = result.userEmail
+        isGoogleAuthenticated = true
+        connections["google"] = true
+        try? secretStore.set(googleClientId, for: "googleClientId")
+        try? await refreshGoogleCalendars()
+        save()
+    }
+
+    @MainActor
+    public func disconnectGoogleAccount() async {
+        try? await googleCalendarService.disconnect()
+        isGoogleAuthenticated = false
+        connections["google"] = false
+        googleAccountEmail = ""
+        googleCalendars = []
+        save()
+    }
+
+    @MainActor
+    public func refreshGoogleCalendars() async throws {
+        guard isGoogleAuthenticated else { return }
+        let cals = try await googleCalendarService.listCalendars()
+        googleCalendars = cals
+        if plan.calendar.googleCalendarIDs == nil || plan.calendar.googleCalendarIDs?.isEmpty == true {
+            if let primary = cals.first(where: { $0.isPrimary }) ?? cals.first {
+                plan.calendar.googleCalendarIDs = [primary.id]
+                plan.calendar.googleExportCalendarID = primary.id
+                save()
+            }
+        }
+    }
+
+    /// Reconciles a bounded Google Calendar import without replacing app-owned
+    /// overlays such as caregiver assignment, completion, children, and notes.
+    public func mergeGoogleCalendarEvents(
+        _ imported: [TaskRecord],
+        calendarIDs: Set<String>,
+        from startDate: String,
+        through endDate: String
+    ) {
+        func googleKey(_ key: String?) -> String? {
+            guard let key, key.hasPrefix("google|") else { return nil }
+            let fields = key.split(separator: "|", omittingEmptySubsequences: false)
+            guard fields.count >= 3 else { return key }
+            return "google|\(fields[1])|\(fields[2])"
+        }
+
+        let incomingKeys = Set(imported.compactMap(\.calendarId))
+        let incomingIdentities = Set(imported.compactMap { googleKey($0.calendarId) })
+
+        var all = records().filter { existing in
+            guard let key = existing.calendarId, key.hasPrefix("google|") else { return true }
+            let fields = key.split(separator: "|", omittingEmptySubsequences: false)
+            guard fields.count >= 2, calendarIDs.contains(String(fields[1])) else { return true }
+            guard existing.date >= startDate && existing.date <= endDate else { return true }
+            guard let ident = googleKey(key) else { return incomingKeys.contains(key) }
+            return incomingIdentities.contains(ident)
+        }
+
+        for providerEvent in imported {
+            let providerIdent = googleKey(providerEvent.calendarId)
+            if let index = all.firstIndex(where: {
+                $0.calendarId == providerEvent.calendarId ||
+                (providerIdent != nil && googleKey($0.calendarId) == providerIdent)
+            }) {
+                all[index].date = providerEvent.date
+                all[index].time = providerEvent.time
+                all[index].endTime = providerEvent.endTime
+                all[index].title = providerEvent.title
+                all[index].location = providerEvent.location
+                all[index].mode = providerEvent.mode
+                all[index].kind = providerEvent.kind
+                all[index].allDay = providerEvent.allDay
+                all[index].seriesId = providerEvent.seriesId
+                all[index].originalOccurrenceDate = providerEvent.originalOccurrenceDate
+                all[index].calendarId = providerEvent.calendarId
+                all[index].gcal = true
+            } else {
+                var newRecord = providerEvent
+                newRecord.gcal = true
+                all.append(newRecord)
+            }
+        }
+
+        plan.calendar.googleCalendarIDs = calendarIDs.sorted()
+        var updatedPulled = Set(plan.calendar.pulled)
+        for key in incomingKeys { updatedPulled.insert(key) }
+        plan.calendar.pulled = updatedPulled.sorted()
+        plan.calendar.lastGoogleImport = nowProvider()
+        partitionRecords(all)
+        save()
+    }
+
+    /// Writes an event to Google Calendar (create or update).
+    /// Enforces conflict detection with ETag and only sets task.gcal = true
+    /// once the external write has succeeded.
+    @discardableResult
+    public func exportEventToGoogleCalendar(_ task: TaskRecord) async throws -> TaskRecord {
+        guard isGoogleAuthenticated else {
+            throw GoogleCalendarError.unauthenticated
+        }
+
+        let targetCalendarId = plan.calendar.googleExportCalendarID
+            ?? plan.calendar.googleCalendarIDs?.first
+            ?? "primary"
+
+        var tz = TimeZone(identifier: timeZone) ?? .current
+        if timeZone == "device" { tz = .current }
+
+        var updatedTask = task
+        let currentEtag = plan.calendar.exports[task.id]
+
+        if let calId = task.calendarId, calId.hasPrefix("google|") {
+            let fields = calId.split(separator: "|", omittingEmptySubsequences: false)
+            if fields.count >= 3 {
+                let remoteCalId = String(fields[1])
+                let remoteEvId = String(fields[2])
+                let newEtag = try await googleCalendarService.updateEvent(
+                    calendarId: remoteCalId,
+                    eventId: remoteEvId,
+                    task: task,
+                    expectedEtag: currentEtag,
+                    timeZone: tz
+                )
+                plan.calendar.exports[task.id] = newEtag
+                updatedTask.gcal = true
+            } else {
+                let (newEvId, newEtag) = try await googleCalendarService.createEvent(
+                    calendarId: targetCalendarId,
+                    task: task,
+                    timeZone: tz
+                )
+                let providerKey = "google|\(targetCalendarId)|\(newEvId)"
+                updatedTask.calendarId = providerKey
+                updatedTask.gcal = true
+                plan.calendar.exports[task.id] = newEtag
+            }
+        } else {
+            let (newEvId, newEtag) = try await googleCalendarService.createEvent(
+                calendarId: targetCalendarId,
+                task: task,
+                timeZone: tz
+            )
+            let providerKey = "google|\(targetCalendarId)|\(newEvId)"
+            updatedTask.calendarId = providerKey
+            updatedTask.gcal = true
+            plan.calendar.exports[task.id] = newEtag
+        }
+
+        var all = records()
+        if let idx = all.firstIndex(where: { $0.id == updatedTask.id }) {
+            all[idx] = updatedTask
+        } else {
+            all.append(updatedTask)
+        }
+        partitionRecords(all)
+        save()
+        return updatedTask
+    }
+
+    public func deleteEventFromGoogleCalendar(_ task: TaskRecord) async throws {
+        guard isGoogleAuthenticated else { return }
+        if let calId = task.calendarId, calId.hasPrefix("google|") {
+            let fields = calId.split(separator: "|", omittingEmptySubsequences: false)
+            if fields.count >= 3 {
+                let remoteCalId = String(fields[1])
+                let remoteEvId = String(fields[2])
+                try? await googleCalendarService.deleteEvent(calendarId: remoteCalId, eventId: remoteEvId)
+            }
+        }
+        plan.calendar.exports.removeValue(forKey: task.id)
+        save()
+    }
+
     public func setHomeAddress(
         _ address: String,
         latitude: Double? = nil,
@@ -1384,16 +1832,26 @@ public class AppStore: ObservableObject {
             throw NSError(domain: "AppStore", code: 1, userInfo: [NSLocalizedDescriptionKey: "Choose a home location first."])
         }
         var updated = locations[idx]
-        updated.address = address.trimmingCharacters(in: .whitespaces)
+        let cleanAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanAddress.isEmpty else {
+            throw NSError(domain: "AppStore", code: 4, userInfo: [NSLocalizedDescriptionKey: "Enter a home street address."])
+        }
+        let addressChanged = updated.address.caseInsensitiveCompare(cleanAddress) != .orderedSame
+        updated.address = cleanAddress
+        if addressChanged {
+            updated.latitude = nil
+            updated.longitude = nil
+            updated.placeId = nil
+            updated.routeKey = nil
+            updated.source = "manual"
+        }
         if let lat = latitude, let lng = longitude {
             updated.latitude = lat
             updated.longitude = lng
+            updated.source = "resolved"
             LocationService.shared.homeCoordinateFallback = CLLocationCoordinate2D(latitude: lat, longitude: lng)
         }
-        if let pid = placeId {
-            updated.placeId = pid
-        }
-        updated.source = "manual"
+        updated.placeId = placeId
         try updateLocation(index: idx, data: updated)
     }
 
@@ -1430,8 +1888,34 @@ public class AppStore: ObservableObject {
             var next = data
             next.name = name
             next.address = addr
-            next.routeKey = (old.address == addr) ? old.routeKey : nil
+            let addressChanged = old.address.caseInsensitiveCompare(addr) != .orderedSame
+            next.routeKey = addressChanged ? nil : old.routeKey
+            if addressChanged && (next.latitude == old.latitude && next.longitude == old.longitude) {
+                // A manually changed address cannot retain coordinates that were
+                // resolved for the old text.
+                next.latitude = nil
+                next.longitude = nil
+                next.placeId = nil
+                next.source = "manual"
+            }
             locations[index] = next
+
+            func updateSharedDestination(_ event: inout TaskRecord) {
+                guard event.location == old.name else { return }
+                let usedSharedDestination = event.formattedAddress == nil
+                    || event.formattedAddress?.caseInsensitiveCompare(old.address) == .orderedSame
+                    || (event.latitude == old.latitude && event.longitude == old.longitude)
+                guard usedSharedDestination else { return }
+                event.formattedAddress = next.address
+                event.latitude = next.latitude
+                event.longitude = next.longitude
+            }
+            for day in eventsByDay.keys {
+                guard var rows = eventsByDay[day] else { continue }
+                for row in rows.indices { updateSharedDestination(&rows[row]) }
+                eventsByDay[day] = rows
+            }
+            for row in plan.future.indices { updateSharedDestination(&plan.future[row]) }
 
             if old.name != name {
                 // Cascade place rename
@@ -1463,6 +1947,11 @@ public class AppStore: ObservableObject {
             var newLoc = data
             newLoc.name = name
             newLoc.address = addr
+            if newLoc.latitude != nil && newLoc.longitude != nil {
+                newLoc.source = "resolved"
+            } else if newLoc.source == nil {
+                newLoc.source = "manual"
+            }
             locations.append(newLoc)
         }
         save()
@@ -1478,6 +1967,310 @@ public class AppStore: ObservableObject {
             throw NSError(domain: "AppStore", code: 2, userInfo: [NSLocalizedDescriptionKey: "This place is used by an event or template. Change those references first."])
         }
         locations.remove(at: index)
+        save()
+    }
+
+    // MARK: - Event and recurrence commands
+
+    public func seriesDefinition(id: String) -> SeriesDefinition? {
+        plan.seriesDefinitions?.first { $0.seriesId == id && !$0.deleted }
+    }
+
+    public func events(inSeries seriesId: String) -> [TaskRecord] {
+        records().filter { $0.seriesId == seriesId }.sorted {
+            let lhs = $0.originalOccurrenceDate ?? $0.date
+            let rhs = $1.originalOccurrenceDate ?? $1.date
+            return lhs == rhs ? $0.id < $1.id : lhs < rhs
+        }
+    }
+
+    private func putSeriesDefinition(_ definition: SeriesDefinition) {
+        var definitions = plan.seriesDefinitions ?? []
+        definitions.removeAll { $0.seriesId == definition.seriesId }
+        definitions.append(definition)
+        plan.seriesDefinitions = definitions.sorted { $0.seriesId < $1.seriesId }
+    }
+
+    private func putSeriesException(_ exception: SeriesException) {
+        var exceptions = plan.seriesExceptions ?? []
+        exceptions.removeAll { $0.id == exception.id }
+        exceptions.append(exception)
+        plan.seriesExceptions = exceptions.sorted { $0.id < $1.id }
+    }
+
+    private func clearSeriesException(seriesId: String, originalDate: String) {
+        var exceptions = plan.seriesExceptions ?? []
+        exceptions.removeAll { $0.seriesId == seriesId && $0.originalDate == originalDate }
+        plan.seriesExceptions = exceptions.isEmpty ? nil : exceptions
+    }
+
+    /// One mutation path for new stops, single-occurrence edits, and complete
+    /// finite-series edits. Existing per-occurrence overlays survive unless the
+    /// field was explicitly changed on the occurrence used to open the editor.
+    @discardableResult
+    public func saveEvent(
+        draft: TaskRecord,
+        recurrence: RecurrencePattern,
+        scope: RecurrenceEditScope = .occurrence,
+        sourceOccurrenceID: String? = nil
+    ) throws -> [TaskRecord] {
+        var all = records()
+        let source = sourceOccurrenceID.flatMap { id in all.first { $0.id == id } }
+
+        if scope == .occurrence, let source, source.seriesId != nil {
+            _ = try PlanCore.occurrences(
+                draft,
+                recurrence: RecurrencePattern(mode: .none, startDate: draft.date, timeZone: timeZone)
+            )
+            var updated = draft
+            updated.id = source.id
+            updated.seriesId = source.seriesId
+            updated.originalOccurrenceDate = source.originalOccurrenceDate ?? source.date
+            updated.recurrenceOverride = OccurrenceOverride(
+                modified: true,
+                moved: updated.date != (source.originalOccurrenceDate ?? source.date)
+            )
+            updated.done = source.done
+            updated.locked = source.locked
+            updated.tentative = source.tentative
+            updated.notes = source.notes
+            updated.calendarId = source.calendarId
+            updated.bufferMinutes = source.bufferMinutes
+            guard let index = all.firstIndex(where: { $0.id == source.id }) else { return [] }
+            all[index] = updated
+            let original = updated.originalOccurrenceDate ?? updated.date
+            putSeriesException(SeriesException(
+                seriesId: updated.seriesId!,
+                originalDate: original,
+                kind: .modified,
+                occurrenceId: updated.id,
+                stamp: nextStamp()
+            ))
+            partitionRecords(all)
+            save()
+            return [updated]
+        }
+
+        if recurrence.mode == .none {
+            var singleDraft = draft
+            singleDraft.id = source?.id ?? draft.id
+            singleDraft.seriesId = nil
+            singleDraft.originalOccurrenceDate = nil
+            singleDraft.recurrenceOverride = nil
+            let generated = try PlanCore.occurrences(singleDraft, recurrence: recurrence)
+            if scope == .series, let source, let oldSeriesId = source.seriesId {
+                let priorPattern = seriesDefinition(id: oldSeriesId)?.pattern
+                    ?? RecurrencePattern(
+                        mode: .weekly,
+                        startDate: events(inSeries: oldSeriesId).map { $0.originalOccurrenceDate ?? $0.date }.min() ?? source.date,
+                        timeZone: timeZone,
+                        weekdays: Array(Set(events(inSeries: oldSeriesId).map { PlanCore.weekdayIndex($0.originalOccurrenceDate ?? $0.date) })).sorted(),
+                        end: .throughDate(events(inSeries: oldSeriesId).map { $0.originalOccurrenceDate ?? $0.date }.max() ?? source.date)
+                    )
+                putSeriesDefinition(SeriesDefinition(seriesId: oldSeriesId, pattern: priorPattern, deleted: true, stamp: nextStamp()))
+                all.removeAll { $0.seriesId == oldSeriesId }
+                var replacement = generated[0]
+                replacement.done = source.done
+                replacement.locked = source.locked
+                replacement.tentative = source.tentative
+                replacement.notes = source.notes
+                replacement.calendarId = source.calendarId
+                replacement.bufferMinutes = source.bufferMinutes
+                all.append(replacement)
+            } else if let source, let index = all.firstIndex(where: { $0.id == source.id }) {
+                var replacement = generated[0]
+                replacement.done = source.done
+                replacement.locked = source.locked
+                replacement.tentative = source.tentative
+                replacement.notes = source.notes
+                replacement.calendarId = source.calendarId
+                replacement.bufferMinutes = source.bufferMinutes
+                all[index] = replacement
+            } else {
+                all.append(generated[0])
+            }
+            partitionRecords(all)
+            save()
+            return generated
+        }
+
+        let seriesId = source?.seriesId ?? draft.seriesId ?? "series-\(UUID().uuidString)"
+        var normalizedPattern = recurrence
+        normalizedPattern.mode = .weekly
+        let generated = try PlanCore.occurrences(draft, recurrence: normalizedPattern, seriesId: seriesId)
+        let existing = all.filter { $0.seriesId == seriesId }
+        var existingBySlot: [String: TaskRecord] = [:]
+        for item in existing {
+            let slot = item.originalOccurrenceDate ?? item.date
+            if let prior = existingBySlot[slot],
+               (item.stamp ?? RecordStamp()) <= (prior.stamp ?? RecordStamp()) { continue }
+            existingBySlot[slot] = item
+        }
+        let excluded = Set((plan.seriesExceptions ?? [])
+            .filter { $0.seriesId == seriesId && $0.kind == .excluded }
+            .map(\.originalDate))
+
+        func applyingExplicitChanges(to prior: TaskRecord, generated fresh: TaskRecord) -> TaskRecord {
+            guard let source else { return fresh }
+            var result = prior
+            if draft.title != source.title { result.title = draft.title }
+            if draft.time != source.time { result.time = draft.time }
+            if draft.endTime != source.endTime { result.endTime = draft.endTime }
+            if draft.owner != source.owner { result.owner = draft.owner; result.lead = draft.owner }
+            if draft.kids != source.kids { result.kids = draft.kids; result.kid = draft.kid }
+            if draft.location != source.location || draft.formattedAddress != source.formattedAddress
+                || draft.latitude != source.latitude || draft.longitude != source.longitude {
+                result.location = draft.location
+                result.formattedAddress = draft.formattedAddress
+                result.latitude = draft.latitude
+                result.longitude = draft.longitude
+            }
+            if draft.mode != source.mode { result.mode = draft.mode }
+            if draft.kind != source.kind { result.kind = draft.kind }
+            if draft.gcal != source.gcal { result.gcal = draft.gcal }
+            result.seriesId = seriesId
+            result.originalOccurrenceDate = prior.originalOccurrenceDate ?? prior.date
+            return result
+        }
+
+        var rebuilt: [TaskRecord] = []
+        for fresh in generated {
+            let slot = fresh.originalOccurrenceDate ?? fresh.date
+            guard !excluded.contains(slot) else { continue }
+            if let prior = existingBySlot[slot] {
+                rebuilt.append(applyingExplicitChanges(to: prior, generated: fresh))
+            } else {
+                rebuilt.append(fresh)
+                clearSeriesException(seriesId: seriesId, originalDate: slot)
+            }
+        }
+
+        all.removeAll { $0.seriesId == seriesId }
+        all.append(contentsOf: rebuilt)
+        putSeriesDefinition(SeriesDefinition(
+            seriesId: seriesId,
+            pattern: normalizedPattern,
+            deleted: false,
+            stamp: nextStamp()
+        ))
+        partitionRecords(all)
+        save()
+        return rebuilt
+    }
+
+    public func deleteEvent(id: String, scope: RecurrenceEditScope = .occurrence) {
+        var all = records()
+        guard let event = all.first(where: { $0.id == id }) else { return }
+        if scope == .series, let seriesId = event.seriesId {
+            deleteSeries(id: seriesId)
+            return
+        }
+        if let seriesId = event.seriesId {
+            let original = event.originalOccurrenceDate ?? event.date
+            putSeriesException(SeriesException(
+                seriesId: seriesId,
+                originalDate: original,
+                kind: .excluded,
+                stamp: nextStamp()
+            ))
+        }
+        if event.calendarId?.hasPrefix("google|") == true || plan.calendar.exports[event.id] != nil {
+            Task {
+                try? await self.deleteEventFromGoogleCalendar(event)
+            }
+        }
+        all.removeAll { $0.id == id }
+        partitionRecords(all)
+        save()
+    }
+
+    public func deleteSeries(id seriesId: String) {
+        let existing = events(inSeries: seriesId)
+        let fallbackStart = existing.map { $0.originalOccurrenceDate ?? $0.date }.min() ?? weekStart
+        let fallbackEnd = existing.map { $0.originalOccurrenceDate ?? $0.date }.max() ?? fallbackStart
+        let fallback = RecurrencePattern(
+            mode: .weekly,
+            startDate: fallbackStart,
+            timeZone: timeZone,
+            weekdays: Array(Set(existing.map { PlanCore.weekdayIndex($0.originalOccurrenceDate ?? $0.date) })).sorted(),
+            end: .throughDate(fallbackEnd)
+        )
+        let pattern = seriesDefinition(id: seriesId)?.pattern ?? fallback
+        putSeriesDefinition(SeriesDefinition(seriesId: seriesId, pattern: pattern, deleted: true, stamp: nextStamp()))
+        partitionRecords(records().filter { $0.seriesId != seriesId })
+        save()
+    }
+
+    public func assignEvent(id: String, caregiver: String, scope: RecurrenceEditScope = .occurrence) throws {
+        let all = records()
+        guard let source = all.first(where: { $0.id == id }) else { return }
+        let targets: Set<String>
+        if scope == .series, let seriesId = source.seriesId {
+            targets = Set(all.filter { $0.seriesId == seriesId }.map(\.id))
+        } else {
+            targets = [id]
+        }
+        try assignEvents(
+            Dictionary(uniqueKeysWithValues: targets.map { ($0, caregiver) }),
+            recordsOccurrenceOverrides: scope == .occurrence
+        )
+    }
+
+    /// Applies a reviewed set of per-occurrence assignments in one save. This
+    /// is used by weekly rebalance as well as single assignment, so a recurring
+    /// row never loses the override metadata that protects it during a later
+    /// series edit or merge.
+    public func assignEvents(
+        _ assignments: [String: String],
+        recordsOccurrenceOverrides: Bool = true
+    ) throws {
+        let allowed = Set(caregivers() + ["TBD", "Family"])
+        guard assignments.values.allSatisfy(allowed.contains) else {
+            throw NSError(domain: "AppStore", code: 30, userInfo: [NSLocalizedDescriptionKey: "Choose a current caregiver."])
+        }
+        var all = records()
+        let knownIds = Set(all.map(\.id))
+        guard assignments.keys.allSatisfy(knownIds.contains) else {
+            throw NSError(domain: "AppStore", code: 31, userInfo: [NSLocalizedDescriptionKey: "The schedule changed. Review the assignments again."])
+        }
+        for index in all.indices {
+            guard let caregiver = assignments[all[index].id] else { continue }
+            all[index].owner = caregiver
+            all[index].lead = caregiver
+            all[index].tentative = false
+            if recordsOccurrenceOverrides, let seriesId = all[index].seriesId {
+                all[index].recurrenceOverride = OccurrenceOverride(modified: true, moved: all[index].date != (all[index].originalOccurrenceDate ?? all[index].date))
+                putSeriesException(SeriesException(
+                    seriesId: seriesId,
+                    originalDate: all[index].originalOccurrenceDate ?? all[index].date,
+                    kind: .modified,
+                    occurrenceId: all[index].id,
+                    stamp: nextStamp()
+                ))
+            }
+        }
+        partitionRecords(all)
+        save()
+    }
+
+    public func toggleEventDone(id: String) {
+        var all = records()
+        guard let index = all.firstIndex(where: { $0.id == id }) else { return }
+        all[index].done.toggle()
+        if let seriesId = all[index].seriesId {
+            all[index].recurrenceOverride = OccurrenceOverride(
+                modified: true,
+                moved: all[index].date != (all[index].originalOccurrenceDate ?? all[index].date)
+            )
+            putSeriesException(SeriesException(
+                seriesId: seriesId,
+                originalDate: all[index].originalOccurrenceDate ?? all[index].date,
+                kind: .modified,
+                occurrenceId: all[index].id,
+                stamp: nextStamp()
+            ))
+        }
+        partitionRecords(all)
         save()
     }
 

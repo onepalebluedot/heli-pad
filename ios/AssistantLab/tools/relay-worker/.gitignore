@@ -1,0 +1,4 @@
+# Device tokens. Treat like passwords.
+device-tokens.txt
+node_modules/
+.wrangler/

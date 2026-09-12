@@ -7,9 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BB000000000000000000000A /* AssistantHouseholdAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000006 /* AssistantHouseholdAdapter.swift */; };
+		BB000000000000000000000B /* AssistantHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000007 /* AssistantHost.swift */; };
+		BB000000000000000000000D /* AssistantSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000009 /* AssistantSettings.swift */; };
+		BB0000000000000000000004 /* AssistantKit in Frameworks */ = {isa = PBXBuildFile; productRef = BB0000000000000000000002 /* AssistantKit */; };
+		BB0000000000000000000005 /* AssistantUI in Frameworks */ = {isa = PBXBuildFile; productRef = BB0000000000000000000003 /* AssistantUI */; };
 		622E17728F10649DB92166E3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 887E65758D3DDD9D236D8C6B /* Assets.xcassets */; };
 		04DC1DB2DDC35D4FE3406E01 /* HeliPadApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D67BB6377C7985382333C0CF /* HeliPadApp.swift */; };
 		057353B07A919E0EC3ECC02F /* GoogleMapsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329F663B6D39EA8A47A5A999 /* GoogleMapsService.swift */; };
+		057353B07A919E0EC3ECB001 /* GoogleCalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329F663B6D39EA8A47A5B001 /* GoogleCalendarService.swift */; };
 		0AA36FB6E684938ED0668278 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0712DA5983C3011B96A994E7 /* LocationService.swift */; };
 		0B8A668D25AF52CD5920847C /* OnboardingReviewStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFCAF9E31ED3E1E2AE16DF6B /* OnboardingReviewStep.swift */; };
 		110B67F5B53D2A09DC555C9C /* PlanRoutinesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C79DFB401C56B346AFC484 /* PlanRoutinesView.swift */; };
@@ -80,6 +86,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		BB0000000000000000000006 /* AssistantHouseholdAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantHouseholdAdapter.swift; sourceTree = "<group>"; };
+		BB0000000000000000000007 /* AssistantHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantHost.swift; sourceTree = "<group>"; };
+		BB0000000000000000000009 /* AssistantSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantSettings.swift; sourceTree = "<group>"; };
 		887E65758D3DDD9D236D8C6B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		061541637A96504B3372B779 /* OnboardingSteps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSteps.swift; sourceTree = "<group>"; };
 		0712DA5983C3011B96A994E7 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
@@ -95,6 +104,7 @@
 		290F82792C7BC49ADE9FBD6A /* HeliIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeliIcons.swift; sourceTree = "<group>"; };
 		2BBEE398623EABC2104D2608 /* FamilyTemplateSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyTemplateSheet.swift; sourceTree = "<group>"; };
 		329F663B6D39EA8A47A5A999 /* GoogleMapsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleMapsService.swift; sourceTree = "<group>"; };
+		329F663B6D39EA8A47A5B001 /* GoogleCalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleCalendarService.swift; sourceTree = "<group>"; };
 		3A2D56146E5338169D0229E2 /* NeonDatabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeonDatabaseService.swift; sourceTree = "<group>"; };
 		8706FA2A7D58717A279526F4 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		3A997D0A6D5F218A754FF804 /* FamilyViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyViewModel.swift; sourceTree = "<group>"; };
@@ -158,6 +168,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BB0000000000000000000004 /* AssistantKit in Frameworks */,
+				BB0000000000000000000005 /* AssistantUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -249,6 +261,7 @@
 			isa = PBXGroup;
 			children = (
 				329F663B6D39EA8A47A5A999 /* GoogleMapsService.swift */,
+				329F663B6D39EA8A47A5B001 /* GoogleCalendarService.swift */,
 				0712DA5983C3011B96A994E7 /* LocationService.swift */,
 				3A2D56146E5338169D0229E2 /* NeonDatabaseService.swift */,
 				8706FA2A7D58717A279526F4 /* NotificationService.swift */,
@@ -297,9 +310,20 @@
 			path = Sheets;
 			sourceTree = "<group>";
 		};
+		BB000000000000000000000E /* Assistant */ = {
+			isa = PBXGroup;
+			children = (
+				BB0000000000000000000006 /* AssistantHouseholdAdapter.swift */,
+				BB0000000000000000000007 /* AssistantHost.swift */,
+						BB0000000000000000000009 /* AssistantSettings.swift */,
+			);
+			path = Assistant;
+			sourceTree = "<group>";
+		};
 		984D844B917CCD4C29DE2A97 /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				BB000000000000000000000E /* Assistant */,
 				CA5E153BF03ED9581A368A7D /* Family */,
 				4FA36380653C63011427E08F /* Go */,
 				4C18CBDF6886F031DD98218C /* Onboarding */,
@@ -441,6 +465,10 @@
 			dependencies = (
 			);
 			name = HeliPad;
+			packageProductDependencies = (
+				BB0000000000000000000002 /* AssistantKit */,
+				BB0000000000000000000003 /* AssistantUI */,
+			);
 			productName = HeliPad;
 			productReference = CDC043AA92AA43F1A5B7CE5A /* HeliPad.app */;
 			productType = "com.apple.product-type.application";
@@ -464,6 +492,9 @@
 				Base,
 			);
 			mainGroup = EFAA4DCD15DF428EB0D0C541;
+			packageReferences = (
+				BB0000000000000000000001 /* XCLocalSwiftPackageReference "../AssistantLab" */,
+			);
 			productRefGroup = 9A4AB5DCFB5E407AB1D1F3A0 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -489,6 +520,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BB000000000000000000000A /* AssistantHouseholdAdapter.swift in Sources */,
+				BB000000000000000000000B /* AssistantHost.swift in Sources */,
+						BB000000000000000000000D /* AssistantSettings.swift in Sources */,
 				BFED4CFE76C92EEE432593F9 /* AppConfig.swift in Sources */,
 				A0D4A2C83FFB32DF299CC068 /* ContentView.swift in Sources */,
 				04DC1DB2DDC35D4FE3406E01 /* HeliPadApp.swift in Sources */,
@@ -554,6 +588,7 @@
 				4C9CF01DA9E02651589A1F59 /* TodayViewModel.swift in Sources */,
 				D8A4126CBBB5E50AAD602B26 /* Ports.swift in Sources */,
 				057353B07A919E0EC3ECC02F /* GoogleMapsService.swift in Sources */,
+				057353B07A919E0EC3ECB001 /* GoogleCalendarService.swift in Sources */,
 				0AA36FB6E684938ED0668278 /* LocationService.swift in Sources */,
 				7677AE166C68C7329477695F /* NeonDatabaseService.swift in Sources */,
 				A89C723B54C348C55C13D866 /* NotificationService.swift in Sources */,
@@ -574,7 +609,9 @@
 				DEVELOPMENT_TEAM = 87Q24PLN3T;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HeliPad/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = HeliPad;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "HeliPad imports events from calendars you select so the family can review and assign them.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "HeliPad uses your location to calculate real-time driving times and departure countdowns.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -625,7 +662,9 @@
 				DEVELOPMENT_TEAM = 87Q24PLN3T;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HeliPad/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = HeliPad;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "HeliPad imports events from calendars you select so the family can review and assign them.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "HeliPad uses your location to calculate real-time driving times and departure countdowns.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -681,6 +720,24 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		BB0000000000000000000001 /* XCLocalSwiftPackageReference "../AssistantLab" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../AssistantLab;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BB0000000000000000000002 /* AssistantKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AssistantKit;
+		};
+		BB0000000000000000000003 /* AssistantUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AssistantUI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = C4A896D211324CA79D77017C /* Project object */;
 }

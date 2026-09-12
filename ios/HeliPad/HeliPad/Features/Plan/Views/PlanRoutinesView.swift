@@ -78,10 +78,10 @@ public struct PlanRoutinesView: View {
 
                 Spacer()
 
-                // Day badges
+                // One badge per configured weekday, not one per materialized row.
                 HStack(spacing: 4) {
-                    ForEach(group.events.map { formatDayShort($0.date) }, id: \.self) { day in
-                        Text(day)
+                    ForEach(group.weekdays, id: \.self) { day in
+                        Text(weekdayLabel(day))
                             .font(HeliTypography.eyebrow(9))
                             .foregroundColor(HeliColors.forestGreen)
                             .padding(.horizontal, 5)
@@ -101,6 +101,10 @@ public struct PlanRoutinesView: View {
             Divider()
                 .background(HeliColors.sageRule)
 
+            Text("\(group.firstDate) – \(group.lastDate) · \(group.events.count) occurrences")
+                .font(HeliTypography.caption(11))
+                .foregroundColor(HeliColors.mutedGray)
+
             // Footer: Current owner + Assign action
             HStack {
                 HStack(spacing: 6) {
@@ -117,7 +121,7 @@ public struct PlanRoutinesView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "square.and.pencil")
                                 .font(.system(size: 10, weight: .bold))
-                            Text("Edit all (\(group.events.count))")
+                            Text("Edit series (\(group.events.count))")
                                 .font(HeliTypography.actionButton(11))
                         }
                         .foregroundColor(HeliColors.forestGreen)
@@ -156,14 +160,8 @@ public struct PlanRoutinesView: View {
         )
     }
 
-    private func formatDayShort(_ dStr: String) -> String {
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd"
-        df.timeZone = TimeZone(secondsFromGMT: 0)
-        guard let d = df.date(from: dStr) else { return dStr }
-        let out = DateFormatter()
-        out.dateFormat = "EEE"
-        out.timeZone = TimeZone(secondsFromGMT: 0)
-        return out.string(from: d)
+    private func weekdayLabel(_ day: Int) -> String {
+        let names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        return names.indices.contains(day) ? names[day] : "?"
     }
 }

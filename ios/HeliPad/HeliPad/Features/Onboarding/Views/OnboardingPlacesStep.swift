@@ -38,7 +38,19 @@ struct OnboardingPlacesStep: View {
             ForEach($draft.places) { $place in
                 OnboardingCardRow(onDelete: { remove(place.id) }) {
                     OnboardingField(label: "Place name", placeholder: "e.g. Oak Ridge Elementary", text: $place.name)
-                    OnboardingField(label: "Address", placeholder: "2140 Schoolhouse Road", text: $place.address)
+                    OnboardingField(label: "Address", placeholder: "2140 Schoolhouse Road", text: Binding(
+                        get: { place.address },
+                        set: { newAddress in
+                            if place.address.caseInsensitiveCompare(newAddress) != .orderedSame {
+                                place.latitude = nil
+                                place.longitude = nil
+                                place.placeId = nil
+                                place.source = "manual"
+                                place.routeKey = nil
+                            }
+                            place.address = newAddress
+                        }
+                    ))
                     Stepper(
                         "Drive from \(draft.homeName): \(place.minutesFromHome) min",
                         value: $place.minutesFromHome,

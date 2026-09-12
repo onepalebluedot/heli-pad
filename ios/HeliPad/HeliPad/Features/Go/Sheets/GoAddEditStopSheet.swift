@@ -9,17 +9,17 @@ public struct GoAddEditStopSheet: View {
     /// Values to open a brand new stop with (the day the caller was looking at,
     /// or a shortcut's template). Ignored when editing an existing stop.
     public var prefill: TaskRecord?
-    /// Every occurrence of the series being edited, so saving keeps each day's
-    /// id and its done/notes state instead of minting fresh rows.
-    public var seriesEvents: [TaskRecord]
     /// Weekdays to open with already ticked — a shortcut carrying its usual days.
     public var preselectedDays: Set<Int>?
-    public var onSave: ([TaskRecord]) -> Void
-    public var onDelete: ((String) -> Void)?
+    public var preselectedWeekCount: Int?
+    public var initialEditScope: RecurrenceEditScope
+    public var onSaved: (() -> Void)?
 
-    @State private var activeField: String? = nil // "what", "who", "where", "when", "driver"
+    @FocusState private var isWhatFocused: Bool
+    @FocusState private var isWhereFocused: Bool
+    @State private var isRepeating: Bool = false
     @State private var title: String = ""
-    @State private var kind: TaskKind = .pickup
+    @State private var kind: TaskKind = .other
     @State private var selectedKids: Set<String> = []
     @State private var location: String = ""
     @State private var customLocation: String = ""
@@ -43,10 +43,18 @@ public struct GoAddEditStopSheet: View {
     @State private var stopDate: Date = Date()
     @State private var dateString: String = ""
     @State private var repeatDays: Set<Int> = [] // 0=Mon ... 6=Sun
+    @State private var repeatMode: RecurrenceMode = .none
+    @State private var recurrenceEndMode: String = "weeks"
+    @State private var recurrenceWeekCount: Int = 20
+    @State private var recurrenceThroughDate: Date = Date()
+    @State private var editScope: RecurrenceEditScope = .occurrence
+    @State private var showDeleteConfirmation = false
+    @State private var showSaveSeriesConfirmation = false
 
     // Shortcut / Template State
     @State private var saveAsTemplate: Bool = false
     @State private var templateCategory: String = "Sports"
+    @State private var saveError: String? = nil
 
     private struct WeekdayOption: Identifiable {
         let id: Int
@@ -68,39 +76,18 @@ public struct GoAddEditStopSheet: View {
         store: AppStore,
         existingStop: TaskRecord? = nil,
         prefill: TaskRecord? = nil,
-        seriesEvents: [TaskRecord] = [],
         preselectedDays: Set<Int>? = nil,
-        onSave: @escaping ([TaskRecord]) -> Void,
-        onDelete: ((String) -> Void)? = nil
+        preselectedWeekCount: Int? = nil,
+        initialEditScope: RecurrenceEditScope = .occurrence,
+        onSaved: (() -> Void)? = nil
     ) {
         self.store = store
         self.existingStop = existingStop
         self.prefill = prefill
-        self.seriesEvents = seriesEvents
         self.preselectedDays = preselectedDays
-        self.onSave = onSave
-        self.onDelete = onDelete
-    }
-
-    // Single-stop convenience initializer
-    public init(
-        store: AppStore,
-        existingStop: TaskRecord? = nil,
-        prefill: TaskRecord? = nil,
-        seriesEvents: [TaskRecord] = [],
-        preselectedDays: Set<Int>? = nil,
-        onSaveSingle: @escaping (TaskRecord) -> Void,
-        onDelete: ((String) -> Void)? = nil
-    ) {
-        self.store = store
-        self.existingStop = existingStop
-        self.prefill = prefill
-        self.seriesEvents = seriesEvents
-        self.preselectedDays = preselectedDays
-        self.onSave = { stops in
-            for s in stops { onSaveSingle(s) }
-        }
-        self.onDelete = onDelete
+        self.preselectedWeekCount = preselectedWeekCount
+        self.initialEditScope = initialEditScope
+        self.onSaved = onSaved
     }
 
     private let presets: [(id: TaskKind, label: String, icon: String, defaultMins: Int, place: String)] = [
@@ -121,53 +108,13 @@ public struct GoAddEditStopSheet: View {
                     // Preview Tone Card
                     previewCard
 
-                    // 5 Field Rows with Accordion Pickers
-                    VStack(spacing: 8) {
-                        fieldRow(
-                            id: "what",
-                            label: "What",
-                            value: computedTitle,
-                            icon: "pencil"
-                        ) {
-                            whatPicker
-                        }
-
-                        fieldRow(
-                            id: "who",
-                            label: "Who",
-                            value: selectedKids.isEmpty ? "No child (Solo)" : selectedKids.sorted().joined(separator: ", "),
-                            icon: "user-round"
-                        ) {
-                            whoPicker
-                        }
-
-                        fieldRow(
-                            id: "where",
-                            label: "Where",
-                            value: location,
-                            subtitle: location.isEmpty ? "" : selectedAddress,
-                            icon: location.isEmpty ? "map-pin" : (location == store.home() ? "house" : "map-pin")
-                        ) {
-                            wherePicker
-                        }
-
-                        fieldRow(
-                            id: "when",
-                            label: "When",
-                            value: whenSummaryValue,
-                            icon: "calendar"
-                        ) {
-                            whenPicker
-                        }
-
-                        fieldRow(
-                            id: "driver",
-                            label: "Driver",
-                            value: driverSummaryValue,
-                            icon: "users"
-                        ) {
-                            driverPicker
-                        }
+                    // 5 Form Sections
+                    VStack(spacing: 12) {
+                        whatSection
+                        whoSection
+                        whereSection
+                        whenSection
+                        driverSection
                     }
 
                     // Shortcut / Template Toggle
@@ -218,17 +165,24 @@ public struct GoAddEditStopSheet: View {
                     }
 
                     // Calendar intent toggle
-                    Toggle("Add to Google Calendar", isOn: $gcal)
+                    Toggle("Request Google Calendar export", isOn: $gcal)
                         .font(HeliTypography.body(13))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .background(HeliColors.cardWarmWhite)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .disabled(!store.isGoogleAuthenticated)
+
+                    if !store.isGoogleAuthenticated {
+                        Text("Connect Google Calendar in Settings or Plan before requesting export. Local saves are never labeled as exported.")
+                            .font(HeliTypography.caption(11))
+                            .foregroundColor(HeliColors.mutedGray)
+                    }
 
                     // Primary Action Button
-                    Button(action: saveStop) {
+                    Button(action: requestSave) {
                         HStack(spacing: 6) {
-                            if repeatDays.count > 1 {
+                            if isRepeating {
                                 Image(systemName: "repeat")
                                     .font(.system(size: 13, weight: .semibold))
                             }
@@ -243,12 +197,15 @@ public struct GoAddEditStopSheet: View {
                     .padding(.top, 6)
 
                     // Destructive Remove Button
-                    if let existing = existingStop, let onDelete = onDelete {
+                    if existingStop != nil {
                         Button(action: {
-                            onDelete(existing.id)
-                            dismiss()
+                            if existingStop?.seriesId != nil && editScope == .series {
+                                showDeleteConfirmation = true
+                            } else {
+                                deleteStop()
+                            }
                         }) {
-                            Text("Remove this stop")
+                            Text(editScope == .series ? "Remove entire series" : "Remove this occurrence")
                                 .font(HeliTypography.body(14))
                                 .foregroundColor(HeliColors.warningClay)
                                 .underline()
@@ -271,20 +228,63 @@ public struct GoAddEditStopSheet: View {
             .onAppear {
                 seedInitialValues()
             }
+            .onChange(of: editScope) { _, scope in
+                guard let existing = existingStop, let seriesId = existing.seriesId else { return }
+                if scope == .occurrence {
+                    dateString = existing.date
+                    stopDate = dateFromString(existing.date)
+                } else {
+                    let start = store.seriesDefinition(id: seriesId)?.pattern.startDate
+                        ?? store.events(inSeries: seriesId).map { $0.originalOccurrenceDate ?? $0.date }.min()
+                        ?? existing.date
+                    dateString = start
+                    stopDate = dateFromString(start)
+                }
+            }
+            .alert("Couldn’t Save Stop", isPresented: Binding(
+                get: { saveError != nil },
+                set: { if !$0 { saveError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(saveError ?? "Please check the stop and try again.")
+            }
+            .confirmationDialog(
+                "Remove the entire recurring series?",
+                isPresented: $showDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Remove all \(seriesDeleteCount) occurrences", role: .destructive) { deleteStop() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This removes \(seriesDeleteCount) total occurrences, including \(seriesHistoricalCount) in the past. This cannot be undone.")
+            }
+            .confirmationDialog(
+                "Save changes to the entire series?",
+                isPresented: $showSaveSeriesConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Update \(previewOccurrenceCount) occurrences") { saveStop() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This updates the finite series and may affect \(seriesHistoricalCount) historical occurrences. Per-occurrence completion, notes, locks, and unchanged mixed assignments are preserved.")
+            }
         }
     }
 
     private var actionButtonTitle: String {
-        if existingStop != nil {
-            return repeatDays.count > 1 ? "Save across \(repeatDays.count) days" : "Save changes"
-        }
-        return repeatDays.count > 1 ? "Add \(repeatDays.count) repeating stops" : "Add stop"
+        if existingStop != nil { return editScope == .series ? "Save entire series" : "Save this occurrence" }
+        if isRepeating { return "Add \(previewOccurrenceCount) repeating stops" }
+        if previewOccurrenceCount > 1 { return "Add \(previewOccurrenceCount) stops this week" }
+        return "Add stop"
     }
 
     private var whenSummaryValue: String {
         let timeStr = "\(TimeFormat.formatTime(startMinutes)) (\(TimeFormat.formatDurationShort(durationMinutes)))"
-        if repeatDays.count > 1 {
-            return "\(repeatDaysSummary) · \(timeStr)"
+        if isRepeating {
+            return "\(repeatDaysSummary) · \(previewOccurrenceCount) stops · \(timeStr)"
+        } else if repeatDays.count > 1 {
+            return "\(repeatDaysSummary) (this week) · \(previewOccurrenceCount) stops · \(timeStr)"
         }
         return "\(formatDayShort(dateString)) · \(timeStr)"
     }
@@ -296,21 +296,20 @@ public struct GoAddEditStopSheet: View {
     }
 
     private var computedTitle: String {
-        if !customTitle.isEmpty { return customTitle }
-        if !title.isEmpty { return title }
-        if selectedKids.count == 1, let single = selectedKids.first {
-            return "\(single) \(kind.rawValue.capitalized)"
-        }
-        return kind.rawValue.capitalized
+        let trimmed = customTitle.trimmingCharacters(in: .whitespaces)
+        if !trimmed.isEmpty { return trimmed }
+        return title
     }
 
     private func seedInitialValues() {
+        editScope = initialEditScope
         if let e = existingStop {
             title = e.title
             customTitle = e.title
             kind = e.kind
             selectedKids = Set(e.kids)
             location = e.location
+            customLocation = e.location
             selectedAddress = e.formattedAddress ?? (store.locations.first(where: { $0.name == e.location })?.address ?? "")
             if let lat = e.latitude, let lng = e.longitude {
                 selectedCoordinate = CLLocationCoordinate2D(latitude: lat, longitude: lng)
@@ -326,14 +325,47 @@ public struct GoAddEditStopSheet: View {
             stopDate = dateFromString(e.date)
             let w = weekdayIndex(for: stopDate)
             repeatDays = [w]
+            if let seriesId = e.seriesId {
+                isRepeating = true
+                repeatMode = .weekly
+                let allSeries = store.events(inSeries: seriesId)
+                if let definition = store.seriesDefinition(id: seriesId) {
+                    if initialEditScope == .series {
+                        dateString = definition.pattern.startDate
+                        stopDate = dateFromString(definition.pattern.startDate)
+                    }
+                    repeatDays = Set(definition.pattern.weekdays)
+                    switch definition.pattern.end {
+                    case .weekCount(let count):
+                        recurrenceEndMode = "weeks"
+                        recurrenceWeekCount = count
+                    case .throughDate(let date):
+                        recurrenceEndMode = "date"
+                        recurrenceThroughDate = dateFromString(date)
+                    }
+                } else {
+                    let originalDates = allSeries.map { $0.originalOccurrenceDate ?? $0.date }
+                    if initialEditScope == .series {
+                        dateString = originalDates.min() ?? e.date
+                        stopDate = dateFromString(dateString)
+                    }
+                    repeatDays = Set(originalDates.map(PlanCore.weekdayIndex))
+                    recurrenceEndMode = "date"
+                    recurrenceThroughDate = dateFromString(originalDates.max() ?? e.date)
+                }
+            } else {
+                isRepeating = false
+                repeatMode = .none
+            }
         } else {
             // Start from whatever the caller handed us — the day they were looking
             // at, or a shortcut's template — and fill the gaps with the defaults.
             let seed = prefill
-            kind = seed?.kind ?? .pickup
+            kind = seed?.kind ?? .other
 
             let seedLocation = (seed?.location ?? "").trimmingCharacters(in: .whitespaces)
             location = seedLocation
+            customLocation = seedLocation
             selectedAddress = seed?.formattedAddress
                 ?? store.locations.first(where: { $0.name == location })?.address
                 ?? ""
@@ -354,6 +386,9 @@ public struct GoAddEditStopSheet: View {
             if !seedTitle.isEmpty {
                 title = seedTitle
                 customTitle = seedTitle
+            } else {
+                title = ""
+                customTitle = ""
             }
 
             let seedOwner = seed?.owner ?? ""
@@ -379,20 +414,21 @@ public struct GoAddEditStopSheet: View {
             dateString = seedDate.isEmpty ? store.dateForDay(store.activeDay) : seedDate
             stopDate = dateFromString(dateString)
             repeatDays = [weekdayIndex(for: stopDate)]
+            isRepeating = false
+            repeatMode = .none
         }
 
         // A shortcut arrives with the days it usually runs on.
         if let usual = preselectedDays, !usual.isEmpty {
             repeatDays = usual
+            let count = preselectedWeekCount ?? 1
+            isRepeating = count > 1
+            repeatMode = isRepeating ? .weekly : (usual.count > 1 ? .weekly : .none)
+            recurrenceWeekCount = count > 1 ? count : 20
         }
 
-        // Editing a whole series: light up every weekday it already runs on.
-        if !seriesEvents.isEmpty {
-            let days = Set(seriesEvents.map { PlanCore.weekdayIndex($0.date) })
-            if !days.isEmpty {
-                repeatDays = days
-            }
-        }
+        let defaultThrough = PlanCore.dateAdd(PlanCore.monday(dateString), recurrenceWeekCount * 7 - 1)
+        if recurrenceEndMode == "weeks" { recurrenceThroughDate = dateFromString(defaultThrough) }
 
         templateCategory = categoryForKind(kind)
     }
@@ -402,7 +438,7 @@ public struct GoAddEditStopSheet: View {
     private var previewCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(computedTitle)
+                Text(computedTitle.isEmpty ? "New stop" : computedTitle)
                     .font(HeliTypography.destTitle(18))
                     .foregroundColor(.white)
                 Spacer()
@@ -419,10 +455,20 @@ public struct GoAddEditStopSheet: View {
                     .font(HeliTypography.railMeta(12))
                     .foregroundColor(Color.white.opacity(0.95))
 
-                if repeatDays.count > 1 {
+                if isRepeating {
                     HStack(spacing: 4) {
                         Image(systemName: "repeat")
                             .font(.system(size: 10, weight: .bold))
+                        Text(repeatDaysSummary)
+                            .font(HeliTypography.eyebrow(9.5))
+                    }
+                    .foregroundColor(HeliColors.greenInk)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(HeliColors.butterYellow)
+                    .clipShape(Capsule())
+                } else if repeatDays.count > 1 {
+                    HStack(spacing: 4) {
                         Text(repeatDaysSummary)
                             .font(HeliTypography.eyebrow(9.5))
                     }
@@ -482,248 +528,197 @@ public struct GoAddEditStopSheet: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    // MARK: - Field Row Template
+    // MARK: - Section Card Template
 
-    private func fieldRow<PickerContent: View>(
-        id: String,
-        label: String,
-        value: String,
-        subtitle: String? = nil,
+    private func sectionCard<Content: View>(
         icon: String,
-        @ViewBuilder picker: @escaping () -> PickerContent
+        label: String,
+        badge: String? = nil,
+        @ViewBuilder content: @escaping () -> Content
     ) -> some View {
-        let isOpen = (activeField == id)
-
-        return VStack(spacing: 0) {
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    activeField = isOpen ? nil : id
-                }
-            }) {
-                HStack(spacing: 12) {
-                    HeliIcon(icon, size: 14)
-                        .foregroundColor(HeliColors.forestGreen)
-                        .frame(width: 20)
-                    Text(label)
-                        .font(HeliTypography.railTitle(13.5))
-                        .foregroundColor(HeliColors.mutedGray)
-                        .frame(width: 50, alignment: .leading)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(value)
-                            .font(HeliTypography.body(13.5))
-                            .foregroundColor(HeliColors.greenInk)
-                            .lineLimit(1)
-                        if let sub = subtitle, !sub.isEmpty, sub != value {
-                            Text(sub)
-                                .font(HeliTypography.caption(11))
-                                .foregroundColor(HeliColors.mutedGray)
-                                .lineLimit(1)
-                        }
-                    }
-                    Spacer()
-                    Image(systemName: isOpen ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(HeliColors.mutedGray)
-                }
-                .padding(.horizontal, 14)
-                .frame(minHeight: (subtitle != nil && !subtitle!.isEmpty) ? 58 : 52)
-                .background(HeliColors.cardWarmWhite)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(isOpen ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 0.8)
-                )
-            }
-
-            if isOpen {
-                VStack(alignment: .leading, spacing: 12) {
-                    picker()
-                }
-                .padding(14)
-                .background(HeliColors.cardWarmWhite.opacity(0.85))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .padding(.top, 4)
-            }
-        }
-    }
-
-    // MARK: - What Picker
-
-    private var whatPicker: some View {
-        VStack(spacing: 10) {
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                ForEach(presets, id: \.id) { preset in
-                    let selected = (kind == preset.id && customTitle.isEmpty)
-                    Button(action: {
-                        kind = preset.id
-                        durationMinutes = preset.defaultMins
-                        location = preset.place
-                        mode = (preset.id == .dinner) ? "Home" : "Drive"
-                        customTitle = ""
-                        templateCategory = categoryForKind(preset.id)
-                    }) {
-                        VStack(spacing: 4) {
-                            HeliIcon(preset.icon, size: 16)
-                            Text(preset.label)
-                                .font(HeliTypography.railMeta(11))
-                        }
-                        .foregroundColor(selected ? HeliColors.forestGreen : HeliColors.greenInk)
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .background(selected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(selected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
-                        )
-                    }
-                }
-            }
-
-            // Custom Title escape hatch
+        VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Text("✎")
+                HeliIcon(icon, size: 14)
+                    .foregroundColor(HeliColors.forestGreen)
+                    .frame(width: 20)
+                Text(label)
+                    .font(HeliTypography.railTitle(13.5))
                     .foregroundColor(HeliColors.mutedGray)
-                TextField("Custom activity name", text: $customTitle)
-                    .font(HeliTypography.body(13.5))
-                    .foregroundColor(HeliColors.greenInk)
-                    .tint(HeliColors.forestGreen)
+                Spacer()
+                if let badge = badge, !badge.isEmpty {
+                    Text(badge)
+                        .font(HeliTypography.caption(11.5))
+                        .foregroundColor(HeliColors.greenInk)
+                        .lineLimit(1)
+                }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(HeliColors.cardWarmWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
+
+            content()
+        }
+        .padding(14)
+        .background(HeliColors.cardWarmWhite)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(HeliColors.sageRule, lineWidth: 0.8)
+        )
+    }
+
+    // MARK: - What Section (Typing First, Presets Below)
+
+    private var whatSection: some View {
+        sectionCard(icon: "pencil", label: "What") {
+            VStack(alignment: .leading, spacing: 10) {
+                // Primary typing field
+                HStack(spacing: 8) {
+                    TextField("What is this stop? (e.g. Pickup, Soccer...)", text: $customTitle)
+                        .font(HeliTypography.body(14))
+                        .foregroundColor(HeliColors.greenInk)
+                        .tint(HeliColors.forestGreen)
+                        .focused($isWhatFocused)
+                        .onChange(of: customTitle) { _, val in
+                            title = val
+                            if let matching = presets.first(where: { $0.label.caseInsensitiveCompare(val.trimmingCharacters(in: .whitespaces)) == .orderedSame }) {
+                                kind = matching.id
+                                templateCategory = categoryForKind(matching.id)
+                            }
+                        }
+
+                    if !customTitle.isEmpty {
+                        Button(action: {
+                            customTitle = ""
+                            title = ""
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(HeliColors.mutedGray)
+                                .font(.system(size: 14))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(HeliColors.canvasIvory)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(isWhatFocused ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: isWhatFocused ? 1.2 : 0.8)
+                )
+
+                // Presets available if the user wants to select one
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("PRESETS")
+                        .font(HeliTypography.eyebrow(9.5))
+                        .foregroundColor(HeliColors.mutedGray)
+                        .tracking(1.0)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(presets, id: \.id) { preset in
+                                let isSelected = !customTitle.isEmpty && (customTitle.caseInsensitiveCompare(preset.label) == .orderedSame)
+                                Button(action: {
+                                    kind = preset.id
+                                    durationMinutes = preset.defaultMins
+                                    if !preset.place.isEmpty {
+                                        location = preset.place
+                                        customLocation = preset.place
+                                    }
+                                    mode = (preset.id == .dinner) ? "Home" : "Drive"
+                                    customTitle = preset.label
+                                    title = preset.label
+                                    templateCategory = categoryForKind(preset.id)
+                                    isWhatFocused = false
+                                }) {
+                                    HStack(spacing: 5) {
+                                        HeliIcon(preset.icon, size: 12)
+                                        Text(preset.label)
+                                            .font(HeliTypography.railMeta(11.5))
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 7)
+                                    .foregroundColor(isSelected ? HeliColors.forestGreen : HeliColors.greenInk)
+                                    .background(isSelected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
+                                    .clipShape(Capsule())
+                                    .overlay(
+                                        Capsule().stroke(isSelected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: isSelected ? 1.2 : 0.8)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
-    // MARK: - Who Picker
+    // MARK: - Who Section (Always Shown Directly)
 
-    private var whoPicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                // No child / Solo option
-                let isSolo = selectedKids.isEmpty
-                Button(action: {
-                    selectedKids.removeAll()
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "person.slash")
-                            .font(.system(size: 11, weight: .semibold))
-                        Text("No child")
-                            .font(HeliTypography.railMeta(12))
-                    }
-                    .padding(.horizontal, 12)
-                    .frame(height: 38)
-                    .foregroundColor(isSolo ? HeliColors.forestGreen : HeliColors.greenInk)
-                    .background(isSolo ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
-                    .clipShape(Capsule())
-                    .overlay(
-                        Capsule().stroke(isSolo ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
-                    )
-                }
-
-                ForEach(store.children(), id: \.self) { child in
-                    let selected = selectedKids.contains(child)
+    private var whoSection: some View {
+        sectionCard(
+            icon: "user-round",
+            label: "Who",
+            badge: selectedKids.isEmpty ? "Solo" : selectedKids.sorted().joined(separator: ", ")
+        ) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    let isSolo = selectedKids.isEmpty
                     Button(action: {
-                        if selectedKids.contains(child) {
-                            selectedKids.remove(child)
-                        } else {
-                            selectedKids.insert(child)
-                        }
+                        selectedKids.removeAll()
                     }) {
                         HStack(spacing: 6) {
-                            AvatarDisc(name: child, size: 20, isKid: true)
-                            Text(child)
+                            Image(systemName: "person.slash")
+                                .font(.system(size: 11, weight: .semibold))
+                            Text("No child")
                                 .font(HeliTypography.railMeta(12))
                         }
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, 12)
                         .frame(height: 38)
-                        .foregroundColor(selected ? HeliColors.forestGreen : HeliColors.greenInk)
-                        .background(selected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
+                        .foregroundColor(isSolo ? HeliColors.forestGreen : HeliColors.greenInk)
+                        .background(isSolo ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
                         .clipShape(Capsule())
                         .overlay(
-                            Capsule().stroke(selected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
+                            Capsule().stroke(isSolo ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
                         )
+                    }
+                    .buttonStyle(.plain)
+
+                    ForEach(store.children(), id: \.self) { child in
+                        let selected = selectedKids.contains(child)
+                        Button(action: {
+                            if selectedKids.contains(child) {
+                                selectedKids.remove(child)
+                            } else {
+                                selectedKids.insert(child)
+                            }
+                        }) {
+                            HStack(spacing: 6) {
+                                AvatarDisc(name: child, size: 20, isKid: true)
+                                Text(child)
+                                    .font(HeliTypography.railMeta(12))
+                            }
+                            .padding(.horizontal, 10)
+                            .frame(height: 38)
+                            .foregroundColor(selected ? HeliColors.forestGreen : HeliColors.greenInk)
+                            .background(selected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
+                            .clipShape(Capsule())
+                            .overlay(
+                                Capsule().stroke(selected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
         }
     }
 
-    // MARK: - Where Picker
+    // MARK: - Where Section (Typing First, Saved Places Presets Below)
 
-    private var wherePicker: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // 1. Saved Household Locations Grid
-            Text("SAVED PLACES")
-                .font(HeliTypography.eyebrow(10))
-                .foregroundColor(HeliColors.mutedGray)
-                .tracking(1.2)
-
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                ForEach(store.locations) { loc in
-                    let selected = (location == loc.name)
-                    Button(action: {
-                        // `onChange` only fires when the search text actually
-                        // changes. Do not leave its suppression flag armed when
-                        // the field is already empty.
-                        isSelectingPrediction = !customLocation.isEmpty
-                        location = loc.name
-                        mode = (loc.name == store.home()) ? "Home" : "Drive"
-                        customLocation = ""
-                        selectedAddress = loc.address
-                        if let lat = loc.latitude, let lng = loc.longitude {
-                            selectedCoordinate = CLLocationCoordinate2D(latitude: lat, longitude: lng)
-                        } else {
-                            selectedCoordinate = nil
-                        }
-                        placePredictions = []
-                    }) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            HStack(spacing: 6) {
-                                HeliIcon(loc.icon ?? "map-pin", size: 12)
-                                    .foregroundColor(selected ? HeliColors.forestGreen : HeliColors.greenInk)
-                                Text(loc.name)
-                                    .font(HeliTypography.railTitle(12))
-                                    .foregroundColor(selected ? HeliColors.forestGreen : HeliColors.greenInk)
-                                    .lineLimit(1)
-                            }
-                            if !loc.address.isEmpty {
-                                Text(loc.address)
-                                    .font(HeliTypography.caption(10.5))
-                                    .foregroundColor(selected ? HeliColors.forestGreen.opacity(0.85) : HeliColors.mutedGray)
-                                    .lineLimit(1)
-                            }
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                        .background(selected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(selected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: selected ? 1.2 : 0.8)
-                        )
-                    }
-                }
-            }
-
-            Divider().background(HeliColors.sageRule)
-
-            // 2. Search Venue / School / Address with Autocomplete
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("SEARCH OR ENTER ADDRESS")
-                        .font(HeliTypography.eyebrow(10))
-                        .foregroundColor(HeliColors.mutedGray)
-                        .tracking(1.2)
-                    Spacer()
-                    if isSearchingPlaces {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                    }
-                }
-
+    private var whereSection: some View {
+        sectionCard(icon: location.isEmpty ? "map-pin" : (location == store.home() ? "house" : "map-pin"), label: "Where") {
+            VStack(alignment: .leading, spacing: 10) {
+                // Primary search / address typing field
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(HeliColors.forestGreen)
@@ -733,6 +728,7 @@ public struct GoAddEditStopSheet: View {
                         .font(HeliTypography.body(13.5))
                         .foregroundColor(HeliColors.greenInk)
                         .tint(HeliColors.forestGreen)
+                        .focused($isWhereFocused)
                         .onChange(of: customLocation) { _, val in
                             if isSelectingPrediction {
                                 isSelectingPrediction = false
@@ -740,13 +736,10 @@ public struct GoAddEditStopSheet: View {
                             }
                             searchTask?.cancel()
                             let query = val.trimmingCharacters(in: .whitespaces)
-                            // The text field is also a valid free-form address
-                            // entry. Keep the value that will be saved in sync
-                            // instead of silently retaining a prefilled place.
                             location = query
                             selectedAddress = query
                             selectedCoordinate = nil
-                            mode = "Drive"
+                            mode = (query.caseInsensitiveCompare(store.home()) == .orderedSame) ? "Home" : "Drive"
                             guard query.count >= 1 else {
                                 placePredictions = []
                                 isSearchingPlaces = false
@@ -771,22 +764,34 @@ public struct GoAddEditStopSheet: View {
                             }
                         }
 
+                    if isSearchingPlaces {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    }
+
                     if !customLocation.isEmpty {
                         Button(action: {
                             customLocation = ""
+                            location = ""
+                            selectedAddress = ""
+                            selectedCoordinate = nil
                             placePredictions = []
                         }) {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundColor(HeliColors.mutedGray)
                                 .font(.system(size: 14))
                         }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
-                .background(HeliColors.cardWarmWhite)
+                .background(HeliColors.canvasIvory)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(isWhereFocused ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: isWhereFocused ? 1.2 : 0.8)
+                )
 
                 // Autocomplete Suggestions List
                 if !placePredictions.isEmpty {
@@ -804,6 +809,7 @@ public struct GoAddEditStopSheet: View {
                                     selectedCoordinate = CLLocationCoordinate2D(latitude: lat, longitude: lng)
                                 }
                                 placePredictions = []
+                                isWhereFocused = false
 
                                 Task {
                                     if let details = try? await GoogleMapsService.shared.fetchPlaceDetails(
@@ -859,7 +865,7 @@ public struct GoAddEditStopSheet: View {
                 }
 
                 // Selected Address Details Badge
-                if !selectedAddress.isEmpty {
+                if !selectedAddress.isEmpty && selectedAddress != location {
                     VStack(alignment: .leading, spacing: 5) {
                         HStack(spacing: 6) {
                             Image(systemName: "mappin.and.ellipse")
@@ -904,162 +910,264 @@ public struct GoAddEditStopSheet: View {
                             .padding(.top, 2)
                     }
                 }
+
+                // Presets: Saved Places
+                if !store.locations.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("SAVED PLACES")
+                            .font(HeliTypography.eyebrow(9.5))
+                            .foregroundColor(HeliColors.mutedGray)
+                            .tracking(1.0)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(store.locations) { loc in
+                                    let isSelected = (location.caseInsensitiveCompare(loc.name) == .orderedSame)
+                                    Button(action: {
+                                        isSelectingPrediction = true
+                                        location = loc.name
+                                        customLocation = loc.name
+                                        mode = (loc.name == store.home()) ? "Home" : "Drive"
+                                        selectedAddress = loc.address
+                                        if let lat = loc.latitude, let lng = loc.longitude {
+                                            selectedCoordinate = CLLocationCoordinate2D(latitude: lat, longitude: lng)
+                                        } else {
+                                            selectedCoordinate = nil
+                                        }
+                                        placePredictions = []
+                                        isWhereFocused = false
+                                    }) {
+                                        HStack(spacing: 5) {
+                                            HeliIcon(loc.icon ?? "map-pin", size: 12)
+                                            Text(loc.name)
+                                                .font(HeliTypography.railMeta(11.5))
+                                        }
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 7)
+                                        .foregroundColor(isSelected ? HeliColors.forestGreen : HeliColors.greenInk)
+                                        .background(isSelected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
+                                        .clipShape(Capsule())
+                                        .overlay(
+                                            Capsule().stroke(isSelected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: isSelected ? 1.2 : 0.8)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
-    // MARK: - When Picker (Date, Recurrence, Time)
+    // MARK: - When Section (Date, Weekdays on as default, Repeat toggle reveals weekly, Time)
 
-    private var whenPicker: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            // 1. Date Selection Row
-            VStack(alignment: .leading, spacing: 6) {
-                Text("DATE")
-                    .font(HeliTypography.eyebrow(10))
-                    .foregroundColor(HeliColors.mutedGray)
-                    .tracking(1.2)
-
-                HStack {
-                    Image(systemName: "calendar")
-                        .foregroundColor(HeliColors.forestGreen)
-                        .font(.system(size: 14))
-
-                    DatePicker(
-                        "",
-                        selection: $stopDate,
-                        displayedComponents: [.date]
-                    )
-                    .datePickerStyle(.compact)
-                    .labelsHidden()
-                    .tint(HeliColors.forestGreen)
-                    .onChange(of: stopDate) { _, newD in
-                        dateString = stringFromDate(newD)
-                        let w = weekdayIndex(for: newD)
-                        if repeatDays.count <= 1 {
-                            repeatDays = [w]
+    private var whenSection: some View {
+        sectionCard(icon: "calendar", label: "When", badge: whenSummaryValue) {
+            VStack(alignment: .leading, spacing: 14) {
+                if existingStop?.seriesId != nil {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("EDIT SCOPE")
+                            .font(HeliTypography.eyebrow(10))
+                            .foregroundColor(HeliColors.mutedGray)
+                        Picker("Edit scope", selection: $editScope) {
+                            Text("This occurrence").tag(RecurrenceEditScope.occurrence)
+                            Text("Entire series").tag(RecurrenceEditScope.series)
                         }
+                        .pickerStyle(.segmented)
                     }
-
-                    Spacer()
-
-                    Text(formatDisplayDate(dateString))
-                        .font(HeliTypography.cardTitle(13))
-                        .foregroundColor(HeliColors.greenInk)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(HeliColors.cardWarmWhite)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
-            }
 
-            // 2. Multi-Day Recurrence
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("REPEAT ON DAYS")
+                // 1. Date Selection Row
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("DATE")
                         .font(HeliTypography.eyebrow(10))
                         .foregroundColor(HeliColors.mutedGray)
                         .tracking(1.2)
-                    Spacer()
-                    if repeatDays.count > 1 {
-                        Text("\(repeatDays.count) days selected")
-                            .font(HeliTypography.caption(10.5))
-                            .foregroundColor(HeliColors.forestGreen)
-                    }
-                }
 
-                HStack(spacing: 5) {
-                    ForEach(weekdays) { day in
-                        let isSelected = repeatDays.contains(day.id)
-                        Button(action: {
-                            if isSelected {
-                                if repeatDays.count > 1 {
-                                    repeatDays.remove(day.id)
-                                }
-                            } else {
-                                repeatDays.insert(day.id)
+                    HStack {
+                        Image(systemName: "calendar")
+                            .foregroundColor(HeliColors.forestGreen)
+                            .font(.system(size: 14))
+
+                        DatePicker(
+                            "",
+                            selection: $stopDate,
+                            displayedComponents: [.date]
+                        )
+                        .datePickerStyle(.compact)
+                        .labelsHidden()
+                        .tint(HeliColors.forestGreen)
+                        .onChange(of: stopDate) { _, newD in
+                            dateString = stringFromDate(newD)
+                            let w = weekdayIndex(for: newD)
+                            if !isRepeating && repeatDays.count <= 1 {
+                                repeatDays = [w]
                             }
-                        }) {
-                            VStack(spacing: 2) {
-                                Text(day.letter)
-                                    .font(HeliTypography.actionButton(12))
-                                Text(day.name)
-                                    .font(.system(size: 8.5, weight: .regular))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
-                            .foregroundColor(isSelected ? HeliColors.cardWarmWhite : HeliColors.greenInk)
-                            .background(isSelected ? HeliColors.forestGreen : HeliColors.cardWarmWhite)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(isSelected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 0.8)
-                            )
                         }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                }
 
-                if repeatDays.count > 1 {
-                    HStack(spacing: 5) {
-                        Image(systemName: "repeat")
-                            .font(.system(size: 11))
-                            .foregroundColor(HeliColors.forestGreen)
-                        Text("Repeats across \(repeatDays.count) days: \(repeatDaysSummary)")
-                            .font(HeliTypography.caption(11))
+                        Spacer()
+
+                        Text(formatDisplayDate(dateString))
+                            .font(HeliTypography.cardTitle(13))
                             .foregroundColor(HeliColors.greenInk)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(HeliColors.forestTint)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(HeliColors.canvasIvory)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
                 }
-            }
 
-            Divider().background(HeliColors.sageRule)
+                // 2. Weekday Selector (On as default)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("DAYS OF WEEK")
+                        .font(HeliTypography.eyebrow(10))
+                        .foregroundColor(HeliColors.mutedGray)
+                        .tracking(1.2)
 
-            // 3. Start Hour & Duration Stepper
-            VStack(alignment: .leading, spacing: 6) {
-                Text("TIME & DURATION")
-                    .font(HeliTypography.eyebrow(10))
-                    .foregroundColor(HeliColors.mutedGray)
-                    .tracking(1.2)
-
-                // One per row: side by side, the stepper controls take a fixed
-                // width and the times get truncated to "3:0..." and "Len...".
-                VStack(spacing: 8) {
-                    Stepper(onIncrement: {
-                        startMinutes = min(23 * 60, startMinutes + 15)
-                    }, onDecrement: {
-                        startMinutes = max(6 * 60, startMinutes - 15)
-                    }) {
-                        stepperLabel("Start", TimeFormat.formatTime(startMinutes))
-                    }
-
-                    Stepper(onIncrement: {
-                        durationMinutes = min(240, durationMinutes + 15)
-                    }, onDecrement: {
-                        durationMinutes = max(10, durationMinutes - 15)
-                    }) {
-                        stepperLabel("Length", TimeFormat.formatDurationShort(durationMinutes))
+                    HStack(spacing: 5) {
+                        ForEach(weekdays) { day in
+                            let isSelected = repeatDays.contains(day.id)
+                            Button(action: {
+                                if isSelected {
+                                    if repeatDays.count > 1 {
+                                        repeatDays.remove(day.id)
+                                    }
+                                } else {
+                                    repeatDays.insert(day.id)
+                                }
+                                if repeatDays.count == 1, let singleDay = repeatDays.first {
+                                    let mon = PlanCore.monday(dateString)
+                                    dateString = PlanCore.dateAdd(mon, singleDay)
+                                    stopDate = dateFromString(dateString)
+                                }
+                            }) {
+                                VStack(spacing: 2) {
+                                    Text(day.letter).font(HeliTypography.actionButton(12))
+                                    Text(day.name).font(.system(size: 8.5))
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 6)
+                                .foregroundColor(isSelected ? HeliColors.cardWarmWhite : HeliColors.greenInk)
+                                .background(isSelected ? HeliColors.forestGreen : HeliColors.cardWarmWhite)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(isSelected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 0.8)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
-            }
 
-            // 4. Hour Presets (7 AM to 8 PM)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    ForEach(7...20, id: \.self) { hour in
-                        let m = hour * 60
-                        let selected = (startMinutes == m)
-                        Button(action: { startMinutes = m }) {
-                            Text("\(hour > 12 ? hour - 12 : hour)\(hour >= 12 ? "p" : "a")")
-                                .font(HeliTypography.railMeta(11))
-                                .padding(.horizontal, 8)
-                                .frame(height: 32)
-                                .foregroundColor(selected ? HeliColors.forestGreen : HeliColors.greenInk)
-                                .background(selected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
-                                .clipShape(Capsule())
+                // 3. Repeat Toggle to reveal weekly recurrence
+                if existingStop?.seriesId == nil || editScope == .series {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle(isOn: $isRepeating.animation(.easeInOut(duration: 0.2))) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "repeat")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(HeliColors.forestGreen)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Repeat")
+                                        .font(HeliTypography.cardTitle(13))
+                                        .foregroundColor(HeliColors.greenInk)
+                                    Text("Repeat this pattern beyond the current week")
+                                        .font(HeliTypography.caption(11))
+                                        .foregroundColor(HeliColors.mutedGray)
+                                }
+                            }
+                        }
+                        .tint(HeliColors.forestGreen)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(HeliColors.canvasIvory)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                        if isRepeating {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Picker("Ends", selection: $recurrenceEndMode) {
+                                    Text("For weeks").tag("weeks")
+                                    Text("Until date").tag("date")
+                                }
+                                .pickerStyle(.segmented)
+
+                                if recurrenceEndMode == "weeks" {
+                                    HStack {
+                                        Button("20 weeks") { recurrenceWeekCount = 20 }
+                                        Button("30 weeks") { recurrenceWeekCount = 30 }
+                                        Spacer()
+                                        Stepper("\(recurrenceWeekCount)", value: $recurrenceWeekCount, in: 2...52)
+                                            .fixedSize()
+                                    }
+                                    Text("For \(recurrenceWeekCount) calendar weeks, including the starting week.")
+                                        .font(HeliTypography.caption(11))
+                                        .foregroundColor(HeliColors.mutedGray)
+                                } else {
+                                    DatePicker("Repeat through", selection: $recurrenceThroughDate, displayedComponents: .date)
+                                        .datePickerStyle(.compact)
+                                }
+
+                                Text(recurrencePreviewSummary)
+                                    .font(HeliTypography.caption(11))
+                                    .foregroundColor(previewOccurrenceCount > 0 ? HeliColors.greenInk : HeliColors.warningText)
+                            }
+                            .padding(.top, 4)
+                        }
+                    }
+                } else {
+                    Text("Only this occurrence will change. Its series schedule and other assignments stay intact.")
+                        .font(HeliTypography.caption(11))
+                        .foregroundColor(HeliColors.mutedGray)
+                }
+
+                Divider().background(HeliColors.sageRule)
+
+                // 4. Start Hour & Duration Stepper
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("TIME & DURATION")
+                        .font(HeliTypography.eyebrow(10))
+                        .foregroundColor(HeliColors.mutedGray)
+                        .tracking(1.2)
+
+                    VStack(spacing: 8) {
+                        Stepper(onIncrement: {
+                            startMinutes = min(23 * 60, startMinutes + 15)
+                        }, onDecrement: {
+                            startMinutes = max(6 * 60, startMinutes - 15)
+                        }) {
+                            stepperLabel("Start", TimeFormat.formatTime(startMinutes))
+                        }
+
+                        Stepper(onIncrement: {
+                            durationMinutes = min(240, durationMinutes + 15)
+                        }, onDecrement: {
+                            durationMinutes = max(10, durationMinutes - 15)
+                        }) {
+                            stepperLabel("Length", TimeFormat.formatDurationShort(durationMinutes))
+                        }
+                    }
+                }
+
+                // 5. Hour Presets (7 AM to 8 PM)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(7...20, id: \.self) { hour in
+                            let m = hour * 60
+                            let selected = (startMinutes == m)
+                            Button(action: { startMinutes = m }) {
+                                Text("\(hour > 12 ? hour - 12 : hour)\(hour >= 12 ? "p" : "a")")
+                                    .font(HeliTypography.railMeta(11))
+                                    .padding(.horizontal, 8)
+                                    .frame(height: 32)
+                                    .foregroundColor(selected ? HeliColors.forestGreen : HeliColors.greenInk)
+                                    .background(selected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -1082,209 +1190,246 @@ public struct GoAddEditStopSheet: View {
         .minimumScaleFactor(0.8)
     }
 
-    // MARK: - Driver Picker
+    // MARK: - Driver Section (Always Shown Directly)
 
-    private var driverPicker: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-            ForEach(store.caregivers(), id: \.self) { name in
-                let selected = (driver == name)
-                Button(action: { driver = name }) {
-                    HStack(spacing: 6) {
-                        AvatarDisc(name: name, size: 20)
-                        Text(name)
-                            .font(HeliTypography.railMeta(12))
+    private var driverSection: some View {
+        sectionCard(icon: "users", label: "Driver", badge: driverSummaryValue) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                ForEach(store.caregivers(), id: \.self) { name in
+                    let selected = (driver == name)
+                    Button(action: { driver = name }) {
+                        HStack(spacing: 6) {
+                            AvatarDisc(name: name, size: 20)
+                            Text(name)
+                                .font(HeliTypography.railMeta(12))
+                        }
+                        .padding(.horizontal, 8)
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .foregroundColor(selected ? HeliColors.forestGreen : HeliColors.greenInk)
+                        .background(selected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(selected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
+                        )
                     }
-                    .padding(.horizontal, 8)
+                    .buttonStyle(.plain)
+                }
+
+                // Family button (All caretakers)
+                let isFamily = (driver == "Family")
+                Button(action: { driver = "Family" }) {
+                    HStack(spacing: 5) {
+                        AvatarDisc(name: "Family", size: 20)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Family")
+                                .font(HeliTypography.railMeta(12))
+                            Text("All caretakers")
+                                .font(.system(size: 8))
+                                .foregroundColor(isFamily ? HeliColors.forestGreen : HeliColors.mutedGray)
+                        }
+                    }
+                    .padding(.horizontal, 6)
                     .frame(maxWidth: .infinity, minHeight: 40)
-                    .foregroundColor(selected ? HeliColors.forestGreen : HeliColors.greenInk)
-                    .background(selected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
+                    .foregroundColor(isFamily ? HeliColors.forestGreen : HeliColors.greenInk)
+                    .background(isFamily ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(selected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
+                            .stroke(isFamily ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
                     )
                 }
-            }
+                .buttonStyle(.plain)
 
-            // Family button (All caretakers)
-            let isFamily = (driver == "Family")
-            Button(action: { driver = "Family" }) {
-                HStack(spacing: 5) {
-                    AvatarDisc(name: "Family", size: 20)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Family")
-                            .font(HeliTypography.railMeta(12))
-                        Text("All caretakers")
-                            .font(.system(size: 8))
-                            .foregroundColor(isFamily ? HeliColors.forestGreen : HeliColors.mutedGray)
+                // TBD button
+                let isTBD = (driver == "TBD")
+                Button(action: { driver = "TBD" }) {
+                    HStack(spacing: 6) {
+                        AvatarDisc(name: "TBD", size: 20)
+                        Text("Needs driver")
+                            .font(HeliTypography.railMeta(11.5))
                     }
+                    .padding(.horizontal, 8)
+                    .frame(maxWidth: .infinity, minHeight: 40)
+                    .foregroundColor(isTBD ? HeliColors.tbd.text : HeliColors.greenInk)
+                    .background(isTBD ? HeliColors.tbd.bg : HeliColors.cardWarmWhite)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(isTBD ? HeliColors.tbd.ink : HeliColors.sageRule, lineWidth: 1)
+                    )
                 }
-                .padding(.horizontal, 6)
-                .frame(maxWidth: .infinity, minHeight: 40)
-                .foregroundColor(isFamily ? HeliColors.forestGreen : HeliColors.greenInk)
-                .background(isFamily ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(isFamily ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
-                )
-            }
-
-            // TBD button
-            let isTBD = (driver == "TBD")
-            Button(action: { driver = "TBD" }) {
-                HStack(spacing: 6) {
-                    AvatarDisc(name: "TBD", size: 20)
-                    Text("Needs driver")
-                        .font(HeliTypography.railMeta(11.5))
-                }
-                .padding(.horizontal, 8)
-                .frame(maxWidth: .infinity, minHeight: 40)
-                .foregroundColor(isTBD ? HeliColors.tbd.text : HeliColors.greenInk)
-                .background(isTBD ? HeliColors.tbd.bg : HeliColors.cardWarmWhite)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(isTBD ? HeliColors.tbd.ink : HeliColors.sageRule, lineWidth: 1)
-                )
+                .buttonStyle(.plain)
             }
         }
     }
 
     // MARK: - Save Action
 
+    private func requestSave() {
+        if existingStop?.seriesId != nil && editScope == .series {
+            showSaveSeriesConfirmation = true
+        } else {
+            saveStop()
+        }
+    }
+
     private func saveStop() {
-        let finalTitle = computedTitle
+        let finalTitle = computedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !finalTitle.isEmpty else {
+            saveError = "Give this event a name."
+            return
+        }
         let startStr = String(format: "%02d:%02d", startMinutes / 60, startMinutes % 60)
         let endMinutes = startMinutes + durationMinutes
         let endStr = String(format: "%02d:%02d", endMinutes / 60, endMinutes % 60)
+        let recurrence = recurrencePattern
+        let isSeries = isRepeating || repeatDays.count > 1
+        let draft = TaskRecord(
+            id: existingStop?.id ?? "ev-\(UUID().uuidString)",
+            date: recurrence.startDate,
+            time: startStr,
+            endTime: endStr,
+            title: finalTitle,
+            owner: driver,
+            lead: driver,
+            kids: Array(selectedKids).sorted(),
+            kid: selectedKids.sorted().joined(separator: ", "),
+            location: location,
+            mode: mode,
+            kind: kind,
+            gcal: gcal,
+            allDay: false,
+            seriesId: existingStop?.seriesId,
+            latitude: selectedCoordinate?.latitude ?? existingStop?.latitude,
+            longitude: selectedCoordinate?.longitude ?? existingStop?.longitude,
+            formattedAddress: selectedAddress.isEmpty ? existingStop?.formattedAddress : selectedAddress
+        )
 
-        // 1. Save as Shortcut / Template if enabled
-        if saveAsTemplate {
-            let tmpl = TemplateItem(
-                id: "tmpl-\(UUID().uuidString.prefix(8))",
-                title: finalTitle,
-                time: startStr,
-                endTime: endStr,
-                kids: Array(selectedKids),
-                kid: selectedKids.sorted().joined(separator: ", "),
-                owner: driver,
-                location: location.isEmpty ? store.home() : location,
-                mode: mode,
-                duration: durationMinutes,
-                notes: nil,
-                category: templateCategory
+        do {
+            // Validate before any secondary durable mutation such as adding a
+            // saved place or shortcut.
+            _ = try PlanCore.occurrences(
+                draft,
+                recurrence: (existingStop?.seriesId != nil && editScope == .occurrence)
+                    ? RecurrencePattern(mode: .none, startDate: draft.date, timeZone: store.timeZone)
+                    : recurrence,
+                seriesId: existingStop?.seriesId
             )
-            var allTemplates = store.templates
-            if !allTemplates.contains(where: { $0.title.lowercased() == tmpl.title.lowercased() }) {
-                allTemplates.append(tmpl)
-                store.templates = allTemplates
-            }
-        }
 
-        // 1.5 Save to household places if selected
-        if saveToHouseholdPlaces && !location.isEmpty {
-            if !store.locations.contains(where: { $0.name.lowercased() == location.lowercased() }) {
-                let newLoc = LocationItem(
-                    name: location,
-                    address: selectedAddress.isEmpty ? location : selectedAddress,
-                    icon: "map-pin",
-                    latitude: selectedCoordinate?.latitude,
-                    longitude: selectedCoordinate?.longitude
+            if saveToHouseholdPlaces && !location.isEmpty,
+               !store.locations.contains(where: { $0.name.caseInsensitiveCompare(location) == .orderedSame }) {
+                try store.updateLocation(
+                    index: store.locations.endIndex,
+                    data: LocationItem(
+                        name: location,
+                        address: selectedAddress.isEmpty ? location : selectedAddress,
+                        icon: "map-pin",
+                        latitude: selectedCoordinate?.latitude,
+                        longitude: selectedCoordinate?.longitude
+                    )
                 )
-                var allLocs = store.locations
-                allLocs.append(newLoc)
-                store.locations = allLocs
-                store.save()
             }
-        }
 
-        // 2. Build Stops (Single or Multi-Day Recurring)
-        if repeatDays.count <= 1 {
-            // Narrowing a series down to one weekday should land on the weekday
-            // that is still selected, not on whichever day the sheet opened at.
-            var resolvedDate = dateString.isEmpty ? store.dateForDay(store.activeDay) : dateString
-            if let onlyDay = repeatDays.first {
-                let openedOn = PlanCore.weekdayIndex(resolvedDate)
-                if onlyDay != openedOn {
-                    let mondayStr = PlanCore.dateAdd(resolvedDate, -openedOn)
-                    resolvedDate = PlanCore.dateAdd(mondayStr, onlyDay)
+            let savedRecords = try store.saveEvent(
+                draft: draft,
+                recurrence: recurrence,
+                scope: existingStop == nil ? (isSeries ? .series : .occurrence) : editScope,
+                sourceOccurrenceID: existingStop?.id
+            )
+
+            if (gcal || existingStop?.gcal == true || existingStop?.calendarId?.hasPrefix("google|") == true) && store.isGoogleAuthenticated {
+                Task {
+                    for rec in savedRecords {
+                        try? await store.exportEventToGoogleCalendar(rec)
+                    }
                 }
             }
-            let stop = TaskRecord(
-                id: existingStop?.id ?? UUID().uuidString,
-                date: resolvedDate,
-                time: startStr,
-                endTime: endStr,
-                title: finalTitle,
-                owner: driver,
-                lead: driver,
-                kids: Array(selectedKids),
-                kid: selectedKids.sorted().joined(separator: ", "),
-                location: location,
-                mode: mode,
-                kind: kind,
-                done: existingStop?.done ?? false,
-                tentative: existingStop?.tentative ?? false,
-                locked: existingStop?.locked ?? false,
-                gcal: gcal,
-                notes: existingStop?.notes ?? "",
-                allDay: false,
-                latitude: selectedCoordinate?.latitude ?? existingStop?.latitude,
-                longitude: selectedCoordinate?.longitude ?? existingStop?.longitude,
-                formattedAddress: selectedAddress.isEmpty ? existingStop?.formattedAddress : selectedAddress
-            )
-            onSave([stop])
-        } else {
-            // Synchronized series across selected weekdays
-            let seriesId = existingStop?.seriesId
-                ?? seriesEvents.first?.seriesId
-                ?? "series-\(UUID().uuidString.prefix(8))"
-            let currentWeekday = weekdayIndex(for: stopDate)
-            let mondayStr = PlanCore.dateAdd(dateString, -currentWeekday)
 
-            // Occurrences we already have, by day, so a re-save edits them in
-            // place rather than replacing them with fresh ids.
-            var priorByDate: [String: TaskRecord] = [:]
-            for e in seriesEvents { priorByDate[e.date] = e }
-            if let existing = existingStop { priorByDate[existing.date] = existing }
-
-            var stopsToSave: [TaskRecord] = []
-            for dayIdx in repeatDays.sorted() {
-                let occurrenceDate = PlanCore.dateAdd(mondayStr, dayIdx)
-                let prior = priorByDate[occurrenceDate]
-                let stopId = prior?.id ?? "ev-\(UUID().uuidString.prefix(8))"
-
-                let stop = TaskRecord(
-                    id: stopId,
-                    date: occurrenceDate,
+            if saveAsTemplate {
+                let tmpl = TemplateItem(
+                    id: "tmpl-\(UUID().uuidString.prefix(8))",
+                    title: finalTitle,
                     time: startStr,
                     endTime: endStr,
-                    title: finalTitle,
-                    owner: driver,
-                    lead: driver,
-                    kids: Array(selectedKids),
+                    kids: Array(selectedKids).sorted(),
                     kid: selectedKids.sorted().joined(separator: ", "),
-                    location: location,
+                    owner: driver,
+                    location: location.isEmpty ? store.home() : location,
                     mode: mode,
-                    kind: kind,
-                    done: prior?.done ?? false,
-                    tentative: prior?.tentative ?? false,
-                    locked: prior?.locked ?? false,
-                    gcal: gcal,
-                    notes: prior?.notes ?? existingStop?.notes ?? "",
-                    allDay: false,
-                    seriesId: seriesId,
-                    latitude: selectedCoordinate?.latitude ?? prior?.latitude ?? existingStop?.latitude,
-                    longitude: selectedCoordinate?.longitude ?? prior?.longitude ?? existingStop?.longitude,
-                    formattedAddress: selectedAddress.isEmpty ? (prior?.formattedAddress ?? existingStop?.formattedAddress) : selectedAddress
+                    duration: durationMinutes,
+                    category: templateCategory,
+                    weekdays: isSeries ? repeatDays.sorted() : nil,
+                    recurrenceWeekCount: isRepeating && recurrenceEndMode == "weeks" ? recurrenceWeekCount : nil
                 )
-                stopsToSave.append(stop)
+                if !store.templates.contains(where: { $0.title.caseInsensitiveCompare(tmpl.title) == .orderedSame }) {
+                    store.upsertTemplate(tmpl)
+                }
             }
-            onSave(stopsToSave)
+            onSaved?()
+            dismiss()
+        } catch {
+            saveError = error.localizedDescription
         }
+    }
 
+    private func deleteStop() {
+        guard let existingStop else { return }
+        store.deleteEvent(id: existingStop.id, scope: editScope)
+        onSaved?()
         dismiss()
+    }
+
+    private var recurrencePattern: RecurrencePattern {
+        let isWeekly = isRepeating || repeatDays.count > 1
+        let weekCount = isRepeating ? recurrenceWeekCount : 1
+        let mon = PlanCore.monday(dateString.isEmpty ? store.dateForDay(store.activeDay) : dateString)
+        let minDay = repeatDays.min() ?? PlanCore.weekdayIndex(dateString)
+        let patternStartDate = isWeekly ? PlanCore.dateAdd(mon, minDay) : (dateString.isEmpty ? store.dateForDay(store.activeDay) : dateString)
+
+        return RecurrencePattern(
+            mode: isWeekly ? .weekly : .none,
+            startDate: patternStartDate,
+            timeZone: store.timeZone,
+            weekdays: repeatDays.sorted(),
+            end: (isRepeating && recurrenceEndMode == "date")
+                ? .throughDate(stringFromDate(recurrenceThroughDate))
+                : .weekCount(weekCount)
+        )
+    }
+
+    private var previewOccurrences: [TaskRecord] {
+        var preview = existingStop ?? TaskRecord(id: "preview")
+        preview.date = recurrencePattern.startDate
+        preview.time = String(format: "%02d:%02d", startMinutes / 60, startMinutes % 60)
+        preview.endTime = String(format: "%02d:%02d", (startMinutes + durationMinutes) / 60, (startMinutes + durationMinutes) % 60)
+        preview.title = computedTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Preview" : computedTitle
+        return (try? PlanCore.occurrences(preview, recurrence: recurrencePattern, seriesId: existingStop?.seriesId ?? "preview")) ?? []
+    }
+
+    private var previewOccurrenceCount: Int {
+        if isRepeating || repeatDays.count > 1 {
+            return previewOccurrences.count
+        }
+        return 1
+    }
+
+    private var recurrencePreviewSummary: String {
+        let rows = previewOccurrences
+        guard let first = rows.first, let last = rows.last else {
+            return "No occurrences in this range. Choose a later end or another weekday."
+        }
+        return "\(rows.count) occurrence\(rows.count == 1 ? "" : "s") · \(first.date) through \(last.date)"
+    }
+
+    private var seriesDeleteCount: Int {
+        guard let id = existingStop?.seriesId else { return existingStop == nil ? 0 : 1 }
+        return store.events(inSeries: id).count
+    }
+
+    private var seriesHistoricalCount: Int {
+        guard let id = existingStop?.seriesId else { return 0 }
+        return store.events(inSeries: id).filter { $0.date < PlanCore.currentDeviceDate() }.count
     }
 
     // MARK: - Date & Formatting Helpers

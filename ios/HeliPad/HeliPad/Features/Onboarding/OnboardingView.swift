@@ -153,6 +153,7 @@ public struct OnboardingView: View {
         case .you: return draft.youStepIsComplete
         case .home: return draft.homeStepIsComplete
         case .kids: return draft.kidsStepIsComplete
+        case .activities: return draft.activitiesValidationError == nil
         default: return true
         }
     }

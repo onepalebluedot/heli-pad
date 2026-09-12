@@ -9,6 +9,7 @@ swiftc -O -parse-as-library \
   HeliPad/HeliPad/App/AppConfig.swift \
   HeliPad/HeliPad/Core/Theme/*.swift \
   HeliPad/HeliPad/Features/Go/GoViewModel.swift \
+  HeliPad/HeliPad/Features/Plan/PlanViewModel.swift \
   HeliPad/HeliPad/Features/Family/FamilyViewModel.swift \
   Tests/ProductionRegressionTests.swift \
   -o "$output_dir/production-tests"

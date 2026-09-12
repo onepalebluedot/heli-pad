@@ -15,6 +15,7 @@ public struct FamilyTemplateSheet: View {
     @State private var owner: String = "TBD"
     @State private var notes: String = ""
     @State private var repeatDays: Set<Int> = []
+    @State private var recurrenceWeekCount: Int = 20
 
     private struct WeekdayOption: Identifiable {
         let id: Int
@@ -290,9 +291,19 @@ public struct FamilyTemplateSheet: View {
 
                 Text(repeatDays.isEmpty
                      ? "No set days — you'll pick the day when you use it."
-                     : "Loads onto \(repeatSummary) when you tap it in Plan.")
+                     : "Loads onto \(repeatSummary) for \(recurrenceWeekCount) calendar weeks when used.")
                     .font(HeliTypography.caption(11))
                     .foregroundColor(HeliColors.mutedGray)
+
+                if !repeatDays.isEmpty {
+                    HStack {
+                        Button("20 weeks") { recurrenceWeekCount = 20 }
+                        Button("30 weeks") { recurrenceWeekCount = 30 }
+                        Spacer()
+                        Stepper("\(recurrenceWeekCount)", value: $recurrenceWeekCount, in: 1...52)
+                            .fixedSize()
+                    }
+                }
             }
 
             Divider().background(HeliColors.sageRule)
@@ -466,6 +477,7 @@ public struct FamilyTemplateSheet: View {
             owner = t.owner
             notes = t.notes ?? ""
             repeatDays = t.repeatDays
+            recurrenceWeekCount = t.recurrenceWeekCount ?? 1
         } else {
             location = store.locations.first?.name ?? "Home"
         }
@@ -485,23 +497,16 @@ public struct FamilyTemplateSheet: View {
             duration: duration,
             notes: notes.isEmpty ? nil : notes,
             category: category,
-            weekdays: repeatDays.isEmpty ? nil : repeatDays.sorted()
+            weekdays: repeatDays.isEmpty ? nil : repeatDays.sorted(),
+            recurrenceWeekCount: repeatDays.isEmpty ? nil : recurrenceWeekCount
         )
 
-        var all = store.templates
-        if let idx = all.firstIndex(where: { $0.id == item.id }) {
-            all[idx] = item
-        } else {
-            all.append(item)
-        }
-        store.templates = all
-        store.save()
+        store.upsertTemplate(item)
     }
 
     private func deleteTemplate() {
         if let t = template {
-            store.templates.removeAll { $0.id == t.id }
-            store.save()
+            store.removeTemplate(id: t.id)
         }
     }
 }

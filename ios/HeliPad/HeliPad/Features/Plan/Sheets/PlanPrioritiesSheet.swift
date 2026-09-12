@@ -3,15 +3,18 @@ import SwiftUI
 public struct PlanPrioritiesSheet: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject public var store: AppStore
+    public var week: String
 
     @State private var dinnerProtected: Bool = true
     @State private var dinnerTime: String = "18:00"
     @State private var bufferMinutes: Int = 10
     @State private var peakTraffic: Bool = true
     @State private var notes: String = ""
+    @State private var errorMessage: String? = nil
 
-    public init(store: AppStore) {
+    public init(store: AppStore, week: String = PlanCore.currentMonday()) {
         self.store = store
+        self.week = week
     }
 
     public var body: some View {
@@ -60,8 +63,7 @@ public struct PlanPrioritiesSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        saveSettings()
-                        dismiss()
+                        if saveSettings() { dismiss() }
                     }
                     .font(HeliTypography.actionButton(14))
                     .foregroundColor(HeliColors.forestGreen)
@@ -70,30 +72,40 @@ public struct PlanPrioritiesSheet: View {
             .onAppear {
                 loadCurrentSettings()
             }
+            .alert("Couldn’t Save Planning Rules", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "Please check the values and try again.")
+            }
         }
     }
 
     private func loadCurrentSettings() {
-        if let buf = store.settings["bufferMinutes"] as? Int {
-            bufferMinutes = buf
-        }
-        if let peak = store.settings["peakTraffic"] as? Bool {
-            peakTraffic = peak
-        }
-        if let dTime = store.settings["dinnerTime"] as? String {
-            dinnerTime = dTime
-        }
-        if let dProt = store.settings["dinnerProtected"] as? Bool {
-            dinnerProtected = dProt
-        }
+        let rules = store.planningRules(for: week)
+        bufferMinutes = store.buffer
+        peakTraffic = store.trafficMode
+        dinnerTime = rules.time
+        dinnerProtected = rules.enabled
+        notes = store.weeklyPlanningNotes(for: week)
     }
 
-    private func saveSettings() {
-        var s = store.settings
-        s["bufferMinutes"] = bufferMinutes
-        s["peakTraffic"] = peakTraffic
-        s["dinnerTime"] = dinnerTime
-        s["dinnerProtected"] = dinnerProtected
-        store.settings = s
+    private func saveSettings() -> Bool {
+        do {
+            try store.updatePlanningRules(
+                for: week,
+                dinnerProtected: dinnerProtected,
+                dinnerTime: dinnerTime,
+                bufferMinutes: bufferMinutes,
+                peakTraffic: peakTraffic,
+                notes: notes
+            )
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
     }
 }

@@ -7,12 +7,26 @@ public struct GoViewData {
     public var listIsToday: Bool
     public var now: Int
     public var plan: [AnalyzedEvent]
-    public var drivers: [String: Int]
+    public var drivers: [String: DriverLoad]
     public var mine: [AnalyzedEvent]
     public var listed: [AnalyzedEvent]
     public var hidden: Int
     public var live: Int
     public var looseEnds: Int
+    public var restingState: GoRestingState
+}
+
+public struct DriverLoad: Hashable {
+    public var assignedStops: Int = 0
+    public var knownRoutes: Int = 0
+    public var unknownRoutes: Int = 0
+    public var minutes: Int = 0
+}
+
+public enum GoRestingState: Hashable {
+    case empty
+    case complete
+    case outstanding(Int)
 }
 
 public class GoViewModel: ObservableObject {
@@ -37,7 +51,7 @@ public class GoViewModel: ObservableObject {
         var routes: [String: [String: Int]]
         var locations: [LocationItem]
     }
-    private var analysisCache: [Int: (key: AnalysisKey, events: [AnalyzedEvent], loads: [String: Int])] = [:]
+    private var analysisCache: [Int: (key: AnalysisKey, events: [AnalyzedEvent], loads: [String: DriverLoad])] = [:]
     // Internal diagnostic used by regression tests to detect unwanted recomputation.
     private(set) var analysisPassCount = 0
 
@@ -75,7 +89,7 @@ public class GoViewModel: ObservableObject {
         clockTask = nil
     }
 
-    private func analysis(day: Int, store: AppStore, options: PlanningOptions) -> (events: [AnalyzedEvent], loads: [String: Int]) {
+    private func analysis(day: Int, store: AppStore, options: PlanningOptions) -> (events: [AnalyzedEvent], loads: [String: DriverLoad]) {
         let events = store.eventsByDay[day] ?? []
         let key = AnalysisKey(events: events, crew: options.crew, home: options.home,
                               origins: options.origins, buffer: options.buffer, priorities: options.priorities,
@@ -83,9 +97,15 @@ public class GoViewModel: ObservableObject {
                               routes: store.routes, locations: store.locations)
         if let cached = analysisCache[day], cached.key == key { return (cached.events, cached.loads) }
         let analyzed = PlanCore.analyze(events, options)
-        var loads = Dictionary(uniqueKeysWithValues: options.crew.map { ($0, 0) })
+        var loads = Dictionary(uniqueKeysWithValues: options.crew.map { ($0, DriverLoad()) })
         for item in analyzed where loads[item.event.owner] != nil && PlanCore.needsTravel(item.event) {
-            loads[item.event.owner, default: 0] += item.detail.eta ?? 0
+            loads[item.event.owner]!.assignedStops += 1
+            if let eta = item.detail.eta {
+                loads[item.event.owner]!.knownRoutes += 1
+                loads[item.event.owner]!.minutes += eta
+            } else {
+                loads[item.event.owner]!.unknownRoutes += 1
+            }
         }
         analysisPassCount += 1
         analysisCache[day] = (key, analyzed, loads)
@@ -105,13 +125,13 @@ public class GoViewModel: ObservableObject {
         let todayAnalyzed = todayAnalysis.events
         let listAnalyzed = listAnalysis.events
 
-        // Scope filter for hero dial: my profile, not allDay
+        // Scope filter for hero dial and resting-state truthfulness.
         let currentUser = store.currentUser
-        let mine = todayAnalyzed.filter { analyzed in
-            if analyzed.event.allDay { return false }
+        let scopedToday = todayAnalyzed.filter { analyzed in
             if currentUser == "All" { return true }
             return analyzed.event.owner == currentUser || analyzed.event.owner == "Family" || analyzed.event.owner == "TBD"
         }
+        let mine = scopedToday.filter { !$0.event.allDay }
 
         // Scope filter for timeline rail: chosen day, chosen crew, chosen kid
         let who = store.goCrewFilter ?? currentUser
@@ -130,17 +150,20 @@ public class GoViewModel: ObservableObject {
         }
         let hidden = listAnalyzed.count - listed.count
 
-        // Stale threshold is 20 minutes past start
-        let staleThreshold = 20
+        // Unfinished work remains actionable even after its start or end time.
         let liveIndex = mine.firstIndex { analyzed in
-            let start = PlanCore.mins(analyzed.event.time)
-            return !analyzed.event.done && now < (start + staleThreshold)
+            !analyzed.event.done
         } ?? -1
 
         let looseEnds = mine.filter { analyzed in
-            let start = PlanCore.mins(analyzed.event.time)
-            return !analyzed.event.done && now >= (start + staleThreshold)
+            !analyzed.event.done && now >= PlanCore.end(analyzed.event)
         }.count
+
+        let unfinishedCount = scopedToday.filter { !$0.event.done }.count
+        let restingState: GoRestingState
+        if scopedToday.isEmpty { restingState = .empty }
+        else if unfinishedCount == 0 { restingState = .complete }
+        else { restingState = .outstanding(unfinishedCount) }
 
         let drivers = listAnalysis.loads
 
@@ -155,7 +178,8 @@ public class GoViewModel: ObservableObject {
             listed: listed,
             hidden: hidden,
             live: liveIndex,
-            looseEnds: looseEnds
+            looseEnds: looseEnds,
+            restingState: restingState
         )
     }
 
