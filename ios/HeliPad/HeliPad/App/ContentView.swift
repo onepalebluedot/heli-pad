@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import AssistantUI
 
 public enum MainTab: String, CaseIterable, Identifiable {
@@ -25,6 +26,7 @@ public struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var store = AppStore.shared
     @State private var selectedTab: MainTab = .go
+    @State private var isKeyboardVisible = false
     /// One route, so two sheets can never race each other (N01). The previous
     /// pair of booleans could both be true at once.
     @State private var route: PresentedRoute?
@@ -66,6 +68,10 @@ public struct ContentView: View {
 
             // Custom Floating Bottom Navigation Bar
             bottomNavBar
+                .opacity(isKeyboardVisible ? 0 : 1)
+                .offset(y: isKeyboardVisible ? 120 : 0)
+                .animation(.easeInOut(duration: 0.2), value: isKeyboardVisible)
+                .allowsHitTesting(!isKeyboardVisible)
         }
         .onChange(of: route) { previous, current in
             // Settings can change the service URL or token, so the engine is
@@ -125,6 +131,14 @@ public struct ContentView: View {
         .fullScreenCover(isPresented: $store.showOnboarding) {
             OnboardingView(store: store)
         }
+        #if os(iOS)
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            isKeyboardVisible = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            isKeyboardVisible = false
+        }
+        #endif
     }
 
     // MARK: - Top Bar
@@ -174,6 +188,14 @@ public struct ContentView: View {
         .padding(.top, 4)
         .padding(.bottom, 6)
         .background(HeliColors.canvasIvory)
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                #if os(iOS)
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                #endif
+            }
+        )
     }
 
     // MARK: - Bottom Navigation

@@ -1,5 +1,12 @@
 import SwiftUI
+import Combine
 import AssistantKit
+
+#if os(iOS)
+func dismissKeyboard() {
+    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+}
+#endif
 
 /// The assistant surface.
 ///
@@ -22,15 +29,7 @@ public struct AssistantChatView: View {
     private let onOpenEvent: (String, String) -> Void
     private let onDismiss: () -> Void
 
-    @FocusState private var composerFocused: Bool
     @State private var showsClearConfirmation = false
-    /// The unsent draft. Deliberately view-local: as `@Published` state on the
-    /// model it re-rendered every message and card on each keystroke.
-    @State private var draft = ""
-
-    private var canSend: Bool {
-        model.isIdle && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
 
     public init(
         model: AssistantChatModel,
@@ -107,6 +106,14 @@ public struct AssistantChatView: View {
         .padding(.horizontal, 16)
         .padding(.top, 2)
         .padding(.bottom, 4)
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                #if os(iOS)
+                dismissKeyboard()
+                #endif
+            }
+        )
     }
 
     private var sheetBody: some View {
@@ -208,7 +215,7 @@ public struct AssistantChatView: View {
         VStack(spacing: 0) {
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 18) {
                         if model.messages.isEmpty { emptyState }
                         ForEach(model.messages) { message in
                             messageView(message).id(message.id)
@@ -219,13 +226,28 @@ public struct AssistantChatView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: model.messages.count) { _, _ in scroll(proxy) }
                 .onChange(of: model.isWorking) { _, _ in scroll(proxy) }
             }
+            .contentShape(Rectangle())
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    #if os(iOS)
+                    dismissKeyboard()
+                    #endif
+                }
+            )
 
-            composer
+            ChatComposerView(
+                isWorking: model.isWorking,
+                isEmbedded: isEmbedded,
+                bottomInset: bottomInset,
+                onSend: { model.send($0) },
+                onCancel: { model.cancel() }
+            )
         }
     }
 
@@ -317,7 +339,28 @@ public struct AssistantChatView: View {
         .overlay(Capsule(style: .continuous).stroke(HeliColors.sageRule.opacity(0.7), lineWidth: 0.8))
     }
 
-    private var composer: some View {
+}
+
+/// The chat input bar, isolated into its own view so typing keystrokes
+/// do not invalidate AssistantChatView or re-render the conversation transcript.
+struct ChatComposerView: View {
+    let isWorking: Bool
+    let isEmbedded: Bool
+    let bottomInset: CGFloat
+    let onSend: (String) -> Void
+    let onCancel: () -> Void
+
+    @State private var draft = ""
+    @FocusState private var composerFocused: Bool
+    @State private var isKeyboardVisible = false
+
+    private var canSend: Bool {
+        !isWorking && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var sendEnabled: Bool { isWorking || canSend }
+
+    var body: some View {
         VStack(spacing: 0) {
             Rectangle()
                 .fill(HeliColors.sageRule.opacity(0.8))
@@ -343,35 +386,63 @@ public struct AssistantChatView: View {
                     .onSubmit { submit() }
 
                 Button {
-                    if model.isWorking { model.cancel() } else { submit() }
+                    if isWorking { onCancel() } else { submit() }
                 } label: {
                     ZStack {
                         Circle()
                             .fill(sendEnabled ? HeliColors.forestGreen : HeliColors.sageRule)
                             .frame(width: 38, height: 38)
-                        HeliIcon(name: model.isWorking ? "stop" : "arrow-up", size: 14, weight: .bold)
+                        HeliIcon(name: isWorking ? "stop" : "arrow-up", size: 14, weight: .bold)
                             .foregroundStyle(HeliColors.cardWarmWhite)
                     }
                 }
                 .disabled(!sendEnabled)
-                .accessibilityLabel(model.isWorking ? "Stop" : "Send")
+                .accessibilityLabel(isWorking ? "Stop" : "Send")
+
+                if composerFocused || isKeyboardVisible {
+                    Button {
+                        composerFocused = false
+                        #if os(iOS)
+                        dismissKeyboard()
+                        #endif
+                    } label: {
+                        Image(systemName: "keyboard.chevron.compact.down")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(HeliColors.mutedGray)
+                            .frame(width: 38, height: 38)
+                            .background(HeliColors.cardWarmWhite)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(HeliColors.sageRule, lineWidth: 1))
+                    }
+                    .accessibilityLabel("Dismiss keyboard")
+                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)
-            // Clears the host's floating tab bar, which the content scrolls
-            // underneath.
-            .padding(.bottom, isEmbedded ? bottomInset : 8)
+            // When focused or keyboard is up, only standard compact padding is needed;
+            // when unfocused and embedded, apply bottomInset to clear the floating tab bar.
+            .padding(.bottom, isEmbedded ? ((composerFocused || isKeyboardVisible) ? 8 : bottomInset) : 8)
             .background(HeliColors.canvasIvory)
         }
+        #if os(iOS)
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            isKeyboardVisible = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            isKeyboardVisible = false
+        }
+        #endif
     }
-
-    private var sendEnabled: Bool { model.isWorking || canSend }
 
     private func submit() {
         let outgoing = draft
         guard !outgoing.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         draft = ""
-        model.send(outgoing)
+        composerFocused = false
+        #if os(iOS)
+        dismissKeyboard()
+        #endif
+        onSend(outgoing)
     }
 }
 

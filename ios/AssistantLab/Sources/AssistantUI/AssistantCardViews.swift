@@ -46,7 +46,7 @@ public struct AssistantCardView: View {
                             .padding(.horizontal, 16)
                             .padding(.vertical, 14)
                     }
-                    ForEach(Array(c.rows.enumerated()), id: \.element.id) { index, row in
+                    ForEach(Array(c.rows.enumerated()), id: \.offset) { index, row in
                         if index > 0 { rule }
                         EventRowView(row: row, onOpen: onOpenEvent)
                     }
@@ -208,7 +208,7 @@ public struct AssistantCardView: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 12)
 
-                    ForEach(Array(c.rows.prefix(4).enumerated()), id: \.element.id) { index, row in
+                    ForEach(Array(c.rows.prefix(4).enumerated()), id: \.offset) { index, row in
                         if index == 0 { rule }
                         EventRowView(row: row, onOpen: onOpenEvent)
                         if index < min(3, c.rows.count - 1) { rule }
@@ -335,6 +335,7 @@ struct EventRowView: View {
                 Spacer(minLength: 6)
                 OwnerChip(label: row.ownerLabel, isUnassigned: row.isUnassigned)
             }
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 16)
             .padding(.vertical, 11)
             .contentShape(Rectangle())
@@ -463,7 +464,7 @@ struct ProposalCardView: View {
                     .fill(HeliColors.sageRule.opacity(0.55))
                     .frame(height: 0.8)
 
-                ForEach(Array(visibleRows.enumerated()), id: \.element.id) { index, row in
+                ForEach(Array(visibleRows.enumerated()), id: \.offset) { index, row in
                     if index > 0 {
                         Rectangle()
                             .fill(HeliColors.sageRule.opacity(0.55))
