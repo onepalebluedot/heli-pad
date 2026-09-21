@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import AssistantKit
 import AssistantUI
 
 public enum MainTab: String, CaseIterable, Identifiable {
@@ -7,6 +8,7 @@ public enum MainTab: String, CaseIterable, Identifiable {
     case plan = "Plan"
     case assistant = "Assistant"
     case family = "Family"
+    case lists = "Lists"
 
     public var id: String { rawValue }
 
@@ -18,6 +20,9 @@ public enum MainTab: String, CaseIterable, Identifiable {
         // composition used on a 56pt button would turn to mush.
         case .assistant: return "bubble.left.fill"
         case .family: return "person.2.fill"
+        // A checklist, which says "things to get through" rather than the
+        // document glyph that reads as a file browser.
+        case .lists: return "checklist"
         }
     }
 }
@@ -31,15 +36,32 @@ public struct ContentView: View {
     /// pair of booleans could both be true at once.
     @State private var route: PresentedRoute?
     @StateObject private var assistant = AssistantHost(store: AppStore.shared)
+    /// Lists keeps its screen, drafts, expanded sections and scroll anchors here
+    /// rather than inside the destination, because the switch below builds a
+    /// fresh view every time someone changes tab.
+    @StateObject private var listsPresentation = ListsPresentation()
 
     /// Presentation actions, as distinct from the three destinations. These do
     /// not change `selectedTab`, so dismissing one returns to the same screen,
     /// week, filter and scroll position.
-    enum PresentedRoute: String, Identifiable, Equatable {
+    struct AssistantDraftEdit: Identifiable, Equatable {
+        var proposalID: String
+        var event: AssistantEvent
+        var id: String { "\(proposalID):\(event.id)" }
+    }
+
+    enum PresentedRoute: Identifiable, Equatable {
         case settings
         case profilePicker
+        case assistantDraft(AssistantDraftEdit)
 
-        var id: String { rawValue }
+        var id: String {
+            switch self {
+            case .settings: return "settings"
+            case .profilePicker: return "profile-picker"
+            case .assistantDraft(let draft): return "assistant-draft:\(draft.id)"
+            }
+        }
     }
 
     public init() {}
@@ -58,7 +80,9 @@ public struct ContentView: View {
                     case .assistant:
                         assistantDestination
                     case .family:
-                        FamilyView(store: store)
+                        FamilyView(store: store, assistant: assistant)
+                    case .lists:
+                        ListsView(appStore: store, presentation: listsPresentation)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -88,12 +112,42 @@ public struct ContentView: View {
                 SettingsView(store: store)
             case .profilePicker:
                 profilePickerSheet
+            case .assistantDraft(let edit):
+                GoAddEditStopSheet(
+                    store: store,
+                    prefill: AssistantHouseholdAdapter.toRecord(edit.event),
+                    onDraftSaved: { draft in
+                        guard let chat = assistant.chat else { throw ProposalEditError.unavailable }
+                        try await chat.updatePendingProposalEvent(
+                            proposalID: edit.proposalID,
+                            event: AssistantHouseholdAdapter.toAssistant(draft)
+                        )
+                    }
+                )
             }
         }
         .onChange(of: selectedTab) { _, tab in
             // Built on first visit, and rebuilt if the caregiver or household
             // changed since last time.
             if tab == .assistant { assistant.prepare() }
+        }
+        // Restart independently when visibility or cloud settings change,
+        // including enabling sync from Settings while Lists is already open.
+        .task(id: "\(scenePhase == .active && (selectedTab == .lists || selectedTab == .assistant))|\(store.cloudHouseholdID)|\(store.neonSyncEnabled)|\(store.neonConnectionString.hashValue)") {
+            store.lists.stopVisibleSync()
+            // Chat can now create list items too. Keep its pending changes
+            // retrying while the assistant is visible, even if Lists is closed.
+            if scenePhase == .active && (selectedTab == .lists || selectedTab == .assistant) {
+                listsPresentation.bind(householdID: store.lists.archive.householdID)
+                await store.lists.sync()
+                guard !Task.isCancelled else { return }
+                store.lists.startVisibleSync()
+            }
+        }
+        .onChange(of: store.lists.archive.householdID) { _, household in
+            // A different household is a different set of lists, and a different
+            // half-typed grocery item.
+            listsPresentation.bind(householdID: household)
         }
         .onChange(of: store.currentUser) { _, _ in
             // Switching caregiver drops the conversation, the engine's context
@@ -109,9 +163,16 @@ public struct ContentView: View {
                 // then keep watching for as long as we are on screen.
                 await store.liveSyncTick()
                 store.startLiveSync()
+                if store.isGoogleAuthenticated && store.connections["google"] == true {
+                    Task {
+                        _ = try? await store.syncGoogleCalendar()
+                    }
+                }
             } else {
                 LocationService.shared.stopUpdating()
                 store.stopLiveSync()
+                // Polling stops with the app; nothing wakes up in the background.
+                store.lists.stopVisibleSync()
             }
         }
         .onReceive(LocationService.shared.$currentLocation) { location in
@@ -212,9 +273,9 @@ public struct ContentView: View {
         .frame(height: 60)
         .padding(.horizontal, 8)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 26))
+        .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(
-            RoundedRectangle(cornerRadius: 26)
+            RoundedRectangle(cornerRadius: 18)
                 .stroke(HeliColors.sageRule, lineWidth: 0.8)
         )
         .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 4)
@@ -275,6 +336,22 @@ public struct ContentView: View {
                           (0...6).contains(day) else { return }
                     store.activeDay = day
                     selectedTab = .plan
+                },
+                onEditProposedEvent: { proposalID, eventID, date in
+                    Task {
+                        guard let chat = assistant.chat,
+                              let event = await chat.proposedEvent(
+                                proposalID: proposalID,
+                                eventID: eventID
+                              ) else {
+                            guard let day = PlanCore.dayOffset(from: store.weekStart, to: date),
+                                  (0...6).contains(day) else { return }
+                            store.activeDay = day
+                            selectedTab = .plan
+                            return
+                        }
+                        route = .assistantDraft(.init(proposalID: proposalID, event: event))
+                    }
                 }
             )
         } else {
@@ -308,7 +385,7 @@ public struct ContentView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(HeliColors.forestTint)
-                .clipShape(Capsule())
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .padding(.top, 2)
         }
@@ -358,8 +435,8 @@ public struct ContentView: View {
                             }
                             .padding(14)
                             .background(HeliColors.cardWarmWhite)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(store.currentUser == p.name ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: store.currentUser == p.name ? 1.5 : 0.8))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(store.currentUser == p.name ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: store.currentUser == p.name ? 1.5 : 0.8))
                         }
                     }
                 }

@@ -80,8 +80,8 @@ public struct FamilyRosterView: View {
             }
             .padding(16)
             .background(HeliColors.cardWarmWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(HeliColors.sageRule, lineWidth: 0.8))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
             .padding(.horizontal, 16)
         }
     }
@@ -122,8 +122,8 @@ public struct FamilyRosterView: View {
         }
         .padding(14)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(HeliColors.sageRule, lineWidth: 0.8))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
     }
 
     private func ruleRow(icon: String, title: String, value: String) -> some View {

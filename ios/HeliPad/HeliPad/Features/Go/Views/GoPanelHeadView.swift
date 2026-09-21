@@ -42,7 +42,7 @@ public struct GoPanelHeadView: View {
                         .foregroundColor(store.goPanel == "rail" ? HeliColors.forestGreen : HeliColors.mutedGray)
                         .padding(6)
                         .background(store.goPanel == "rail" ? HeliColors.activeNavTab : Color.clear)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 }
 
                 Button(action: {
@@ -54,14 +54,14 @@ public struct GoPanelHeadView: View {
                         .foregroundColor(store.goPanel == "load" ? HeliColors.forestGreen : HeliColors.mutedGray)
                         .padding(6)
                         .background(store.goPanel == "load" ? HeliColors.activeNavTab : Color.clear)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 }
             }
             .padding(2)
             .background(HeliColors.cardWarmWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .stroke(HeliColors.sageRule, lineWidth: 0.8)
             )
         }

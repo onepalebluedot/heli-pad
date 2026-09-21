@@ -192,7 +192,7 @@ public struct GoDialCardView: View {
                     }
                 }
             )
-            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .shadow(color: cardBg.opacity(0.25), radius: 10, x: 0, y: 5)
         )
     }
@@ -222,7 +222,7 @@ public struct GoDialCardView: View {
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(HeliColors.toneForest)
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private var restingTitle: String {
@@ -353,7 +353,7 @@ public struct GoDialCardView: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 50)
                         .background(Color.white.opacity(0.2))
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
             } else if e.owner == "TBD" {
                 Button(action: onEdit) {
@@ -362,7 +362,7 @@ public struct GoDialCardView: View {
                         .foregroundColor(HeliColors.greenInk)
                         .frame(maxWidth: .infinity, minHeight: 50)
                         .background(Color(hex: "#e8e4c9"))
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
             } else if noTravel {
                 Button(action: onToggleDone) {
@@ -375,7 +375,7 @@ public struct GoDialCardView: View {
                     .foregroundColor(HeliColors.greenInk)
                     .frame(maxWidth: .infinity, minHeight: 50)
                     .background(Color(hex: "#e8e4c9"))
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
             } else {
                 Button(action: onDirections) {
@@ -389,7 +389,7 @@ public struct GoDialCardView: View {
                     .foregroundColor(HeliColors.greenInk)
                     .frame(maxWidth: .infinity, minHeight: 50)
                     .background(Color(hex: "#e8e4c9"))
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
 
                 Button(action: onToggleDone) {
@@ -398,7 +398,7 @@ public struct GoDialCardView: View {
                         .foregroundColor(.white)
                         .frame(width: 56, height: 50)
                         .background(Color(hex: "#345f4e"))
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
             }
         }

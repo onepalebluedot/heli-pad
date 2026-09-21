@@ -10,6 +10,7 @@ import Foundation
 public enum AssistantCard: Hashable, Sendable, Identifiable, Codable {
     case summary(SummaryCard)
     case eventList(EventListCard)
+    case householdList(HouseholdListCard)
     case people(PeopleCard)
     case places(PlacesCard)
     case proposal(ProposalCard)
@@ -24,6 +25,7 @@ public enum AssistantCard: Hashable, Sendable, Identifiable, Codable {
         switch self {
         case .summary(let c): return "summary:\(c.id)"
         case .eventList(let c): return "events:\(c.id)"
+        case .householdList(let c): return "list:\(c.id)"
         case .people(let c): return "people:\(c.id)"
         case .places(let c): return "places:\(c.id)"
         case .proposal(let c): return "proposal:\(c.proposalID)"
@@ -34,6 +36,15 @@ public enum AssistantCard: Hashable, Sendable, Identifiable, Codable {
         case .receipt(let c): return "receipt:\(c.id)"
         case .failure(let c): return "failure:\(c.id)"
         }
+    }
+}
+
+public struct HouseholdListCard: Hashable, Sendable, Codable {
+    public var id: String = UUID().uuidString
+    public var list: AssistantHouseholdList
+    public var omittedCount: Int
+    public init(list: AssistantHouseholdList, omittedCount: Int = 0) {
+        self.list = list; self.omittedCount = omittedCount
     }
 }
 

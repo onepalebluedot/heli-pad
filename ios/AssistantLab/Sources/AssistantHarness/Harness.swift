@@ -9,6 +9,7 @@ import AssistantDevRelay
 ///     swift run AssistantHarness --repl     type your own messages
 ///     swift run AssistantHarness --attacks  the refusal and isolation cases
 ///     swift run AssistantHarness --live     answer with a real model (needs a key)
+///     swift run AssistantHarness --suggest  the shortcut-suggestion pass (add --live)
 ///
 /// It runs the real engine against the mock household, so what prints is what
 /// the SwiftUI sheet would draw. `--live` swaps only the model; every other
@@ -31,7 +32,16 @@ struct Harness {
             lab = Lab()
         }
 
-        if arguments.contains("--repl") {
+        if arguments.contains("--suggest") {
+            let client: LunaClient
+            if arguments.contains("--live") {
+                client = (try? DirectOpenAIClient.fromEnvironment()) ?? ScriptedLunaClient()
+            } else {
+                client = ScriptedLunaClient()
+            }
+            await lab.suggestions(client: client)
+            await lab.weakSuggestions(client: client)
+        } else if arguments.contains("--repl") {
             await lab.repl()
         } else if arguments.contains("--attacks") {
             await lab.attacks()

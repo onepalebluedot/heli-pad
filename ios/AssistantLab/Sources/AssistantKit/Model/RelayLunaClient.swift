@@ -56,6 +56,6 @@ public struct RelayLunaClient: LunaClient {
             throw LunaError.service(status: http.statusCode, detail: "relay returned \(http.statusCode)")
         }
 
-        return try ResponsesWire.parse(data)
+        return try ResponsesWire.parse(data, kind: request.kind)
     }
 }

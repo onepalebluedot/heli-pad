@@ -73,8 +73,8 @@ public struct FamilyPlacesView: View {
             }
             .padding(16)
             .background(HeliColors.cardWarmWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(HeliColors.sageRule, lineWidth: 0.8))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
             .padding(.horizontal, 16)
 
             // Saved Locations List
@@ -134,8 +134,8 @@ public struct FamilyPlacesView: View {
             }
             .padding(12)
             .background(HeliColors.cardWarmWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(HeliColors.sageRule, lineWidth: 0.8))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
         }
         .buttonStyle(PlainButtonStyle())
     }

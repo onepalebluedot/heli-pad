@@ -42,17 +42,24 @@ public enum HeliColors {
     public static let highlightGold = Color(hex: "#ffd36b") // strictly reserved for now & started
     public static let activeNavTab = Color(hex: "#e7eedf")
 
+    // Tile fills. Both are deep enough that white text on them stays readable,
+    // and they are the two colours Lists uses for its two lists.
+    /// The To-dos tile.
+    public static let tileForest = Color(hex: "#235746")
+    /// The Groceries tile.
+    public static let harvestGold = Color(hex: "#9a6420")
+
     // Card Tones
     public static let toneForest = Color(hex: "#235746")
     public static let toneOlive = Color(hex: "#55532e")
     public static let toneClay = Color(hex: "#814d3c")
 
     // Ring Gradient Pairs [deep, bright]
-    public static let ringLater = (deep: Color(hex: "#7cae5f"), bright: Color(hex: "#caeaa4"))
-    public static let ringOntrack = (deep: Color(hex: "#7cae5f"), bright: Color(hex: "#caeaa4"))
-    public static let ringSoon = (deep: Color(hex: "#cfa250"), bright: Color(hex: "#f7dc9a"))
-    public static let ringNow = (deep: Color(hex: "#e39d33"), bright: Color(hex: "#ffd36b"))
-    public static let ringStarted = (deep: Color(hex: "#e39d33"), bright: Color(hex: "#ffd36b"))
+    public static let ringLater = (deep: Color(hex: "#a3e635"), bright: Color(hex: "#ffd866"))
+    public static let ringOntrack = (deep: Color(hex: "#a3e635"), bright: Color(hex: "#ffd866"))
+    public static let ringSoon = (deep: Color(hex: "#ffd866"), bright: Color(hex: "#f59e0b"))
+    public static let ringNow = (deep: Color(hex: "#f97316"), bright: Color(hex: "#ef4444"))
+    public static let ringStarted = (deep: Color(hex: "#f97316"), bright: Color(hex: "#ef4444"))
     public static let ringClear = (deep: Color(hex: "#7cae5f"), bright: Color(hex: "#caeaa4"))
 
     // Caregivers (Background, Text, and Ink)
@@ -166,5 +173,4 @@ public enum HeliColors {
         return categoryColor(for: category)
     }
 }
-
 

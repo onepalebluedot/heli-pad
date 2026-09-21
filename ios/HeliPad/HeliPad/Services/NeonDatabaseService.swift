@@ -119,10 +119,9 @@ public class NeonDatabaseService: HouseholdCloudService {
             request.setValue("Bearer \(config.passwordOrToken)", forHTTPHeaderField: "Authorization")
         }
 
-        var bodyDict: [String: Any] = ["query": query]
-        if !params.isEmpty {
-            bodyDict["params"] = params
-        }
+        // Match the official driver's explicit params array, including schema
+        // setup and connection checks with no parameters.
+        let bodyDict: [String: Any] = ["query": query, "params": params]
 
         request.httpBody = try JSONSerialization.data(withJSONObject: bodyDict)
 
@@ -139,8 +138,7 @@ public class NeonDatabaseService: HouseholdCloudService {
         }
 
         if httpRes.statusCode != 200 {
-            // Server error bodies can include SQL or connection details.
-            throw NeonError.serverError(httpRes.statusCode, "Request failed. Check your personal connection and database permissions.")
+            throw NeonError.serverError(httpRes.statusCode, Self.safeServerError(data))
         }
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
@@ -152,7 +150,30 @@ public class NeonDatabaseService: HouseholdCloudService {
             return rows
         }
 
-        return []
+        // Never interpret an unexpected shape as an empty cloud document.
+        throw NeonError.decodingError("The server returned an unsupported row format. Your local changes have been kept.")
+    }
+
+    /// Only allowlisted SQLSTATE codes are displayed. Raw server messages can
+    /// contain connection secrets, SQL, or household content.
+    static func safeServerError(_ data: Data) -> String {
+        let body = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        switch body?["code"] as? String {
+        case "28P01", "28000":
+            return "The database rejected the connection credentials. Update your personal connection in Settings."
+        case "42501":
+            return "This database user lacks permission to access or create the sync tables. Check database permissions."
+        case "42P01":
+            return "A required sync table is missing. Retry sync to set it up."
+        case "42703":
+            return "The sync table has an incompatible schema. The database needs a schema update."
+        case "3D000":
+            return "The database in your connection URL does not exist. Check your personal connection in Settings."
+        case "53300", "57P03":
+            return "The database is temporarily unavailable. Your changes are saved here; retry shortly."
+        default:
+            return "Request failed. Check your personal connection and database permissions. Your local changes have been kept."
+        }
     }
 
     // MARK: - Operations

@@ -62,6 +62,10 @@ public class AppStore: ObservableObject {
     @Published public private(set) var syncError: String?
     @Published public private(set) var notificationScheduleError: String?
     @Published public private(set) var syncPending: Bool = false
+    /// Bumped by every save. A cheap signal that household content changed,
+    /// for views that need to recompute derived state without rebuilding the
+    /// record list on each render.
+    @Published public private(set) var contentRevision: Int = 0
     private var syncMetadata = HouseholdSyncMetadata()
     /// Stamp covering the household-wide settings block. Records carry their
     /// own; the loose settings need one shared stamp to be mergeable at all.
@@ -77,6 +81,7 @@ public class AppStore: ObservableObject {
     @Published public var lastNeonSyncDate: Date? = nil
     @Published public var liveWeather: LiveWeather = LiveWeather(temperature: 78, tempLow: 58, tempHigh: 78, condition: "Sunny", icon: "sun", label: "Sunny · 58°–78°")
     @Published public var realTimeDeviceEta: Int? = nil
+    private var isSyncingGoogle: Bool = false
 
     // MARK: - Setup
     @Published public var hasCompletedOnboarding: Bool = false
@@ -147,6 +152,12 @@ public class AppStore: ObservableObject {
     public var routes: [String: [String: Int]]
     private var draftProviders: [() -> TaskRecord?] = []
 
+    /// Lists own their document, their revision and their sync channel. Owned
+    /// here so one `AppStore` is still the app's single entry point, but nothing
+    /// in the schedule path reaches them: checking off a grocery item must not
+    /// reconcile the week, restamp the household or rebuild reminders.
+    public let lists: HouseholdListsStore
+
     public init(
         people: [Person] = SeedData.defaultPeople,
         locations: [LocationItem] = SeedData.defaultLocations,
@@ -170,6 +181,7 @@ public class AppStore: ObservableObject {
         routes: [String: [String: Int]] = SeedData.routeMatrix,
         defaultLocations: [LocationItem]? = nil,
         cloudService: HouseholdCloudService = NeonDatabaseService.shared,
+        listsCloud: HouseholdListsCloudService = NeonListsCloudService(),
         secretStore: IntegrationSecretStore = KeychainIntegrationSecrets(),
         googleCalendarService: GoogleCalendarProtocol = GoogleCalendarService.shared,
         schedulesNotifications: Bool = true,
@@ -177,6 +189,7 @@ public class AppStore: ObservableObject {
     ) {
         self.schedulesNotifications = schedulesNotifications
         self.cloudService = cloudService
+        self.lists = HouseholdListsStore(cloud: listsCloud)
         self.secretStore = secretStore
         self.googleCalendarService = googleCalendarService
         self.isGoogleAuthenticated = googleCalendarService.isAuthenticated()
@@ -689,9 +702,14 @@ public class AppStore: ObservableObject {
         prepareSyncIdentity()
         stampLocalChanges()
         syncMetadata.localRevision += 1
+        contentRevision &+= 1
         syncPending = true
         persist()
         refreshDepartureReminders()
+        // An edit here usually starts an exchange: the other phone sees it and
+        // answers. Come back to the short poll so that reply is not sitting
+        // upstream for half a minute.
+        quickenLiveSync()
         if syncToCloud && neonSyncEnabled && !neonConnectionString.isEmpty {
             Task { @MainActor in
                 do { try await self.syncWithNeon() } catch { self.syncError = error.localizedDescription }
@@ -801,6 +819,10 @@ public class AppStore: ObservableObject {
         showOnboarding = !hasCompletedOnboarding
         syncPending = syncMetadata.localRevision != syncMetadata.uploadedRevision
         persistenceEnabled = true
+        // Now that this phone knows which household it is, and where that
+        // household's lists live, load them. A household that has never used
+        // Lists gets its two defaults and nothing else.
+        lists.attach(to: self)
         // Re-encode immediately to remove legacy plaintext credentials. Never
         // import the previously bundled database password into Keychain.
         HeliPersistence.save(snapshot(), to: defaults)
@@ -993,7 +1015,8 @@ public class AppStore: ObservableObject {
 
     private func prepareSyncIdentity() {
         let fingerprint = SHA256.hash(data: Data(neonConnectionString.utf8)).map { String(format: "%02x", $0) }.joined()
-        if syncMetadata.connectionFingerprint != fingerprint || syncMetadata.householdID != cloudHouseholdID {
+        let householdChanged = syncMetadata.householdID != cloudHouseholdID
+        if syncMetadata.connectionFingerprint != fingerprint || householdChanged {
             // Point at the new household, but keep this device's identity and
             // logical clock: rewinding either would make its next edit look
             // older than edits the other phone has already seen.
@@ -1006,6 +1029,11 @@ public class AppStore: ObservableObject {
             syncMetadata.localRevision = 1
             syncPending = true
         }
+        // Lists are stored per household, so switching household loads the new
+        // one's document and leaves the old one's where it is. Without this the
+        // phone would still be holding — and could upload — the lists of the
+        // household it just left.
+        if householdChanged { lists.reload() }
     }
 
     @MainActor
@@ -1124,25 +1152,75 @@ public class AppStore: ObservableObject {
 
     // MARK: - Live sync
 
-    /// How often an open app asks whether the household has moved on. Neon is
-    /// reached over plain HTTP with no push channel, so the other phone's edit
-    /// lands within one of these rather than instantly.
-    public static let liveSyncInterval: TimeInterval = 4
+    /// How often an open app asks whether the household has moved on while
+    /// something is actually happening. Neon is reached over plain HTTP with no
+    /// push channel, so the other phone's edit lands within one of these rather
+    /// than instantly.
+    public static let liveSyncInterval: TimeInterval = 2
+
+    /// Where the poll settles once nothing has changed for a while. The common
+    /// case is a phone lying open on the kitchen counter, and holding the
+    /// active rate there would ask eighteen hundred times an hour for an answer
+    /// that is almost always "no" — paid for in battery, in cellular data, and,
+    /// because the database never sees a quiet five minutes, in a Neon compute
+    /// that can never suspend. Settling here costs a hundred and twenty.
+    public static let liveSyncIdleInterval: TimeInterval = 30
+
+    /// How sharply the poll slows across quiet ticks. From the active interval
+    /// the gap passes twenty seconds after about forty of them and reaches the
+    /// idle interval at roughly a minute, so two phones stay responsive to each
+    /// other for the length of an actual exchange and then stand down.
+    private static let liveSyncBackoff: Double = 1.5
 
     private var liveSyncTask: Task<Void, Never>?
+    /// The gap the loop is currently aiming for, between the two intervals above.
+    private var liveSyncDelay: TimeInterval = AppStore.liveSyncInterval
+
+    /// The gap the poll is currently aiming for. Readable so the pacing itself
+    /// can be asserted on without waiting out real seconds in a test.
+    var liveSyncGap: TimeInterval { liveSyncDelay }
+
+    /// What a tick found, which is what decides how soon the next one runs.
+    enum LiveSyncOutcome: Equatable {
+        /// Something moved — either upstream, or here and waiting to go up.
+        case changed
+        /// Asked, and the household is where we left it.
+        case quiet
+        /// Nothing to ask: sync is off, unconfigured, or setup is incomplete.
+        case dormant
+    }
+
+    /// Brings the poll back to its fastest gap. Called when something has just
+    /// happened and the other phone is likely to answer.
+    private func quickenLiveSync() {
+        liveSyncDelay = Self.liveSyncInterval
+    }
 
     /// Starts watching the cloud household while the app is on screen. Each tick
     /// asks only for the revision, and pulls the household itself when that
     /// revision has actually moved — a full pull every few seconds would be a
     /// lot of traffic to learn that nothing happened.
+    ///
+    /// The gap between ticks widens while nothing is happening and snaps back
+    /// the moment something does, so two people editing the same evening still
+    /// see each other within seconds without the idle case paying for it.
     @MainActor
     public func startLiveSync() {
         guard liveSyncTask == nil else { return }
+        quickenLiveSync()
         liveSyncTask = Task { @MainActor [weak self] in
+            // The loop wakes on the short interval but only reaches the network
+            // once enough of them add up to the current gap. A bare sleep of
+            // `liveSyncDelay` would hold a phone at thirty seconds even after
+            // an edit had just asked for two.
+            var waited: TimeInterval = 0
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: UInt64(Self.liveSyncInterval * 1_000_000_000))
                 if Task.isCancelled { return }
                 guard let self else { return }
+                waited += Self.liveSyncInterval
+                guard waited >= self.liveSyncDelay else { continue }
+                waited = 0
                 await self.liveSyncTick()
             }
         }
@@ -1152,28 +1230,52 @@ public class AppStore: ObservableObject {
     public func stopLiveSync() {
         liveSyncTask?.cancel()
         liveSyncTask = nil
+        liveSyncDelay = Self.liveSyncInterval
+    }
+
+    @discardableResult
+    @MainActor
+    func liveSyncTick() async -> LiveSyncOutcome {
+        let outcome = await performLiveSyncTick()
+        switch outcome {
+        case .changed:
+            quickenLiveSync()
+        case .quiet:
+            liveSyncDelay = min(liveSyncDelay * Self.liveSyncBackoff, Self.liveSyncIdleInterval)
+        case .dormant:
+            // Nothing to poll for. Go straight to the slow gap rather than
+            // creeping there, so a household with sync switched off is not
+            // waking the loop every couple of seconds for no reason.
+            liveSyncDelay = Self.liveSyncIdleInterval
+        }
+        return outcome
     }
 
     @MainActor
-    func liveSyncTick() async {
-        guard hasCompletedOnboarding, neonSyncEnabled, !neonConnectionString.isEmpty else { return }
+    private func performLiveSyncTick() async -> LiveSyncOutcome {
+        guard hasCompletedOnboarding, neonSyncEnabled, !neonConnectionString.isEmpty else { return .dormant }
         // Never race the sync already running; it will publish what we have.
-        guard syncTask == nil else { return }
+        // Something is plainly in flight, so stay at the short gap.
+        guard syncTask == nil else { return .changed }
         do {
             if !syncPending {
                 let revision = try await cloudService.fetchRevision(
                     householdId: cloudHouseholdID, rawConnectionString: neonConnectionString
                 )
                 // Nothing new upstream and nothing waiting here: stay quiet.
-                guard revision != syncMetadata.remoteRevision else { return }
+                guard revision != syncMetadata.remoteRevision else { return .quiet }
             }
             try await syncWithNeon()
+            return .changed
         } catch is CancellationError {
-            return
+            return .quiet
         } catch {
             // A dropped tick is normal on the school run. Keep the message for
-            // Settings, and let the next tick try again.
+            // Settings, and let the next tick try again — backing off as it
+            // does, so a phone with no signal is not retrying every two seconds
+            // for the length of the drive.
             syncError = error.localizedDescription
+            return .quiet
         }
     }
 
@@ -1564,7 +1666,7 @@ public class AppStore: ObservableObject {
                 isGoogleAuthenticated = false
                 googleAccountEmail = ""
                 googleCalendars = []
-                Task {
+                Task { @MainActor in
                     try? await self.googleCalendarService.disconnect()
                 }
             }
@@ -1605,6 +1707,7 @@ public class AppStore: ObservableObject {
         through endDate: String
     ) {
         let incomingKeys = Set(imported.compactMap(\.calendarId))
+        var signatures = plan.calendar.importSignatures ?? [:]
         var all = records().filter { existing in
             guard let key = existing.calendarId, key.hasPrefix("apple|") else { return true }
             let fields = key.split(separator: "|", omittingEmptySubsequences: false)
@@ -1614,26 +1717,39 @@ public class AppStore: ObservableObject {
         }
 
         for providerEvent in imported {
+            let incomingSignature = Self.providerSignature(providerEvent)
             if let index = all.firstIndex(where: { $0.calendarId == providerEvent.calendarId }) {
-                all[index].date = providerEvent.date
-                all[index].time = providerEvent.time
-                all[index].endTime = providerEvent.endTime
-                all[index].title = providerEvent.title
-                all[index].location = providerEvent.location
-                all[index].mode = providerEvent.mode
-                all[index].kind = providerEvent.kind
-                all[index].allDay = providerEvent.allDay
-                all[index].seriesId = providerEvent.seriesId
-                all[index].originalOccurrenceDate = providerEvent.originalOccurrenceDate
+                // Nothing here is ever written back to EventKit, so without
+                // this guard an edit to an imported event could never survive
+                // a second import.
+                if signatures[all[index].id] != incomingSignature {
+                    all[index].date = providerEvent.date
+                    all[index].time = providerEvent.time
+                    all[index].endTime = providerEvent.endTime
+                    all[index].title = providerEvent.title
+                    all[index].location = providerEvent.location
+                    all[index].mode = providerEvent.mode
+                    all[index].kind = providerEvent.kind
+                    all[index].allDay = providerEvent.allDay
+                    all[index].seriesId = providerEvent.seriesId
+                    all[index].originalOccurrenceDate = providerEvent.originalOccurrenceDate
+                    signatures[all[index].id] = incomingSignature
+                }
             } else {
+                signatures[providerEvent.id] = incomingSignature
                 all.append(providerEvent)
             }
         }
 
         plan.calendar.appleCalendarIDs = calendarIDs.sorted()
-        plan.calendar.pulled = imported.compactMap(\.calendarId).sorted()
+        // Union, not replace: this list is shared with the Google importer, and
+        // overwriting it dropped every key the other provider had recorded.
+        var updatedPulled = Set(plan.calendar.pulled)
+        for key in incomingKeys { updatedPulled.insert(key) }
+        plan.calendar.pulled = updatedPulled.sorted()
         plan.calendar.lastAppleImport = nowProvider()
         partitionRecords(all)
+        pruneImportSignatures(signatures, against: all)
         save()
     }
 
@@ -1653,6 +1769,7 @@ public class AppStore: ObservableObject {
         connections["google"] = true
         try? secretStore.set(googleClientId, for: "googleClientId")
         try? await refreshGoogleCalendars()
+        _ = try? await syncGoogleCalendar()
         save()
     }
 
@@ -1680,6 +1797,50 @@ public class AppStore: ObservableObject {
         }
     }
 
+    /// Automatically or manually pulls events from the user's selected Google Calendars
+    /// and merges them into the local schedule.
+    @discardableResult
+    @MainActor
+    public func syncGoogleCalendar(calendarIDs: Set<String>? = nil) async throws -> Int {
+        guard isGoogleAuthenticated, connections["google"] == true else { return 0 }
+        guard !isSyncingGoogle else { return 0 }
+        isSyncingGoogle = true
+        defer { isSyncingGoogle = false }
+
+        var targetIDs = calendarIDs ?? Set(plan.calendar.googleCalendarIDs ?? [])
+        if targetIDs.isEmpty {
+            try? await refreshGoogleCalendars()
+            targetIDs = Set(plan.calendar.googleCalendarIDs ?? [])
+        }
+        guard !targetIDs.isEmpty else { return 0 }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone == "device"
+            ? .current
+            : (TimeZone(identifier: timeZone) ?? .current)
+        let start = calendar.startOfDay(for: currentDate)
+        let end = calendar.date(byAdding: .day, value: 31, to: start)!
+
+        let imported = try await googleCalendarService.fetchEvents(
+            calendarIDs: targetIDs,
+            start: start,
+            end: end,
+            timeZone: calendar.timeZone,
+            homeName: home()
+        )
+        let startString = PlanCore.currentDeviceDate(date: start, timeZone: calendar.timeZone)
+        let finalDay = calendar.date(byAdding: .day, value: -1, to: end)!
+        let endString = PlanCore.currentDeviceDate(date: finalDay, timeZone: calendar.timeZone)
+
+        mergeGoogleCalendarEvents(
+            imported,
+            calendarIDs: targetIDs,
+            from: startString,
+            through: endString
+        )
+        return imported.count
+    }
+
     /// Reconciles a bounded Google Calendar import without replacing app-owned
     /// overlays such as caregiver assignment, completion, children, and notes.
     public func mergeGoogleCalendarEvents(
@@ -1697,6 +1858,7 @@ public class AppStore: ObservableObject {
 
         let incomingKeys = Set(imported.compactMap(\.calendarId))
         let incomingIdentities = Set(imported.compactMap { googleKey($0.calendarId) })
+        var signatures = plan.calendar.importSignatures ?? [:]
 
         var all = records().filter { existing in
             guard let key = existing.calendarId, key.hasPrefix("google|") else { return true }
@@ -1708,26 +1870,40 @@ public class AppStore: ObservableObject {
         }
 
         for providerEvent in imported {
+            var providerEvent = providerEvent
+            // Imported rows are never evidence of manual effort, whatever the
+            // title looks like.
+            providerEvent.origin = .calendarImport(provider: "google")
             let providerIdent = googleKey(providerEvent.calendarId)
+            let incomingSignature = Self.providerSignature(providerEvent)
             if let index = all.firstIndex(where: {
                 $0.calendarId == providerEvent.calendarId ||
                 (providerIdent != nil && googleKey($0.calendarId) == providerIdent)
             }) {
-                all[index].date = providerEvent.date
-                all[index].time = providerEvent.time
-                all[index].endTime = providerEvent.endTime
-                all[index].title = providerEvent.title
-                all[index].location = providerEvent.location
-                all[index].mode = providerEvent.mode
-                all[index].kind = providerEvent.kind
-                all[index].allDay = providerEvent.allDay
-                all[index].seriesId = providerEvent.seriesId
-                all[index].originalOccurrenceDate = providerEvent.originalOccurrenceDate
+                // Google repeating what it told us last time is not a change.
+                // Taking its fields anyway is what reverted an edit the
+                // household made here but that never reached Google — an
+                // expired token, a read-only calendar, or simply no signal.
+                let unchangedUpstream = signatures[all[index].id] == incomingSignature
+                if !unchangedUpstream {
+                    all[index].date = providerEvent.date
+                    all[index].time = providerEvent.time
+                    all[index].endTime = providerEvent.endTime
+                    all[index].title = providerEvent.title
+                    all[index].location = providerEvent.location
+                    all[index].mode = providerEvent.mode
+                    all[index].kind = providerEvent.kind
+                    all[index].allDay = providerEvent.allDay
+                    all[index].seriesId = providerEvent.seriesId
+                    all[index].originalOccurrenceDate = providerEvent.originalOccurrenceDate
+                    signatures[all[index].id] = incomingSignature
+                }
                 all[index].calendarId = providerEvent.calendarId
                 all[index].gcal = true
             } else {
                 var newRecord = providerEvent
                 newRecord.gcal = true
+                signatures[newRecord.id] = incomingSignature
                 all.append(newRecord)
             }
         }
@@ -1738,14 +1914,98 @@ public class AppStore: ObservableObject {
         plan.calendar.pulled = updatedPulled.sorted()
         plan.calendar.lastGoogleImport = nowProvider()
         partitionRecords(all)
+        pruneImportSignatures(signatures, against: all)
         save()
+    }
+
+    /// The provider's own version of an event: only the fields an import is
+    /// allowed to overwrite. Caregiver, children, completion and notes are
+    /// this app's, so they are deliberately absent — changing one of those
+    /// must not make the next import look like upstream news.
+    static func providerSignature(_ record: TaskRecord) -> String {
+        [
+            record.date, record.time, record.endTime, record.title,
+            record.location, record.mode, record.kind.rawValue,
+            record.allDay ? "1" : "0",
+            record.seriesId ?? "", record.originalOccurrenceDate ?? ""
+        ].joined(separator: "\u{1F}")
+    }
+
+    /// Seam for the regression suite: exercises the late-export path without
+    /// needing a real network round trip to race against.
+    @MainActor
+    func applyExportedRecordsForTesting(_ exported: [TaskRecord]) {
+        applyExportedRecords(exported)
+        save(syncToCloud: false)
+    }
+
+    /// Drops signatures for records that are no longer in the week, so the map
+    /// does not grow without bound as calendars come and go.
+    private func pruneImportSignatures(_ signatures: [String: String], against records: [TaskRecord]) {
+        let live = Set(records.map(\.id))
+        let kept = signatures.filter { live.contains($0.key) }
+        plan.calendar.importSignatures = kept.isEmpty ? nil : kept
     }
 
     /// Writes an event to Google Calendar (create or update).
     /// Enforces conflict detection with ETag and only sets task.gcal = true
     /// once the external write has succeeded.
     @discardableResult
+    @MainActor
     public func exportEventToGoogleCalendar(_ task: TaskRecord) async throws -> TaskRecord {
+        let updatedTask = try await writeEventToGoogleCalendar(task)
+        applyExportedRecords([updatedTask])
+        save()
+        return updatedTask
+    }
+
+    /// Exports a whole series in one pass.
+    ///
+    /// A twenty-week series is twenty remote writes. Saving after each one ran
+    /// `reconcile`, `persist`, a full notification reschedule and a cloud sync
+    /// twenty times over, which is what locked the app up after adding a long
+    /// recurrence. The remote writes still go one at a time - there is no batch
+    /// endpoint here - but the household is written once, at the end.
+    ///
+    /// A failed occurrence is skipped rather than abandoning the rest.
+    @discardableResult
+    @MainActor
+    public func exportEventsToGoogleCalendar(_ tasks: [TaskRecord]) async -> [TaskRecord] {
+        guard isGoogleAuthenticated, !tasks.isEmpty else { return [] }
+
+        var exported: [TaskRecord] = []
+        var lastFailure: Error?
+        for task in tasks {
+            do {
+                exported.append(try await writeEventToGoogleCalendar(task))
+            } catch {
+                lastFailure = error
+            }
+        }
+
+        // A change that never reached Google is not a change Google will send
+        // back, and the household has no other way to find that out. Say so
+        // rather than letting the edit look published.
+        if let lastFailure {
+            syncError = "\(tasks.count - exported.count) of \(tasks.count) events could not be written to Google Calendar: \(lastFailure.localizedDescription) The change is saved here."
+        } else if exported.count == tasks.count {
+            syncError = nil
+        }
+
+        // Even a partial run has to be persisted: the etags recorded along the
+        // way are the only proof those events already exist on Google, and
+        // losing them would make the next export create duplicates.
+        guard !exported.isEmpty else { return [] }
+        applyExportedRecords(exported)
+        save()
+        return exported
+    }
+
+    /// The remote half of an export: one network write and the etag it returns.
+    /// Deliberately touches no record storage, so the caller decides when - and
+    /// how often - the household is written.
+    @MainActor
+    private func writeEventToGoogleCalendar(_ task: TaskRecord) async throws -> TaskRecord {
         guard isGoogleAuthenticated else {
             throw GoogleCalendarError.unauthenticated
         }
@@ -1797,17 +2057,43 @@ public class AppStore: ObservableObject {
             plan.calendar.exports[task.id] = newEtag
         }
 
-        var all = records()
-        if let idx = all.firstIndex(where: { $0.id == updatedTask.id }) {
-            all[idx] = updatedTask
-        } else {
-            all.append(updatedTask)
-        }
-        partitionRecords(all)
-        save()
         return updatedTask
     }
 
+    /// Folds exported records back into the week in a single partition pass.
+    @MainActor
+    private func applyExportedRecords(_ exported: [TaskRecord]) {
+        guard !exported.isEmpty else { return }
+        var all = records()
+        var signatures = plan.calendar.importSignatures ?? [:]
+        let buried = Set(tombstones.filter { $0.kind == .event }.map(\.id))
+        for task in exported {
+            if let idx = all.firstIndex(where: { $0.id == task.id }) {
+                // The provider now holds exactly this. Recording it here keeps
+                // the next import from reading our own write back as news.
+                signatures[task.id] = Self.providerSignature(task)
+                all[idx] = task
+            } else if buried.contains(task.id) {
+                // Cancelled here while its export was still in flight. Adding
+                // it back would undo a deliberate cancellation — the stop would
+                // reappear minutes later and look like the app had ignored it.
+                // Drop our bookkeeping and take the row off the provider too,
+                // since the delete that ran earlier had no remote id to use yet.
+                signatures.removeValue(forKey: task.id)
+                plan.calendar.exports.removeValue(forKey: task.id)
+                Task { @MainActor in
+                    try? await self.deleteEventFromGoogleCalendar(task)
+                }
+            } else {
+                signatures[task.id] = Self.providerSignature(task)
+                all.append(task)
+            }
+        }
+        partitionRecords(all)
+        pruneImportSignatures(signatures, against: all)
+    }
+
+    @MainActor
     public func deleteEventFromGoogleCalendar(_ task: TaskRecord) async throws {
         guard isGoogleAuthenticated else { return }
         if let calId = task.calendarId, calId.hasPrefix("google|") {
@@ -2012,8 +2298,19 @@ public class AppStore: ObservableObject {
         draft: TaskRecord,
         recurrence: RecurrencePattern,
         scope: RecurrenceEditScope = .occurrence,
-        sourceOccurrenceID: String? = nil
+        sourceOccurrenceID: String? = nil,
+        updateNotes: Bool = false
     ) throws -> [TaskRecord] {
+        // Provenance is decided here, once, for every path that saves an
+        // event. A caller that already knows better - a shortcut draft, an
+        // assistant proposal - keeps what it set; anything else is a person
+        // typing into the editor.
+        var draft = draft
+        if recurrence.mode == .weekly {
+            draft.origin = .recurrence(seriesID: draft.seriesId)
+        } else if draft.origin == nil {
+            draft.origin = .manual
+        }
         var all = records()
         let source = sourceOccurrenceID.flatMap { id in all.first { $0.id == id } }
 
@@ -2033,7 +2330,7 @@ public class AppStore: ObservableObject {
             updated.done = source.done
             updated.locked = source.locked
             updated.tentative = source.tentative
-            updated.notes = source.notes
+            updated.notes = updateNotes ? draft.notes : source.notes
             updated.calendarId = source.calendarId
             updated.bufferMinutes = source.bufferMinutes
             guard let index = all.firstIndex(where: { $0.id == source.id }) else { return [] }
@@ -2073,7 +2370,7 @@ public class AppStore: ObservableObject {
                 replacement.done = source.done
                 replacement.locked = source.locked
                 replacement.tentative = source.tentative
-                replacement.notes = source.notes
+                replacement.notes = updateNotes ? draft.notes : source.notes
                 replacement.calendarId = source.calendarId
                 replacement.bufferMinutes = source.bufferMinutes
                 all.append(replacement)
@@ -2082,7 +2379,7 @@ public class AppStore: ObservableObject {
                 replacement.done = source.done
                 replacement.locked = source.locked
                 replacement.tentative = source.tentative
-                replacement.notes = source.notes
+                replacement.notes = updateNotes ? draft.notes : source.notes
                 replacement.calendarId = source.calendarId
                 replacement.bufferMinutes = source.bufferMinutes
                 all[index] = replacement
@@ -2114,6 +2411,7 @@ public class AppStore: ObservableObject {
             guard let source else { return fresh }
             var result = prior
             if draft.title != source.title { result.title = draft.title }
+            if updateNotes && draft.notes != source.notes { result.notes = draft.notes }
             if draft.time != source.time { result.time = draft.time }
             if draft.endTime != source.endTime { result.endTime = draft.endTime }
             if draft.owner != source.owner { result.owner = draft.owner; result.lead = draft.owner }
@@ -2175,7 +2473,12 @@ public class AppStore: ObservableObject {
             ))
         }
         if event.calendarId?.hasPrefix("google|") == true || plan.calendar.exports[event.id] != nil {
-            Task {
+            // Must be @MainActor. A bare Task here is not isolated to anything,
+            // so it ran `save()` — which rewrites every published collection in
+            // the store — on a background thread, at the same moment as the
+            // `save()` below. Two threads mutating the same arrays is what was
+            // crashing the app on cancelling a Google-backed stop.
+            Task { @MainActor in
                 try? await self.deleteEventFromGoogleCalendar(event)
             }
         }
@@ -2394,5 +2697,43 @@ public class AppStore: ObservableObject {
 
     public func isReviewDismissed(eventId: String) -> Bool {
         return dismissedEventIds.contains(eventId)
+    }
+}
+
+// MARK: - Lists
+//
+// The bridge the lists store needs, and nothing more. It lives in this file
+// because the stamp clock, the sync identity and the persistence switch are all
+// private here: a list edit must share the household's logical clock and its
+// household identity without gaining a second way to write the household.
+
+extension AppStore: HouseholdListsHost {
+
+    func listsNextStamp() -> RecordStamp {
+        nextStamp()
+    }
+
+    func listsObserve(_ stamp: RecordStamp) {
+        // Raise the shared clock above anything the other phone has already
+        // done, so this phone's next edit — list or schedule — still sorts
+        // newest.
+        if stamp.counter > syncMetadata.lamport { syncMetadata.lamport = stamp.counter }
+    }
+
+    var listsHouseholdID: String { cloudHouseholdID }
+
+    var listsPersistenceDefaults: UserDefaults { persistenceDefaults }
+
+    var listsPersistenceEnabled: Bool { persistenceEnabled }
+
+    /// Lists synchronise on their own channel, so this is deliberately narrower
+    /// than "the app syncs": a household with sync switched off keeps its lists
+    /// on the device and says so.
+    func listsCloudContext() -> ListsCloudContext? {
+        guard hasCompletedOnboarding,
+              neonSyncEnabled,
+              !neonConnectionString.isEmpty,
+              !cloudHouseholdID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return ListsCloudContext(householdID: cloudHouseholdID, connection: neonConnectionString)
     }
 }

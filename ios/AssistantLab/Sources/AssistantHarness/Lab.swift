@@ -72,6 +72,82 @@ struct Lab {
         }
     }
 
+    /// Runs the shortcut-suggestion pass against whatever model is configured.
+    /// Prints the candidates the app found and what the model did with them.
+    func suggestions(client: LunaClient) async {
+        banner("Shortcut suggestions \u{00B7} \(clientLabel)")
+
+        let events = (try? await household.events(in: session)) ?? []
+        let shortcuts: [ExistingShortcut] = [
+            ExistingShortcut(
+                id: "tmpl-soccer", title: "Soccer practice", location: "Riverside Fields",
+                kids: ["Theo"], startTime: "17:30", durationMinutes: 90
+            )
+        ]
+        let candidates = ShortcutPatternFinder.candidates(
+            events: events, shortcuts: shortcuts, today: Fixtures.today
+        )
+
+        print("App found \(candidates.count) candidate pattern(s) in hand-made events:")
+        for candidate in candidates {
+            print("  \u{2022} \(candidate.representativeTitle) @ \(candidate.location)")
+            print("    \(candidate.occurrences)x across \(candidate.distinctWeeks) weeks, "
+                  + "\(candidate.durationMinutes) min, \(candidate.firstDate) \u{2192} \(candidate.lastDate)"
+                  )
+        }
+        guard !candidates.isEmpty else {
+            print("\nNothing to ask about - no request made, section stays hidden.")
+            return
+        }
+
+        print("\nAsking the model which are worth offering\u{2026}")
+            let picked = await SuggestionService(client: client).rank(candidates)
+        if picked.isEmpty {
+            print("  Model declined all of them. The section stays hidden.")
+        }
+        for suggestion in picked {
+            print("  \u{250C} \(suggestion.label)")
+            print("  \u{2502} \(suggestion.candidate.location) \u{00B7} \(suggestion.candidate.durationMinutes) min")
+            print("  \u{2502} \(suggestion.evidence)")
+            print("  \u{2514} [ + Save ]")
+        }
+    }
+
+    /// The behaviour the section depends on: when a pattern is weak, the
+    /// model should decline rather than offer something arbitrary.
+    func weakSuggestions(client: LunaClient) async {
+        banner("Weak patterns should be declined")
+
+        let weak = [
+            ShortcutCandidate(
+                id: "weak-1", representativeTitle: "Dentist", location: "Home", placeID: nil,
+                startTime: "14:00", durationMinutes: 60, kids: ["Theo"], owner: "Maya",
+                category: "Health", weekdays: [], occurrences: 3, distinctWeeks: 3,
+                firstDate: "2026-05-20", lastDate: "2026-06-03",
+                titleVariants: ["Dentist", "Theo dentist"], sourceEventIDs: ["a", "b", "c"]
+            ),
+            ShortcutCandidate(
+                id: "weak-2", representativeTitle: "Soccer practice", location: "Riverside Fields",
+                placeID: nil, startTime: "17:30", durationMinutes: 90, kids: ["Theo"], owner: "Alex",
+                category: "Sports", weekdays: [2], occurrences: 3, distinctWeeks: 3,
+                firstDate: "2026-08-05", lastDate: "2026-08-19",
+                titleVariants: ["Soccer practice"], sourceEventIDs: ["d", "e", "f"]
+            )
+        ]
+        for candidate in weak {
+            print("  \u{2022} \(candidate.representativeTitle): \(candidate.occurrences)x, "
+                  + "last \(candidate.lastDate)"
+                  + ", last \(candidate.lastDate)")
+        }
+
+            let picked = await SuggestionService(client: client).rank(weak)
+        if picked.isEmpty {
+            print("\n  Declined both. Section hides. \u{2713}")
+        } else {
+            print("\n  Offered \(picked.count): \(picked.map(\.label).joined(separator: ", "))")
+        }
+    }
+
     // MARK: - Refusals and isolation
 
     func attacks() async {

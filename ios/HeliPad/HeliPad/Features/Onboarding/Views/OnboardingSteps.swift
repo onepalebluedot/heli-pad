@@ -62,9 +62,9 @@ private struct OnboardingWelcomeBullet: View {
         }
         .padding(13)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(HeliColors.sageRule, lineWidth: 0.9)
         )
     }
@@ -121,7 +121,7 @@ struct OnboardingNotice: View {
         }
         .padding(12)
         .background(HeliColors.clayWash)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
@@ -195,9 +195,9 @@ struct OnboardingHomeStep: View {
                 .padding(.horizontal, 13)
                 .padding(.vertical, 11)
                 .background(HeliColors.cardWarmWhite)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(HeliColors.sageRule, lineWidth: 0.9)
                 )
 
@@ -248,9 +248,9 @@ struct OnboardingHomeStep: View {
                         }
                     }
                     .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: 8)
                             .stroke(HeliColors.sageRule, lineWidth: 0.8)
                     )
                     .shadow(color: Color.black.opacity(0.06), radius: 6, y: 3)
@@ -323,7 +323,7 @@ private struct OnboardingCrewSelfCard: View {
         }
         .padding(13)
         .background(HeliColors.forestTint.opacity(0.55))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

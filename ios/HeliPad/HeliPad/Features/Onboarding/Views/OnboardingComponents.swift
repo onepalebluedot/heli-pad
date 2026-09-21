@@ -71,9 +71,9 @@ struct OnboardingField: View {
                 .padding(.horizontal, 13)
                 .padding(.vertical, 11)
                 .background(HeliColors.cardWarmWhite)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(HeliColors.sageRule, lineWidth: 0.9)
                 )
         }
@@ -159,9 +159,9 @@ struct OnboardingCardRow<Content: View>: View {
         }
         .padding(14)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(HeliColors.sageRule, lineWidth: 0.9)
         )
     }
@@ -182,9 +182,9 @@ struct OnboardingAddButton: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
             .background(HeliColors.forestTint.opacity(0.6))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
                     .foregroundColor(HeliColors.forestGreen.opacity(0.45))
             )
@@ -211,9 +211,9 @@ struct OnboardingWeekdayPicker: View {
                             .frame(maxWidth: .infinity)
                             .frame(height: 32)
                             .background(isOn ? HeliColors.forestGreen : HeliColors.canvasIvory)
-                            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                RoundedRectangle(cornerRadius: 7, style: .continuous)
                                     .stroke(HeliColors.sageRule, lineWidth: isOn ? 0 : 0.9)
                             )
                     }

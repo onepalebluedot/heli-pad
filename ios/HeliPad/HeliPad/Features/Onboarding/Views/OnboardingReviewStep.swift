@@ -87,9 +87,9 @@ struct OnboardingReviewStep: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(HeliColors.sageRule, lineWidth: 0.9)
         )
     }

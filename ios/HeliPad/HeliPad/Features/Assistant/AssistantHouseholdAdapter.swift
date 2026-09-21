@@ -1,11 +1,12 @@
 import Foundation
 import AssistantKit
+import MapKit
 
 /// Bridges `AssistantKit`'s ports onto `AppStore`.
 ///
 /// This is the whole integration surface. The assistant has no other way to
-/// reach the app: it cannot read storage, cannot call a service, and cannot
-/// write a record except through the two methods below.
+/// reach the app: household queries, Apple Maps search, and confirmed writes
+/// all pass through this adapter.
 ///
 /// A04 requires that chat and manual edits travel the same path, so the writes
 /// here call `AppStore.saveEvent(draft:recurrence:)` and
@@ -23,7 +24,10 @@ public final class AssistantHouseholdAdapter: HouseholdQueryPort, HouseholdComma
     // MARK: - Queries
 
     public nonisolated func events(in session: AssistantSession) async throws -> [AssistantEvent] {
-        await MainActor.run { store.records().map(Self.toAssistant) }
+        await MainActor.run {
+            let placeIDs = Self.placeIDLookup(store.locations)
+            return store.records().map { Self.toAssistant($0, placeIDs: placeIDs) }
+        }
     }
 
     public nonisolated func people(in session: AssistantSession) async throws -> [AssistantPerson] {
@@ -73,15 +77,84 @@ public final class AssistantHouseholdAdapter: HouseholdQueryPort, HouseholdComma
 
     // MARK: - Commands
 
+    public nonisolated func householdLists(in session: AssistantSession) async throws -> [AssistantHouseholdList] {
+        try await MainActor.run { try validateListSession(session) }
+        // Refresh when possible, but retain an honestly labelled local snapshot
+        // if offline. List reading must never erase pending changes.
+        await store.lists.sync()
+        return try await MainActor.run {
+            try validateListSession(session)
+            return ListKind.allCases.compactMap { kind in
+                guard let list = store.lists.defaultList(kind),
+                      let assistantKind = AssistantListKind(rawValue: kind.rawValue) else { return nil }
+                let groups = store.lists.groups(of: list.id)
+                return AssistantHouseholdList(kind: assistantKind, sections: groups.map(\.name), items: groups.flatMap { group in
+                    store.lists.items(of: list.id, inGroup: group.id).map {
+                        AssistantListItem(id: $0.id, text: $0.text, quantity: $0.quantity, section: group.name, isCompleted: $0.isCompleted)
+                    }
+                }, syncLabel: store.lists.syncState.label)
+            }
+        }
+    }
+
+    private func validateListSession(_ session: AssistantSession) throws {
+        guard session.householdID == store.cloudHouseholdID,
+              session.householdID == store.lists.archive.householdID,
+              !store.lists.recoveryNeeded else {
+            throw MutationError.notPermitted(reason: "This household's lists are unavailable. Reopen the assistant for the current household.")
+        }
+    }
+
+    public func searchLocations(query: String, in session: AssistantSession) async throws -> [AssistantLocation] {
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = query
+        request.resultTypes = [.address, .pointOfInterest]
+        let response = try await MKLocalSearch(request: request).start()
+        return response.mapItems.prefix(5).map { item in
+            AssistantLocation(
+                name: item.name ?? query,
+                address: item.placemark.title ?? query,
+                latitude: item.placemark.coordinate.latitude,
+                longitude: item.placemark.coordinate.longitude
+            )
+        }
+    }
+
     public nonisolated func apply(_ batch: MutationBatch, in session: AssistantSession) async throws -> MutationReceipt {
         try await MainActor.run {
+            guard session.householdID == store.cloudHouseholdID else {
+                throw MutationError.notPermitted(reason: "The household changed. Prepare a new review.")
+            }
+            if let additions = batch.listAdditions, !additions.isEmpty {
+                try validateListSession(session)
+                guard batch.creates.isEmpty, batch.reassignments.isEmpty else {
+                    throw MutationError.notPermitted(reason: "List and calendar changes need separate reviews.")
+                }
+                let drafts = try additions.map { addition -> ListItemDraft in
+                    guard let kind = ListKind(rawValue: addition.kind.rawValue), let list = store.lists.defaultList(kind) else {
+                        throw MutationError.notPermitted(reason: "List unavailable.")
+                    }
+                    let matches = store.lists.groups(of: list.id).filter { $0.name.caseInsensitiveCompare(addition.section) == .orderedSame }
+                    guard matches.count == 1, let group = matches.first else {
+                        throw MutationError.notPermitted(reason: "The section changed. Prepare a new review.")
+                    }
+                    return ListItemDraft(id: addition.id, listID: list.id, groupID: group.id, text: addition.text, quantity: addition.quantity)
+                }
+                let ids: [String]
+                do { ids = try store.lists.addItems(drafts) }
+                catch { throw MutationError.transportFailed(reason: error.localizedDescription) }
+                Task { await store.lists.sync() }
+                return MutationReceipt(createdEventIDs: [], updatedEventIDs: [],
+                                       syncState: store.lists.syncState == .onDevice ? .savedOnDeviceOnly : .savedLocallySyncPending,
+                                       createdListItemIDs: ids)
+            }
             var created: [String] = []
 
             // Creates go through the editor's own entry point, which owns
             // series identity, exceptions, partitioning and save().
             for group in Self.groupedBySeries(batch.creates) {
                 guard let first = group.first else { continue }
-                let draft = Self.toRecord(first, home: store.home())
+                let draft = Self.toRecord(first)
                 let pattern = Self.pattern(for: group, timeZone: store.timeZone)
                 do {
                     let saved = try store.saveEvent(draft: draft, recurrence: pattern)
@@ -138,8 +211,32 @@ public final class AssistantHouseholdAdapter: HouseholdQueryPort, HouseholdComma
         record.stamp?.counter ?? 0
     }
 
-    static func toAssistant(_ record: TaskRecord) -> AssistantEvent {
-        AssistantEvent(
+    /// Saved-place ids by lowercased place name, so two events at the same
+    /// saved place match even when the name was typed differently. Events
+    /// themselves carry no place id - only `LocationItem` does - so identity
+    /// is resolved through the household's places here.
+    static func placeIDLookup(_ locations: [LocationItem]) -> [String: String] {
+        var map: [String: String] = [:]
+        for location in locations {
+            guard let placeID = location.placeId, !placeID.isEmpty else { continue }
+            map[location.name.lowercased()] = placeID
+        }
+        return map
+    }
+
+    static func toAssistant(_ record: TaskRecord, placeIDs: [String: String] = [:]) -> AssistantEvent {
+        let resolvedLocation: AssistantLocation?
+        if let latitude = record.latitude, let longitude = record.longitude {
+            resolvedLocation = AssistantLocation(
+                name: record.location,
+                address: record.formattedAddress ?? record.location,
+                latitude: latitude,
+                longitude: longitude
+            )
+        } else {
+            resolvedLocation = nil
+        }
+        return AssistantEvent(
             id: record.id,
             date: record.date,
             time: record.time,
@@ -155,11 +252,31 @@ public final class AssistantHouseholdAdapter: HouseholdQueryPort, HouseholdComma
             // but `ToolRouter` never puts them in a model payload.
             notes: record.notes,
             seriesId: record.seriesId,
-            revision: revision(of: record)
+            placeID: placeIDs[record.location.lowercased()],
+            calendarID: record.calendarId,
+            origin: originFor(record),
+            revision: revision(of: record),
+            resolvedLocation: resolvedLocation
         )
     }
 
-    static func toRecord(_ event: AssistantEvent, home: String) -> TaskRecord {
+    /// Flattens the app's provenance for the detector. Legacy records stay nil
+    /// rather than being guessed at; the detector judges those on `seriesId`
+    /// and `calendarID` instead.
+    static func originFor(_ record: TaskRecord) -> AssistantEventOrigin? {
+        switch record.origin {
+        case .none: return nil
+        case .manual: return .manual
+        case .shortcut: return .shortcut
+        case .recurrence: return .recurrence
+        case .calendarImport: return .calendarImport
+        case .assistantSingle: return .assistantSingle
+        case .onboarding: return .onboarding
+        case .legacy: return .legacy
+        }
+    }
+
+    static func toRecord(_ event: AssistantEvent) -> TaskRecord {
         TaskRecord(
             id: event.id,
             date: event.date,
@@ -168,11 +285,18 @@ public final class AssistantHouseholdAdapter: HouseholdQueryPort, HouseholdComma
             title: event.title,
             owner: event.owner,
             kids: event.kids,
-            location: event.location.isEmpty ? home : event.location,
+            location: event.location,
             mode: "Drive",
             kind: TaskKind(rawValue: event.kind.rawValue) ?? .other,
             notes: event.notes,
-            seriesId: event.seriesId
+            seriesId: event.seriesId,
+            latitude: event.resolvedLocation?.latitude,
+            longitude: event.resolvedLocation?.longitude,
+            formattedAddress: event.resolvedLocation?.address,
+            // A single confirmed proposal is still the household deciding one
+            // occurrence at a time, so it counts as manual effort. A weekly
+            // series is re-tagged by `AppStore.saveEvent`.
+            origin: event.seriesId == nil ? .assistantSingle : .recurrence(seriesID: event.seriesId)
         )
     }
 

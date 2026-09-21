@@ -116,7 +116,7 @@ public struct PlanCommandCardView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
                     .background(HeliColors.forestGreen)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
 
                 Button(action: onRebalance) {
@@ -130,18 +130,18 @@ public struct PlanCommandCardView: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(HeliColors.cardWarmWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(HeliColors.sageRule, lineWidth: 0.8))
                 }
             }
         }
         .padding(18)
         .background(
-            RoundedRectangle(cornerRadius: 22)
+            RoundedRectangle(cornerRadius: 16)
                 .fill(cardBackground)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 22)
+            RoundedRectangle(cornerRadius: 16)
                 .stroke(cardBorder, lineWidth: 1)
         )
         .padding(.horizontal, 16)
@@ -239,9 +239,9 @@ public struct StatBoxButtonStyle: ButtonStyle {
 
         return configuration.label
             .background(isPressed ? pressedBg : normalBg)
-            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .stroke(isPressed ? pressedBorder : normalBorder, lineWidth: isPressed ? 1.6 : (highlight ? 1.0 : 0.7))
             )
             .shadow(

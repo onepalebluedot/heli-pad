@@ -7,6 +7,29 @@ import Foundation
 // target so this work stream compiles and is testable on its own. Integration
 // is a field-for-field adapter, not a second domain: see `Integration.md`.
 
+/// How an event came to exist, mirroring the app's `EventOrigin`.
+///
+/// Flattened to a string enum because the detector only needs to know which
+/// bucket a record is in, not the template or series id behind it.
+public enum AssistantEventOrigin: String, Codable, Hashable, Sendable {
+    case manual
+    case shortcut
+    case recurrence
+    case calendarImport
+    case assistantSingle
+    case onboarding
+    case legacy
+
+    /// Work a shortcut could have saved. Recurrence, shortcuts and imports are
+    /// already automated; onboarding seeds are not evidence of a habit.
+    public var countsAsManualEffort: Bool {
+        switch self {
+        case .manual, .assistantSingle: return true
+        case .shortcut, .recurrence, .calendarImport, .onboarding, .legacy: return false
+        }
+    }
+}
+
 /// One scheduled item. Field names follow `TaskRecord` so the adapter is a
 /// rename-free copy.
 public struct AssistantEvent: Identifiable, Codable, Hashable, Sendable {
@@ -22,12 +45,21 @@ public struct AssistantEvent: Identifiable, Codable, Hashable, Sendable {
     public var owner: String
     public var kids: [String]
     public var location: String
+    public var resolvedLocation: AssistantLocation?
     public var kind: EventKind
     public var done: Bool
     public var tentative: Bool
     /// Untrusted household text.
     public var notes: String
     public var seriesId: String?
+    /// Stable place identity when the location was resolved, so two events at
+    /// the same saved place match even if someone typed the name differently.
+    public var placeID: String?
+    /// Set when the row came from an external calendar.
+    public var calendarID: String?
+    /// Nil for households saved before provenance existed. Such rows are
+    /// judged on `seriesId` and `calendarID` instead of being excluded.
+    public var origin: AssistantEventOrigin?
     /// Optimistic-concurrency token. The app's `RecordStamp` maps onto this.
     public var revision: Int
 
@@ -45,7 +77,11 @@ public struct AssistantEvent: Identifiable, Codable, Hashable, Sendable {
         tentative: Bool = false,
         notes: String = "",
         seriesId: String? = nil,
-        revision: Int = 1
+        placeID: String? = nil,
+        calendarID: String? = nil,
+        origin: AssistantEventOrigin? = nil,
+        revision: Int = 1,
+        resolvedLocation: AssistantLocation? = nil
     ) {
         self.id = id
         self.date = date
@@ -55,12 +91,26 @@ public struct AssistantEvent: Identifiable, Codable, Hashable, Sendable {
         self.owner = owner
         self.kids = kids
         self.location = location
+        self.resolvedLocation = resolvedLocation
         self.kind = kind
         self.done = done
         self.tentative = tentative
         self.notes = notes
         self.seriesId = seriesId
+        self.placeID = placeID
+        self.calendarID = calendarID
+        self.origin = origin
         self.revision = revision
+    }
+
+    /// Whether this record is evidence of repeated manual work.
+    ///
+    /// A legacy record - no provenance - qualifies when nothing about it says
+    /// otherwise: not part of a series, not imported. Coverage by an existing
+    /// shortcut is a separate check against the shortcut list.
+    public var countsAsManualEffort: Bool {
+        if let origin { return origin.countsAsManualEffort }
+        return seriesId == nil && calendarID == nil
     }
 
     public var isUnassigned: Bool {
@@ -99,12 +149,13 @@ public enum EventKind: String, Codable, CaseIterable, Sendable {
     /// on the review card so the user can see what was assumed and change it.
     /// The numbers match durations already present in household data - a school
     /// run is half an hour, a practice an hour and a half, a music lesson
-    /// forty-five minutes.
+    /// one hour.
     public var defaultDurationMinutes: Int {
         switch self {
         case .dropoff, .pickup, .drive: return 30
         case .practice: return 90
-        case .lesson, .cook: return 45
+        case .cook: return 45
+        case .lesson: return 60
         case .play: return 120
         case .clinic, .dinner, .home, .lead, .placeholder, .other: return 60
         }

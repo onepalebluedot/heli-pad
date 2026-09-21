@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Hand-drawn grocery list illustration</title>
+  <desc id="desc">A smiling milk carton, spiral grocery list, shopping cart, and bunch of bananas in playful black line art.</desc>
+
+  <style>
+    .ink { stroke: currentColor; fill: none; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+    .mid { stroke: currentColor; fill: none; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+    .fine { stroke: currentColor; fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .solid { fill: currentColor; stroke: none; }
+    .words { fill: currentColor; font-family: "Marker Felt", "Comic Sans MS", "Bradley Hand", cursive; }
+  </style>
+
+  <!-- Back page and notebook -->
+  <g transform="rotate(-3 690 370)">
+    <rect class="ink" x="472" y="134" width="453" height="478" rx="7" />
+    <rect class="ink" x="457" y="123" width="453" height="478" rx="7" />
+
+    <!-- Ruled paper -->
+    <path class="fine" d="M505 251C609 249 771 249 875 251" />
+    <path class="fine" d="M505 294C615 292 773 292 875 294" />
+    <path class="fine" d="M505 337C611 335 775 335 875 337" />
+    <path class="fine" d="M505 380C617 378 778 378 875 380" />
+    <path class="fine" d="M505 423C618 421 775 421 875 423" />
+    <path class="fine" d="M505 466C612 464 774 464 875 466" />
+    <path class="fine" d="M505 509C617 507 777 507 875 509" />
+    <path class="fine" d="M505 552C618 550 775 550 875 552" />
+    <path class="fine" d="M505 595C618 593 775 593 875 595" />
+
+    <!-- Title -->
+    <text class="words" x="510" y="215" font-size="51" font-weight="700" letter-spacing="1">GROCERY LIST</text>
+    <path class="mid" d="M505 229C612 225 756 227 878 229" />
+
+    <!-- List checks -->
+    <g class="ink" stroke-width="6">
+      <path d="M509 264L519 276L538 252" />
+      <path d="M509 307L519 319L538 295" />
+      <path d="M509 350L519 362L538 338" />
+      <path d="M509 393L519 405L538 381" />
+      <path d="M509 436L519 448L538 424" />
+      <path d="M509 479L519 491L538 467" />
+      <path d="M509 522L519 534L538 510" />
+      <path d="M509 565L519 577L538 553" />
+    </g>
+
+    <!-- Hand-lettered grocery items -->
+    <g class="words" font-size="36" font-weight="500">
+      <text x="548" y="279" transform="rotate(-1 548 279)">Milk</text>
+      <text x="548" y="322" transform="rotate(1 548 322)">Bread</text>
+      <text x="548" y="365" transform="rotate(-1 548 365)">Eggs (doz.)</text>
+      <text x="548" y="408" transform="rotate(1 548 408)">Bananas</text>
+      <text x="548" y="451" transform="rotate(-1 548 451)">Apples</text>
+      <text x="548" y="494" transform="rotate(1 548 494)">Veggies</text>
+      <text x="548" y="537" transform="rotate(-1 548 537)">Pasta</text>
+      <text x="548" y="580" transform="rotate(1 548 580)">Coffee</text>
+    </g>
+
+    <!-- Spiral binding holes -->
+    <g class="solid">
+      <circle cx="460" cy="185" r="5" /><circle cx="460" cy="232" r="5" />
+      <circle cx="460" cy="279" r="5" /><circle cx="460" cy="326" r="5" />
+      <circle cx="460" cy="373" r="5" /><circle cx="460" cy="420" r="5" />
+      <circle cx="460" cy="467" r="5" /><circle cx="460" cy="514" r="5" />
+      <circle cx="460" cy="561" r="5" />
+    </g>
+
+    <!-- Loose oval wire loops -->
+    <g class="mid">
+      <path d="M461 170C429 166 425 197 457 199C483 201 484 176 461 179" />
+      <path d="M461 217C428 213 425 244 457 246C484 248 484 223 461 226" />
+      <path d="M461 264C428 260 425 291 457 293C484 295 484 270 461 273" />
+      <path d="M461 311C428 307 425 338 457 340C484 342 484 317 461 320" />
+      <path d="M461 358C428 354 425 385 457 387C484 389 484 364 461 367" />
+      <path d="M461 405C428 401 425 432 457 434C484 436 484 411 461 414" />
+      <path d="M461 452C428 448 425 479 457 481C484 483 484 458 461 461" />
+      <path d="M461 499C428 495 425 526 457 528C484 530 484 505 461 508" />
+      <path d="M461 546C428 542 425 573 457 575C484 577 484 552 461 555" />
+    </g>
+  </g>
+
+  <!-- Smiling milk carton -->
+  <g transform="translate(267 49) rotate(8 100 120)">
+    <!-- Carton body and folded top -->
+    <path class="ink" d="M26 88L107 117L98 263L5 228L26 88Z" />
+    <path class="ink" d="M107 117L177 99L162 240L98 263L107 117Z" />
+    <path class="ink" d="M26 88L72 34L146 69L107 117L26 88Z" />
+    <path class="ink" d="M146 69L177 99L107 117L146 69Z" />
+    <path class="ink" d="M72 34L78 9L159 36L146 69L72 34Z" />
+
+    <!-- Friendly face and decorative wave -->
+    <circle class="solid" cx="50" cy="143" r="7" />
+    <circle class="solid" cx="84" cy="154" r="7" />
+    <path class="mid" d="M39 164C44 190 77 201 94 178" />
+    <path class="mid" d="M13 193C31 193 36 223 61 229C75 232 88 228 99 218" />
+    <path class="mid" d="M19 119C39 126 43 108 68 116C94 124 89 147 106 153" />
+
+    <!-- Side-panel label and hatching -->
+    <path class="mid" d="M120 137L159 130" />
+    <path class="mid" d="M118 154L153 149" />
+    <path class="mid" d="M116 171L150 166" />
+    <path class="fine" d="M111 227L151 183M119 232L157 191M132 230L158 201" />
+    <path class="fine" d="M145 82L165 101M151 78L171 97M139 87L158 105" />
+  </g>
+
+  <!-- Tiny shopping cart filled with groceries -->
+  <g transform="translate(278 491) rotate(-4 100 80)">
+    <!-- Groceries -->
+    <path class="mid" d="M46 38C38 20 40 4 51 1C64 8 69 24 65 42" />
+    <path class="fine" d="M50 8L58 35M45 17L55 22M52 28L61 31" />
+    <path class="mid" d="M68 41C67 25 75 18 83 20C91 22 95 31 93 42" />
+    <path class="mid" d="M88 40C88 26 97 19 107 23C114 26 116 33 114 41" />
+    <path class="mid" d="M120 42L125 10L145 17L149 44" />
+    <path class="fine" d="M126 11L143 14L138 3L128 1Z" />
+
+    <!-- Handle and basket -->
+    <path class="ink" d="M1 40L22 42L31 55" />
+    <path class="ink" d="M30 49L157 49L144 118L51 124Z" />
+    <path class="mid" d="M39 67L151 65M44 85L148 82M48 103L145 99" />
+    <path class="mid" d="M55 51L63 119M78 50L83 121M102 50L104 120M128 49L126 118" />
+    <path class="ink" d="M52 124L45 140L146 140" />
+    <circle class="ink" cx="62" cy="154" r="10" />
+    <circle class="ink" cx="136" cy="154" r="10" />
+  </g>
+
+  <!-- Bunch of bananas -->
+  <g transform="translate(760 377) rotate(5 112 112)">
+    <!-- Shared stem -->
+    <path class="ink" d="M98 11C97 4 103 -1 116 2L128 10C125 19 122 28 120 37" />
+    <path class="fine" d="M103 6L119 12M108 3L124 9M102 12L121 18" />
+
+    <!-- Four overlapping bananas -->
+    <path class="ink" d="M105 24C103 54 86 82 57 99C39 110 20 114 12 126C14 138 25 145 40 144C75 140 105 119 122 90C135 68 136 45 123 27" />
+    <path class="mid" d="M25 126C52 127 83 112 102 89C116 72 123 51 119 32" />
+    <path class="fine" d="M22 132L38 137M40 123C60 118 79 108 92 95" />
+
+    <path class="ink" d="M116 23C121 51 114 85 96 114C85 132 73 143 76 155C87 164 103 165 118 158C145 145 162 116 164 84C165 57 150 35 128 20" />
+    <path class="mid" d="M85 151C110 145 132 124 142 98C151 76 146 51 132 32" />
+    <path class="fine" d="M80 151L96 157M102 141C120 128 134 110 140 91" />
+
+    <path class="ink" d="M127 21C145 40 158 61 165 85C174 119 166 151 143 176C134 186 133 197 143 203C157 205 173 197 184 185C208 158 214 119 199 82C187 53 162 30 135 17" />
+    <path class="mid" d="M145 192C170 175 187 148 190 119C193 89 180 57 154 34" />
+    <path class="fine" d="M142 198L157 200M164 176C177 158 185 137 186 114" />
+
+    <path class="ink" d="M136 20C163 31 187 49 202 73C223 107 223 146 205 177C198 189 199 199 210 204C224 201 236 189 242 176C258 140 250 100 225 67C204 40 171 23 141 16" />
+    <path class="mid" d="M211 192C229 166 235 136 226 107C218 78 197 51 168 34" />
+    <path class="fine" d="M207 199L220 198M223 175C231 154 232 132 226 111" />
+  </g>
+</svg>

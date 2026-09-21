@@ -51,8 +51,8 @@ public struct PlanReviewSheet: View {
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(HeliColors.cardWarmWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(HeliColors.sageRule, lineWidth: 0.8))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
 
                     // Segmented Filter Tabs
                     HStack(spacing: 6) {
@@ -141,9 +141,9 @@ public struct PlanReviewSheet: View {
             .frame(maxWidth: .infinity)
             .background(selectedFilter == mode ? HeliColors.forestGreen : HeliColors.cardWarmWhite)
             .foregroundColor(selectedFilter == mode ? HeliColors.cardWarmWhite : HeliColors.greenInk)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: 8)
                     .stroke(selectedFilter == mode ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 0.8)
             )
         }
@@ -334,8 +334,8 @@ public struct PlanReviewSheet: View {
                 }
                 .padding(13)
                 .background(HeliColors.cardWarmWhite)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(HeliColors.sageRule, lineWidth: 0.8))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
             }
         }
     }
@@ -402,8 +402,8 @@ public struct PlanReviewSheet: View {
                 }
                 .padding(11)
                 .background(HeliColors.cardWarmWhite.opacity(0.7))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule.opacity(0.6), lineWidth: 0.6))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(HeliColors.sageRule.opacity(0.6), lineWidth: 0.6))
             }
         }
     }
@@ -460,8 +460,8 @@ public struct PlanReviewSheet: View {
             }
             .padding(11)
             .background(HeliColors.cardWarmWhite.opacity(0.85))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule.opacity(0.6), lineWidth: 0.6))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(HeliColors.sageRule.opacity(0.6), lineWidth: 0.6))
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -490,7 +490,7 @@ public struct PlanReviewSheet: View {
         .padding(24)
         .frame(maxWidth: .infinity)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(HeliColors.sageRule, lineWidth: 0.8))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
     }
 }

@@ -132,6 +132,9 @@ actor TestCloud: HouseholdCloudService {
 final class SQLProtocol: URLProtocol {
     static var requests: [[String: Any]] = []
     static var returnConflict = false
+    static var requireListsSchema = false
+    static var listsSchemaExists = false
+    static var failListsSetup = false
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
@@ -151,13 +154,102 @@ final class SQLProtocol: URLProtocol {
         let body = (try? JSONSerialization.jsonObject(with: data ?? Data())) as? [String: Any] ?? [:]
         Self.requests.append(body)
         let query = body["query"] as? String ?? ""
-        let rows: [[String: Any]] = query.contains("RETURNING") && !Self.returnConflict ? [["revision": "2026-09-08 12:00:00+00"]] : []
-        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+        let listsSetup = query.contains("CREATE TABLE IF NOT EXISTS helipad_household_lists")
+        let schemaFailure = (listsSetup && Self.failListsSetup) ||
+            (Self.requireListsSchema && !Self.listsSchemaExists && query.contains("FROM helipad_household_lists"))
+        if listsSetup && !Self.failListsSetup { Self.listsSchemaExists = true }
+        let rows: [[String: Any]] = query.contains("AS lists_ready")
+            ? [["lists_ready": Self.listsSchemaExists]]
+            : (query.contains("RETURNING") && !Self.returnConflict ? [["revision": "2026-09-08 12:00:00+00"]] : [])
+        let response = HTTPURLResponse(url: request.url!, statusCode: schemaFailure ? 400 : 200, httpVersion: nil, headerFields: nil)!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: try! JSONSerialization.data(withJSONObject: ["rows": rows]))
         client?.urlProtocolDidFinishLoading(self)
     }
     override func stopLoading() {}
+}
+
+// MARK: - Lists test doubles
+
+/// Stands in for the `helipad_household_lists` record: one document, one
+/// revision, compare-and-swap enforcement, and counters so a test can prove a
+/// call did or did not happen.
+final class MockListsCloud: HouseholdListsCloudService {
+    var document: HouseholdListsArchive?
+    var revision: String?
+    var pushCount = 0
+    var pullCount = 0
+    var revisionCount = 0
+    var failPulls = false
+    var failPushes = false
+    var onPush: (() async -> Void)?
+    var onRevision: (() async -> Void)?
+    private var counter = 0
+
+    func fetchListsRevision(householdId: String, rawConnectionString: String) async throws -> String? {
+        revisionCount += 1
+        if let hook = onRevision { onRevision = nil; await hook() }
+        if failPulls { throw NeonError.networkError("offline") }
+        return revision
+    }
+
+    func pullLists(householdId: String, rawConnectionString: String) async throws -> RemoteHouseholdLists? {
+        pullCount += 1
+        if failPulls { throw NeonError.networkError("offline") }
+        guard let document, let revision else { return nil }
+        return RemoteHouseholdLists(archive: try document.migrated(), revision: revision,
+                                    needsMigrationUpload: document.version != HouseholdListsArchive.currentVersion)
+    }
+
+    func pushLists(
+        _ archive: HouseholdListsArchive,
+        householdId: String,
+        expectedRevision: String?,
+        rawConnectionString: String
+    ) async throws -> String {
+        pushCount += 1
+        if let hook = onPush { onPush = nil; await hook() }
+        if failPushes { throw NeonError.networkError("offline") }
+        guard expectedRevision == revision else { throw NeonError.conflict }
+        counter += 1
+        revision = "r\(counter)"
+        document = archive
+        return revision!
+    }
+}
+
+/// Stands in for `AppStore`: the shared logical clock, the household identity,
+/// and the storage switch — without a whole household.
+final class MockListsHost: HouseholdListsHost {
+    var householdID: String
+    var defaults: UserDefaults
+    var enabled = true
+    var connection: String?
+    var lamport = 0
+    var deviceID: String
+
+    init(householdID: String, defaults: UserDefaults, deviceID: String, connection: String? = "postgres://test") {
+        self.householdID = householdID
+        self.defaults = defaults
+        self.deviceID = deviceID
+        self.connection = connection
+    }
+
+    func listsNextStamp() -> RecordStamp {
+        lamport += 1
+        return RecordStamp(counter: lamport, deviceID: deviceID)
+    }
+
+    func listsObserve(_ stamp: RecordStamp) {
+        if stamp.counter > lamport { lamport = stamp.counter }
+    }
+
+    var listsHouseholdID: String { householdID }
+    var listsPersistenceDefaults: UserDefaults { defaults }
+    var listsPersistenceEnabled: Bool { enabled }
+    func listsCloudContext() -> ListsCloudContext? {
+        connection.map { ListsCloudContext(householdID: householdID, connection: $0) }
+    }
 }
 
 @main struct ProductionRegressionTests {
@@ -288,12 +380,15 @@ final class SQLProtocol: URLProtocol {
         recurrenceStore.toggleEventDone(id: firstWednesday.id)
         var movedWednesday = recurrenceStore.records().first { $0.id == firstWednesday.id }!
         movedWednesday.date = "2026-09-17"
+        movedWednesday.notes = "Bring goggles"
         _ = try recurrenceStore.saveEvent(
             draft: movedWednesday,
             recurrence: RecurrencePattern(mode: .none, startDate: movedWednesday.date),
             scope: .occurrence,
-            sourceOccurrenceID: movedWednesday.id
+            sourceOccurrenceID: movedWednesday.id,
+            updateNotes: true
         )
+        check(recurrenceStore.records().first { $0.id == movedWednesday.id }?.notes == "Bring goggles", "event context can be explicitly edited on an occurrence")
         let deletedWednesday = recurrenceStore.events(inSeries: "swim").first { $0.date == "2026-09-23" }!
         recurrenceStore.deleteEvent(id: deletedWednesday.id, scope: .occurrence)
         var editReference = recurrenceStore.records().first { $0.id == firstWednesday.id }!
@@ -301,6 +396,7 @@ final class SQLProtocol: URLProtocol {
         editReference.title = "Swim"
         _ = try recurrenceStore.saveEvent(draft: editReference, recurrence: wednesdaysOnly, scope: .series, sourceOccurrenceID: firstWednesday.id)
         let narrowed = recurrenceStore.events(inSeries: "swim")
+        check(narrowed.first { $0.id == movedWednesday.id }?.notes == "Bring goggles", "unrelated series edits preserve occurrence context")
         check(narrowed.contains { $0.id == firstWednesday.id && $0.date == "2026-09-17" && $0.originalOccurrenceDate == "2026-09-16" && $0.owner == "Dad" && $0.done }, "weekday/range edits preserve moved occurrence identity and overlays")
         check(!narrowed.contains { ($0.originalOccurrenceDate ?? $0.date) == "2026-09-23" }, "a deleted occurrence exclusion survives a series extension")
         check(narrowed.allSatisfy { PlanCore.weekdayIndex($0.originalOccurrenceDate ?? $0.date) == 2 }, "removing Monday changes only intended series slots")
@@ -604,6 +700,21 @@ final class SQLProtocol: URLProtocol {
         check(overdueData.live >= 0 && overdueData.mine[overdueData.live].event.id == "overdue", "overdue unfinished work remains actionable")
         check(overdueData.restingState == .outstanding(2), "timed and all-day unfinished work prevent an all-clear state")
 
+        // An all-day event owns the date, not a slot in it: it must not collide
+        // with the timed stops around it, and must not raise timing risks itself.
+        let allDayOptions = overdueStore.planningOptions()
+        let allDayWithTimed = [
+            TaskRecord(id: "timed", date: "2026-09-14", time: "15:00", endTime: "16:00", title: "Soccer", owner: "Mom", location: "Home", mode: "Home"),
+            TaskRecord(id: "spirit-week", date: "2026-09-14", title: "Spirit week", owner: "Mom", location: "Home", mode: "Home", allDay: true)
+        ]
+        let allDayAnalyzed = PlanCore.analyze(allDayWithTimed, allDayOptions)
+        let timedRow = allDayAnalyzed.first { $0.event.id == "timed" }!
+        let allDayRow = allDayAnalyzed.first { $0.event.id == "spirit-week" }!
+        check(!timedRow.risks.contains { $0.type == "overlap" }, "all-day event does not overlap the timed stop beside it")
+        check(allDayRow.risks.isEmpty && allDayRow.status == "ready", "all-day event raises no timing risk of its own")
+        check(!allDayRow.detail.conflict, "all-day event is never in conflict")
+        check(!PlanCore.candidate(allDayWithTimed[0], "Mom", allDayWithTimed, allDayOptions).conflict, "all-day event is invisible to the timed plan")
+
         let unknownRouteStore = store()
         unknownRouteStore.currentUser = "All"
         unknownRouteStore.replaceRecords([
@@ -806,6 +917,44 @@ final class SQLProtocol: URLProtocol {
         }
         check(await shared.uploadCount() == settled, "settled phones stop writing to each other")
 
+        // The poll paces itself: quiet ticks widen the gap, anything happening
+        // snaps it back. A phone left open on the counter must not keep asking
+        // every couple of seconds for an answer that is always "no".
+        check(AppStore.liveSyncInterval < AppStore.liveSyncIdleInterval,
+              "the active poll is faster than the idle one")
+        let pacer = phoneB
+        pacer.stopLiveSync()
+        check(pacer.liveSyncGap == AppStore.liveSyncInterval, "a fresh watcher starts at the active gap")
+        var previousGap = pacer.liveSyncGap
+        for _ in 0..<3 {
+            check(await pacer.liveSyncTick() == .quiet, "a settled phone reports quiet")
+            check(pacer.liveSyncGap > previousGap, "each quiet tick widens the gap")
+            previousGap = pacer.liveSyncGap
+        }
+        for _ in 0..<12 { await pacer.liveSyncTick() }
+        check(pacer.liveSyncGap == AppStore.liveSyncIdleInterval, "the gap settles at the idle interval, no wider")
+
+        // News from the other phone brings it straight back.
+        var wokenRecords = phoneA.records()
+        wokenRecords.append(TaskRecord(id: "ev-swim", date: "2026-10-09", title: "Swim", owner: "Mom"))
+        phoneA.replaceRecords(wokenRecords)
+        try await phoneA.syncWithNeon()
+        check(await pacer.liveSyncTick() == .changed, "a tick that finds news reports changed")
+        check(pacer.liveSyncGap == AppStore.liveSyncInterval, "news snaps the gap back to the active interval")
+
+        // So does an edit made here, because the other phone tends to answer it.
+        for _ in 0..<12 { await pacer.liveSyncTick() }
+        check(pacer.liveSyncGap == AppStore.liveSyncIdleInterval, "back to idle while nothing happens")
+        retitle(pacer, "Piano recital")
+        check(pacer.liveSyncGap == AppStore.liveSyncInterval, "a local edit re-quickens the poll")
+
+        // A household with sync switched off has nothing to ask about.
+        let dormant = phone(store(shared), UserDefaults(suiteName: "helipad.dormant.\(UUID().uuidString)")!)
+        dormant.neonSyncEnabled = false
+        check(await dormant.liveSyncTick() == .dormant, "sync switched off reports dormant")
+        check(dormant.liveSyncGap == AppStore.liveSyncIdleInterval, "and goes straight to the idle gap")
+        check(await shared.uploadCount() != -1, "dormant ticks reach no network")
+
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [SQLProtocol.self]
         let transport = NeonDatabaseService(session: URLSession(configuration: config))
@@ -823,6 +972,47 @@ final class SQLProtocol: URLProtocol {
         } catch NeonError.conflict {}
 
         // Solo events without children & stats accuracy verification
+        // Lists must initialise their own table before their very first read.
+        // A missing table is an HTTP 400 from Neon, not an empty household.
+        SQLProtocol.returnConflict = false
+        SQLProtocol.requireListsSchema = true
+        SQLProtocol.listsSchemaExists = false
+        SQLProtocol.requests = []
+        let freshListsTransport = NeonListsCloudService(database: transport)
+        _ = try await freshListsTransport.fetchListsRevision(householdId: "new-home", rawConnectionString: syncing.neonConnectionString)
+        _ = try await freshListsTransport.pullLists(householdId: "new-home", rawConnectionString: syncing.neonConnectionString)
+        check(SQLProtocol.listsSchemaExists, "fresh list reads prepare the schema before querying it")
+        check(SQLProtocol.requests.filter { ($0["query"] as? String)?.contains("CREATE TABLE") == true }.count == 1,
+              "list reads share successful setup instead of issuing DDL on every poll")
+        check(SQLProtocol.requests.allSatisfy { $0["params"] is [Any] }, "every SQL request includes a params array")
+        SQLProtocol.failListsSetup = true
+        let readWriteOnlyTransport = NeonListsCloudService(database: transport)
+        _ = try await readWriteOnlyTransport.pullLists(householdId: "new-home", rawConnectionString: syncing.neonConnectionString)
+        check(SQLProtocol.requests.filter { ($0["query"] as? String)?.contains("CREATE TABLE") == true }.count == 1,
+              "existing tables can sync without CREATE permission")
+        let permissionBody = Data(#"{"code":"42501","message":"secret postgres://private@host/db"}"#.utf8)
+        let safeError = NeonDatabaseService.safeServerError(permissionBody)
+        check(safeError.contains("permission") && !safeError.contains("private"), "sync errors explain permissions without exposing the raw response")
+        SQLProtocol.listsSchemaExists = false
+        SQLProtocol.failListsSetup = true
+        let retryListsTransport = NeonListsCloudService(database: transport)
+        do {
+            _ = try await retryListsTransport.pullLists(householdId: "new-home", rawConnectionString: syncing.neonConnectionString)
+            preconditionFailure("A setup failure must be surfaced")
+        } catch NeonError.serverError {}
+        SQLProtocol.failListsSetup = false
+        _ = try await retryListsTransport.pullLists(householdId: "new-home", rawConnectionString: syncing.neonConnectionString)
+        check(SQLProtocol.listsSchemaExists, "a failed setup can be retried")
+        var privateArchive = HouseholdListsDefaults.archive(householdID: "new-home", connectionFingerprint: "postgres://test:private@example/db")
+        privateArchive.localRevision = 9
+        privateArchive.uploadedRevision = 7
+        _ = try await retryListsTransport.pushLists(privateArchive, householdId: "new-home", expectedRevision: nil, rawConnectionString: syncing.neonConnectionString)
+        let sentLists = (SQLProtocol.requests.last!["params"] as! [Any])[1] as! String
+        check(!sentLists.contains("postgres://") && !sentLists.contains("private@example"), "shared list documents never carry a connection URI")
+        let decodedLists = try JSONDecoder().decode(HouseholdListsArchive.self, from: Data(sentLists.utf8))
+        check(decodedLists.localRevision == 0 && decodedLists.uploadedRevision == 0, "a peer cannot inherit another device's sync counters")
+        SQLProtocol.requireListsSchema = false
+
         check(FamilyCore.resolveChildren(kids: [], kid: "").isEmpty, "empty kids resolves to empty list, not all kids")
         check(FamilyCore.resolveChildren(kids: ["Maya"], kid: "") == ["Maya"], "single kid preserved")
         check(FamilyCore.resolveChildren(kids: nil, kid: nil) == FamilyCore.KIDS, "nil fallback returns all kids")
@@ -1023,6 +1213,68 @@ final class SQLProtocol: URLProtocol {
         check(gcalStore.records().contains(where: { $0.calendarId == parsedAllDay.calendarId }) == false, "remote deletion reconciled within range")
         check(gcalStore.records().contains(where: { $0.calendarId == reimportedTimed.calendarId }) == true, "remaining event kept")
 
+        // 5b. An edit made here, that never reached Google, must survive the
+        // next import. Google repeating itself is not a change, and taking its
+        // fields anyway silently reverted the household's own work overnight.
+        var editedHere = gcalStore.records().first(where: { $0.calendarId == reimportedTimed.calendarId })!
+        editedHere.time = "18:00"
+        editedHere.endTime = "19:00"
+        editedHere.title = "Piano — moved in HeliPad"
+        editedHere.location = "Studio B"
+        gcalStore.replaceRecords([editedHere])
+        gcalStore.mergeGoogleCalendarEvents(
+            [reimportedTimed],
+            calendarIDs: ["primary"],
+            from: "2026-09-14",
+            through: "2026-09-20"
+        )
+        let afterIdleImport = gcalStore.records().first(where: { $0.calendarId == reimportedTimed.calendarId })!
+        check(afterIdleImport.time == "18:00", "local time edit survives an unchanged re-import")
+        check(afterIdleImport.title == "Piano — moved in HeliPad", "local title edit survives an unchanged re-import")
+        check(afterIdleImport.location == "Studio B", "local location edit survives an unchanged re-import")
+
+        // ...and a real upstream move still wins over that local edit.
+        var movedOnGoogle = updatedGoogleEvent
+        movedOnGoogle.start = GoogleEventDateTime(dateTime: "2026-09-14T20:00:00-04:00")
+        movedOnGoogle.end = GoogleEventDateTime(dateTime: "2026-09-14T21:00:00-04:00")
+        let movedParsed = GoogleCalendarService.parseGoogleEvent(
+            movedOnGoogle, calendarId: "primary", timeZone: nyTz, homeName: "Home"
+        )!
+        gcalStore.mergeGoogleCalendarEvents(
+            [movedParsed],
+            calendarIDs: ["primary"],
+            from: "2026-09-14",
+            through: "2026-09-20"
+        )
+        let afterUpstreamMove = gcalStore.records().first(where: { $0.calendarId == movedParsed.calendarId })!
+        check(afterUpstreamMove.time == "20:00", "a genuine upstream move is still applied")
+        check(afterUpstreamMove.owner == "Mom", "app overlay survives the upstream move")
+
+        // 5c. Cancelling a stop while its export is still in flight must stick.
+        // The export finishes holding a copy of a record that no longer exists,
+        // and re-adding it put a cancelled stop back on the week minutes later.
+        let cancelStore = store(TestCloud())
+        cancelStore.restore(from: UserDefaults(suiteName: "helipad.cancel.\(UUID().uuidString)")!)
+        cancelStore.hasCompletedOnboarding = true
+        let doomed = TaskRecord(
+            id: "ev-doomed", date: "2026-09-18", time: "09:00", endTime: "10:00",
+            title: "Dentist", owner: "Mom", location: "Home", mode: "Home"
+        )
+        cancelStore.replaceRecords([doomed])
+        cancelStore.deleteEvent(id: "ev-doomed")
+        check(!cancelStore.records().contains { $0.id == "ev-doomed" }, "the stop is gone once cancelled")
+        check(cancelStore.tombstones.contains { $0.kind == .event && $0.id == "ev-doomed" },
+              "cancelling leaves a tombstone")
+        // The in-flight export lands afterwards, carrying the pre-delete copy.
+        var exportedLate = doomed
+        exportedLate.gcal = true
+        exportedLate.calendarId = "google|primary|late-write"
+        cancelStore.applyExportedRecordsForTesting([exportedLate])
+        check(!cancelStore.records().contains { $0.id == "ev-doomed" },
+              "a late export does not resurrect a cancelled stop")
+        check(cancelStore.plan.calendar.exports["ev-doomed"] == nil,
+              "and its stale export bookkeeping is dropped")
+
         // 6. Google Calendar Export / Live Write
         let newLocalStop = TaskRecord(
             id: "local-stop-1",
@@ -1051,6 +1303,47 @@ final class SQLProtocol: URLProtocol {
         check(mockGoogleService.updateCount == 1, "updateEvent called on Google Calendar service")
         check(gcalStore.plan.calendar.exports[newLocalStop.id] == "\"etag-updated-1\"", "etag updated in exports")
 
+        // 7b. Exporting a series writes the household once, not once per stop.
+        // Saving per occurrence ran reconcile, persist, a notification
+        // reschedule and a cloud sync for every occurrence, which locked the
+        // app up after adding a twenty-week recurrence.
+        let seriesStops = (0..<3).map { index in
+            TaskRecord(
+                id: "series-stop-\(index)",
+                date: PlanCore.dateAdd("2026-09-22", index * 7),
+                time: "15:00",
+                endTime: "15:20",
+                title: "Pickup",
+                owner: "Dad",
+                kids: ["Leo"],
+                location: "Town Library",
+                mode: "Drive",
+                seriesId: "series-batch-1"
+            )
+        }
+        gcalStore.replaceRecords(gcalStore.records() + seriesStops)
+        let createsBefore = mockGoogleService.createCount
+        let revisionBefore = gcalStore.contentRevision
+
+        let exportedSeries = await gcalStore.exportEventsToGoogleCalendar(seriesStops)
+        check(exportedSeries.count == 3, "every occurrence in the series is exported")
+        check(
+            mockGoogleService.createCount - createsBefore == 3,
+            "one remote write per occurrence"
+        )
+        check(
+            gcalStore.contentRevision - revisionBefore == 1,
+            "the whole series costs exactly one household save"
+        )
+        check(
+            exportedSeries.allSatisfy { $0.gcal && ($0.calendarId?.hasPrefix("google|") ?? false) },
+            "every exported occurrence is marked and carries its provider key"
+        )
+        check(
+            gcalStore.records().filter { $0.seriesId == "series-batch-1" }.allSatisfy(\.gcal),
+            "exported series is persisted back into the household"
+        )
+
         // 8. Conflict Handling on Google write (ETag mismatch)
         mockGoogleService.shouldFailWithConflict = true
         do {
@@ -1072,6 +1365,597 @@ final class SQLProtocol: URLProtocol {
         check(gcalStore.connections["google"] == false, "connections['google'] is false after disconnect")
         check(gcalStore.googleAccountEmail.isEmpty, "email cleared on disconnect")
 
-        print("Production regression checks passed: credentials, sync races/conflicts/retry, two-phone merge and convergence, live sync quiescence, rollover, clock, analysis caching, solo events, Google Calendar read/write/reconciliation/conflicts, and stats tracking.")
+        // MARK: - Event provenance and legacy decoding
+        //
+        // Shortcut suggestions depend on knowing how an event was created.
+        // These guard the migration path: old households must decode intact,
+        // and every creation path must record what made it.
+
+        let provenance = store()
+
+        // A record written before provenance existed: no `origin` key at all.
+        // It must decode intact rather than being dropped or rewritten.
+        let legacyJSON = #"""
+        [{"id":"legacy-1","date":"2026-09-07","time":"08:00","endTime":"08:30",
+          "title":"School drop-off","owner":"Kellie","lead":"Kellie","kids":["Soni"],"kid":"Soni",
+          "location":"Goddard School","mode":"Drive","kind":"dropoff","done":false,
+          "tentative":false,"locked":false,"gcal":false,"notes":"","allDay":false}]
+        """#
+        let legacyEvents = try JSONDecoder().decode([TaskRecord].self, from: Data(legacyJSON.utf8))
+        check(legacyEvents.count == 1, "legacy event JSON decodes without losing events")
+        check(legacyEvents.first?.origin == nil, "legacy events keep nil provenance rather than being rewritten")
+        check(legacyEvents.first?.title == "School drop-off", "legacy event content is preserved verbatim")
+        check(legacyEvents.first?.countsAsManualEffort == true,
+              "a legacy standalone event still counts as manual effort")
+
+        var seriesLegacy = legacyEvents[0]
+        seriesLegacy.seriesId = "series-x"
+        check(seriesLegacy.countsAsManualEffort == false, "legacy series occurrence is not manual effort")
+        var importedLegacy = legacyEvents[0]
+        importedLegacy.calendarId = "google|cal|evt"
+        check(importedLegacy.countsAsManualEffort == false, "legacy imported event is not manual effort")
+
+        // And a whole household round-trips through the real persistence path
+        // with the new field present.
+        let roundTripSuite = "helipad.provenance.\(UUID().uuidString)"
+        let roundTripDefaults = UserDefaults(suiteName: roundTripSuite)!
+        defer { roundTripDefaults.removePersistentDomain(forName: roundTripSuite) }
+        provenance.restore(from: roundTripDefaults)
+        let beforeCount = provenance.records().count
+        provenance.save(syncToCloud: false)
+        let reloaded = store()
+        reloaded.restore(from: roundTripDefaults)
+        check(reloaded.records().count == beforeCount,
+              "persist/restore keeps every event after adding provenance")
+
+        // Manual save path.
+        let manualDraft = TaskRecord(
+            id: "prov-manual", date: "2026-09-14", time: "08:00", endTime: "08:30",
+            title: "Drop off", owner: "Kellie", kids: ["Soni"], location: "Goddard School", kind: .dropoff
+        )
+        let savedManual = try provenance.saveEvent(
+            draft: manualDraft,
+            recurrence: RecurrencePattern(mode: .none, startDate: "2026-09-14", timeZone: "UTC")
+        )
+        check(savedManual.first?.origin == .manual, "editor save records manual provenance")
+
+        // Recurrence path.
+        let seriesDraft = TaskRecord(
+            id: "prov-series", date: "2026-09-14", time: "16:00", endTime: "17:00",
+            title: "Swim", owner: "Kellie", kids: ["Soni"], location: "Pool", kind: .practice
+        )
+        let savedSeries = try provenance.saveEvent(
+            draft: seriesDraft,
+            recurrence: RecurrencePattern(
+                mode: .weekly, startDate: "2026-09-14", timeZone: "UTC",
+                weekdays: [0], end: .weekCount(3)
+            )
+        )
+        check(savedSeries.count == 3, "weekly series materialises its occurrences")
+        check(savedSeries.allSatisfy { if case .recurrence = $0.origin { return true }; return false },
+              "series occurrences record recurrence provenance")
+        check(savedSeries.allSatisfy { $0.countsAsManualEffort == false },
+              "series occurrences are not manual effort")
+
+        // Shortcut path.
+        let shortcutTemplate = TemplateItem(
+            id: "tmpl-1", title: "Drop Off", time: "08:00", endTime: "08:30",
+            kids: ["Soni"], owner: "Kellie", location: "Goddard School", duration: 30
+        )
+        let fromShortcut = FamilyCore.eventDraft(template: shortcutTemplate, date: "2026-09-15")
+        check(fromShortcut.origin == .shortcut(templateID: "tmpl-1"),
+              "shortcut-created event records the template it came from")
+        check(fromShortcut.countsAsManualEffort == false, "shortcut-created events are not manual effort")
+        let savedFromShortcut = try provenance.saveEvent(
+            draft: fromShortcut,
+            recurrence: RecurrencePattern(mode: .none, startDate: "2026-09-15", timeZone: "UTC")
+        )
+        check(savedFromShortcut.first?.origin == .shortcut(templateID: "tmpl-1"),
+              "saveEvent does not overwrite provenance the caller already set")
+
+        // MARK: - Lists: identity, storage and commands
+        //
+        // Two things a household can lose here: the lists themselves through a
+        // bad save, and the schedule through a list edit. The checks below are
+        // about both.
+
+        let listsSuite = "helipad.lists.\(UUID().uuidString)"
+        let listsDefaults = UserDefaults(suiteName: listsSuite)!
+        defer { listsDefaults.removePersistentDomain(forName: listsSuite) }
+
+        func listsHost(_ household: String, _ device: String, into defaults: UserDefaults) -> MockListsHost {
+            MockListsHost(householdID: household, defaults: defaults, deviceID: device)
+        }
+
+        // 1. A household that has never used Lists.
+        let listsHostA = listsHost("household-a", "phone-a", into: listsDefaults)
+        let cloudA = MockListsCloud()
+        let lists = HouseholdListsStore(cloud: cloudA)
+        lists.attach(to: listsHostA)
+
+        check(lists.lists(.todos).count == 1 && lists.lists(.groceries).count == 1,
+              "a household that has never used Lists gets exactly two lists")
+        check(lists.remainingCount(of: lists.defaultList(.todos)!.id) == 0,
+              "the lists arrive empty, never carrying sample data")
+        check(lists.archive.lists.count == 2, "a household's archive describes exactly two lists")
+        check(lists.defaultList(.todos)!.kind == .todos && lists.defaultList(.groceries)!.kind == .groceries,
+              "each derived list knows which kind it is")
+        check(lists.groups(of: lists.defaultList(.todos)!.id).map(\.name) == ["General"],
+              "every list starts with one General section")
+        check(lists.syncState == .upToDate, "empty lists with a configured connection have no pending local edits")
+
+        // Legacy cloud documents contain the two defaults plus optional lists.
+        // They must migrate before strict validation, never be pruned as noise.
+        var legacyLists = HouseholdListsDefaults.archive(householdID: "migration-home", now: Date(timeIntervalSince1970: 100))
+        legacyLists.version = 1
+        legacyLists.lists.append(HouseholdList(id: "old-project", kind: .todos, name: "Garage project"))
+        legacyLists.groups.append(HouseholdListGroup(id: "old-general", listID: "old-project", name: "General"))
+        legacyLists.items.append(HouseholdListItem(id: "old-task", listID: "old-project", groupID: "old-general",
+                                                  text: "Sort tools", note: "Keep the blue box", completedAt: Date(timeIntervalSince1970: 200)))
+        legacyLists.subtasks.append(ListSubtask(id: "old-step", itemID: "old-task", text: "Label drawers", rank: 0))
+        let migratedLists = try legacyLists.migrated()
+        check(migratedLists.lists.count == 2 && migratedLists.version == HouseholdListsArchive.currentVersion,
+              "legacy extra lists migrate to the two-primary-list format")
+        check(migratedLists.items.first?.id == "old-task" && migratedLists.items.first?.isCompleted == true &&
+              migratedLists.items.first?.note == "Keep the blue box" && migratedLists.subtasks.first?.id == "old-step",
+              "migration preserves item identity, completion, notes and steps")
+        check(migratedLists.groups.first(where: { $0.id == "old-general" })?.name == "Garage project",
+              "legacy list name becomes a section instead of losing its contents")
+        check(try migratedLists.migrated() == migratedLists, "migration is idempotent")
+        let migrationSuite = "helipad.lists.migration.\(UUID().uuidString)"
+        let migrationDefaults = UserDefaults(suiteName: migrationSuite)!
+        defer { migrationDefaults.removePersistentDomain(forName: migrationSuite) }
+        let legacyBytes = try JSONEncoder().encode(legacyLists)
+        migrationDefaults.set(legacyBytes, forKey: HouseholdListsPersistence.quarantineKey(householdID: "migration-home"))
+        guard case .loaded(let recoveredLists) = HouseholdListsPersistence.load(householdID: "migration-home", from: migrationDefaults) else {
+            preconditionFailure("expected recovery of readable legacy lists")
+        }
+        check(recoveredLists.items.count == 1 && HouseholdListsPersistence.quarantined(householdID: "migration-home", from: migrationDefaults) == legacyBytes,
+              "a quarantined legacy archive recovers without replacing its original backup")
+        let migrationCloud = MockListsCloud()
+        migrationCloud.document = legacyLists
+        migrationCloud.revision = "legacy-r1"
+        let migrationHost = listsHost("migration-home", "migration-phone", into: migrationDefaults)
+        let migrationStore = HouseholdListsStore(cloud: migrationCloud)
+        migrationStore.attach(to: migrationHost)
+        await migrationStore.sync()
+        check(migrationStore.syncState == .upToDate && migrationCloud.document?.version == HouseholdListsArchive.currentVersion,
+              "legacy cloud lists finish migration and sync instead of showing not syncing")
+        check(migrationCloud.document?.items.first?.text == "Sort tools", "migration upload preserves the old remote item")
+        let migratedTodo = migrationStore.defaultList(.todos)!.id
+        let migratedGeneral = migrationStore.generalGroup(of: migratedTodo)!.id
+        let batchDrafts = [ListItemDraft(id: "assistant-task", listID: migratedTodo, groupID: migratedGeneral, text: "Clean garage")]
+        _ = try migrationStore.addItems(batchDrafts)
+        _ = try migrationStore.addItems(batchDrafts)
+        check(migrationStore.archive.items.filter { $0.id == "assistant-task" }.count == 1, "confirmed list batch retries are idempotent")
+        check(migrationStore.archive.localRevision > migrationStore.archive.uploadedRevision, "an edit after migration is still pending")
+        let beforeBadBatch = migrationStore.archive
+        do {
+            _ = try migrationStore.addItems([
+                ListItemDraft(id: "valid-first", listID: migratedTodo, groupID: migratedGeneral, text: "First"),
+                ListItemDraft(id: "invalid-second", listID: migratedTodo, groupID: migratedGeneral, text: " ")
+            ])
+            preconditionFailure("invalid batch must fail")
+        } catch {}
+        check(migrationStore.archive == beforeBadBatch, "an invalid assistant batch saves no partial items")
+        await migrationStore.sync()
+        check(migrationCloud.document?.items.contains(where: { $0.id == "assistant-task" }) == true,
+              "assistant additions go through the shared sync pipeline")
+
+        // 2. Identity is derived, not synced: a second phone agrees untold.
+        let peerSuite = "helipad.lists.peer.\(UUID().uuidString)"
+        let peerDefaults = UserDefaults(suiteName: peerSuite)!
+        defer { peerDefaults.removePersistentDomain(forName: peerSuite) }
+        let listsHostB = listsHost("household-a", "phone-b", into: peerDefaults)
+        let peer = HouseholdListsStore(cloud: MockListsCloud())
+        peer.attach(to: listsHostB)
+        check(peer.defaultList(.groceries)!.id == lists.defaultList(.groceries)!.id,
+              "both phones derive the same default list identity from the household")
+        check(peer.groups(of: peer.defaultList(.todos)!.id) == lists.groups(of: lists.defaultList(.todos)!.id),
+              "both phones derive the same General section")
+
+        // 3. Commands.
+        let groceriesID = lists.defaultList(.groceries)!.id
+        let generalID = lists.generalGroup(of: groceriesID)!.id
+        let milk = lists.addItem(listID: groceriesID, groupID: generalID, text: "  Oat milk  ", quantity: "2 cartons")
+        check(milk != nil, "an item can be added")
+        check(lists.item(milk!)?.text == "Oat milk", "item text is trimmed on the way in")
+        check(lists.item(milk!)?.quantity == "2 cartons", "a grocery quantity is kept")
+        check(lists.addItem(listID: groceriesID, groupID: generalID, text: "   ") == nil,
+              "a blank item is rejected rather than stored")
+
+        let bread = lists.addItem(listID: groceriesID, groupID: generalID, text: "Bread", quantity: "1 loaf")!
+        check(lists.items(of: groceriesID, inGroup: generalID).map(\.text) == ["Oat milk", "Bread"],
+              "new items keep their order")
+        lists.moveItem(id: bread, by: -1)
+        check(lists.items(of: groceriesID, inGroup: generalID).map(\.text) == ["Bread", "Oat milk"],
+              "an item can be reordered inside its section")
+        check(lists.items(of: groceriesID, inGroup: generalID).map(\.rank) == [0, 1],
+              "reordering leaves dense ranks")
+
+        lists.setCompleted(id: milk!, to: true)
+        check(lists.item(milk!)?.isCompleted == true, "an item can be checked off")
+        lists.setCompleted(id: milk!, to: true)
+        check(lists.item(milk!)?.isCompleted == true, "replaying a completion keeps the requested state")
+        check(lists.duplicate(of: groceriesID, matching: "Oat milk") == nil,
+              "a checked-off row is not offered as a duplicate")
+        check(lists.duplicate(of: groceriesID, matching: "  oat   MILK ") == nil, "normalization ignores case and spacing")
+        lists.setCompleted(id: milk!, to: false)
+        check(lists.item(milk!)?.isCompleted == false, "an item can be reopened")
+        check(lists.duplicate(of: groceriesID, matching: "  oat   MILK ")?.id == milk,
+              "a duplicate is recognized across case and whitespace")
+        // Captured after the reopen: reopening is a real change, so the clock is
+        // allowed to move for it. Only the tidying below must leave it alone.
+        let activityBeforeMove = lists.item(milk!)!.activityAt
+        lists.moveItem(id: milk!, by: -1)
+        check(lists.item(milk!)!.activityAt == activityBeforeMove,
+              "reordering is not activity: the cleanup clock does not move")
+        check(lists.item(milk!)!.stamps.placement != nil, "a move is still stamped so it can merge")
+
+        // 4. Relaunch.
+        let relaunched = HouseholdListsStore(cloud: MockListsCloud())
+        relaunched.attach(to: listsHostA)
+        check(relaunched.items(of: groceriesID, inGroup: generalID).map(\.text) == ["Oat milk", "Bread"],
+              "every command survives an offline relaunch")
+        check(relaunched.archive.localRevision == lists.archive.localRevision,
+              "the list revision is restored rather than reset")
+
+        // 5. Sections.
+        let produce = lists.addGroup(listID: groceriesID, name: "Fruit & vegetables")!
+        check(lists.groups(of: groceriesID).map(\.name) == ["General", "Fruit & vegetables"],
+              "a section can be added and keeps its position")
+        let avocados = lists.addItem(listID: groceriesID, groupID: produce, text: "Avocados")!
+        lists.deleteGroup(id: produce)
+        check(lists.groups(of: groceriesID).map(\.name) == ["General"], "a section can be removed")
+        check(lists.item(avocados)?.groupID == generalID,
+              "removing a section moves its rows into General instead of deleting them")
+        check(lists.item(avocados)?.text == "Avocados", "the moved row keeps its wording")
+        lists.deleteGroup(id: generalID)
+        check(lists.groups(of: groceriesID).map(\.name) == ["General"], "General cannot be removed")
+        lists.dismissUndo()
+
+        // Exactly one General section per list, and it is the section new items land
+        // in. A duplicate would leave the same name twice, with the capture bar
+        // pointing at the empty one.
+        check(lists.groups(of: groceriesID).filter { $0.name == "General" }.count == 1,
+              "the list has exactly one General section")
+
+        // Reordering by index, which is where dragging a section lands.
+        let vegSection = lists.addGroup(listID: groceriesID, name: "Fruit & vegetables")!
+        let bakerySection = lists.addGroup(listID: groceriesID, name: "Bakery")!
+        check(lists.groups(of: groceriesID).map(\.name) == ["General", "Fruit & vegetables", "Bakery"],
+              "added sections keep their order")
+        lists.moveGroup(id: bakerySection, toIndex: 0)
+        check(lists.groups(of: groceriesID).map(\.name) == ["Bakery", "General", "Fruit & vegetables"],
+              "a section can be dragged to the front")
+        check(lists.groups(of: groceriesID).map(\.rank) == [0, 1, 2], "reordering leaves dense ranks")
+        lists.moveGroup(id: bakerySection, toIndex: 9)
+        check(lists.groups(of: groceriesID).map(\.name) == ["General", "Fruit & vegetables", "Bakery"],
+              "a section dragged past the end lands at the end")
+        lists.moveGroup(id: vegSection, by: -1)
+        check(lists.groups(of: groceriesID).map(\.name) == ["Fruit & vegetables", "General", "Bakery"],
+              "moving a section by one place still works")
+        check(lists.groups(of: groceriesID).filter { $0.name == "General" }.count == 1,
+              "reordering never duplicates a section")
+        lists.deleteGroup(id: vegSection)
+        lists.deleteGroup(id: bakerySection)
+        check(lists.groups(of: groceriesID).map(\.name) == ["General"], "the extra sections can be removed")
+        lists.dismissUndo()
+
+        // 6. To-dos and steps.
+        let todosID = lists.defaultList(.todos)!.id
+        let todosGeneral = lists.generalGroup(of: todosID)!.id
+        let furnace = lists.addItem(listID: todosID, groupID: todosGeneral, text: "Replace the furnace filter")!
+        let stepOne = lists.addSubtask(itemID: furnace, text: "Buy a filter")!
+        _ = lists.addSubtask(itemID: furnace, text: "Fit it")
+        check(lists.subtasks(of: furnace).map(\.text) == ["Buy a filter", "Fit it"], "a to-do carries ordered steps")
+        lists.setSubtaskCompleted(id: stepOne, to: true)
+        check(lists.subtasks(of: furnace).first?.isCompleted == true, "a step can be ticked")
+        check(lists.item(furnace)?.isCompleted == false, "ticking a step does not complete the parent")
+        let cheese = lists.addItem(listID: groceriesID, groupID: generalID, text: "Cheese")!
+        check(lists.addSubtask(itemID: cheese, text: "Not for groceries") == nil,
+              "steps stay a to-do feature; a grocery row does not take them")
+
+        // 7. Clearing checked-off rows, and Undo.
+        lists.setCompleted(id: milk!, to: true)
+        check(lists.completedItems(of: groceriesID).count == 1, "one row is checked off")
+        lists.clearCompleted(listID: groceriesID)
+        check(lists.completedItems(of: groceriesID).isEmpty, "clearing removes the checked rows")
+        check(lists.activeItems(of: groceriesID).map(\.text).contains("Bread"),
+              "clearing leaves unchecked rows exactly where they were")
+        check(lists.pendingUndo != nil, "clearing offers an undo")
+        lists.undo()
+        check(lists.completedItems(of: groceriesID).map(\.text) == ["Oat milk"],
+              "undo brings the cleared row back, still checked off")
+        check(lists.items(of: groceriesID, inGroup: generalID).allSatisfy { $0.id != milk },
+              "the restored row carries a fresh identity")
+        check(lists.pendingUndo == nil, "the undo batch is consumed by the undo")
+
+        let listsDoomed = lists.addItem(listID: groceriesID, groupID: generalID, text: "Sesame oil")!
+        lists.deleteItem(id: listsDoomed)
+        check(lists.item(listsDoomed) == nil, "a removed row is gone")
+        let afterRelaunch = HouseholdListsStore(cloud: MockListsCloud())
+        afterRelaunch.attach(to: listsHostA)
+        check(afterRelaunch.pendingUndo != nil, "the undo batch survives a relaunch")
+        afterRelaunch.undo()
+        check(afterRelaunch.activeItems(of: groceriesID).map(\.text).contains("Sesame oil"),
+              "undo after a relaunch restores the row")
+        afterRelaunch.dismissUndo()
+
+        // 8. Advisory cleanup, and the snooze.
+        let aged = Date(timeIntervalSince1970: 1_700_000_000)
+        func stamp(_ counter: Int, _ device: String) -> RecordStamp { RecordStamp(counter: counter, deviceID: device) }
+
+        var cleanup = HouseholdListsDefaults.archive(householdID: "household-c", now: aged)
+        let cleanupTodos = cleanup.defaultList(of: .todos)!.id
+        let cleanupTodoGroup = cleanup.generalGroup(of: cleanupTodos)!.id
+        let cleanupGroceries = cleanup.defaultList(of: .groceries)!.id
+        let cleanupGroceryGroup = cleanup.generalGroup(of: cleanupGroceries)!.id
+        cleanup.items.append(HouseholdListItem(id: "old-todo", listID: cleanupTodos, groupID: cleanupTodoGroup,
+                                               text: "Pottery class", createdAt: aged, updatedAt: aged, activityAt: aged))
+        cleanup.items.append(HouseholdListItem(id: "old-grocery", listID: cleanupGroceries, groupID: cleanupGroceryGroup,
+                                               text: "Sesame oil", createdAt: aged, updatedAt: aged, activityAt: aged))
+        check(cleanup.reviewCandidates(of: cleanupTodos, kind: .todos, now: aged.addingTimeInterval(44 * 86_400)).isEmpty,
+              "a to-do is not suggested before 45 days")
+        check(cleanup.reviewCandidates(of: cleanupTodos, kind: .todos, now: aged.addingTimeInterval(46 * 86_400)).count == 1,
+              "a to-do is suggested after 45 days")
+        check(cleanup.reviewCandidates(of: cleanupGroceries, kind: .groceries, now: aged.addingTimeInterval(13 * 86_400)).isEmpty,
+              "a grocery item is not suggested before 14 days")
+        check(cleanup.reviewCandidates(of: cleanupGroceries, kind: .groceries, now: aged.addingTimeInterval(15 * 86_400)).count == 1,
+              "a grocery item is suggested after 14 days")
+        if let index = cleanup.items.firstIndex(where: { $0.id == "old-grocery" }) {
+            cleanup.items[index].completedAt = aged
+        }
+        check(cleanup.reviewCandidates(of: cleanupGroceries, kind: .groceries, now: aged.addingTimeInterval(30 * 86_400)).isEmpty,
+              "checked-off rows are never suggested")
+
+        let keptUntil = aged.addingTimeInterval(46 * 86_400 + 30 * 86_400)
+        if let index = cleanup.items.firstIndex(where: { $0.id == "old-todo" }) {
+            cleanup.items[index].reviewAfter = keptUntil
+        }
+        check(cleanup.reviewCandidates(of: cleanupTodos, kind: .todos, now: keptUntil.addingTimeInterval(-86_400)).isEmpty,
+              "a kept row is not suggested while its snooze holds")
+        check(cleanup.reviewCandidates(of: cleanupTodos, kind: .todos, now: keptUntil.addingTimeInterval(86_400)).count == 1,
+              "a kept row becomes eligible again once the snooze expires")
+
+        let snoozable = lists.addItem(listID: todosID, groupID: todosGeneral, text: "Find a book")!
+        let keptAt = Date()
+        lists.keep(id: snoozable)
+        let snoozeUntil = lists.item(snoozable)!.reviewAfter
+        check(snoozeUntil != nil, "Keep for now records a snooze")
+        check(snoozeUntil!.timeIntervalSince(keptAt) > 29 * 86_400 && snoozeUntil!.timeIntervalSince(keptAt) < 31 * 86_400,
+              "Keep for now defers the suggestion by about thirty days")
+
+        // 9. Convergence, as pure document merges.
+        func mergeArchive(_ household: String) -> HouseholdListsArchive {
+            HouseholdListsDefaults.archive(householdID: household, now: aged)
+        }
+        var left = mergeArchive("household-merge")
+        let mergeList = left.defaultList(of: .groceries)!.id
+        let mergeGroup = left.generalGroup(of: mergeList)!.id
+        let sharedRow = HouseholdListItem(
+            id: "shared", listID: mergeList, groupID: mergeGroup, text: "Milk",
+            stamps: ListStamps(content: stamp(1, "a"), completion: stamp(1, "a"), placement: stamp(1, "a")),
+            createdAt: aged, updatedAt: aged, activityAt: aged
+        )
+        left.items = [sharedRow]
+        var right = left
+
+        left.items[0].text = "Oat milk"; left.items[0].stamps.content = stamp(2, "a")
+        right.items[0].completedAt = aged; right.items[0].stamps.completion = stamp(2, "b")
+        check(left.merged(with: right) == right.merged(with: left),
+              "two phones converge whichever one merges first")
+        check(left.merged(with: right).items[0].text == "Oat milk"
+              && left.merged(with: right).items[0].isCompleted,
+              "edits to different fields of one row survive together")
+
+        var editA = left, editB = left
+        editA.items[0].text = "Almond milk"; editA.items[0].stamps.content = stamp(5, "a")
+        editB.items[0].text = "Soy milk"; editB.items[0].stamps.content = stamp(6, "b")
+        check(editA.merged(with: editB) == editB.merged(with: editA),
+              "a same-field conflict resolves identically on both sides")
+        check(editA.merged(with: editB).items[0].text == "Soy milk", "the later stamp wins the field")
+
+        var placeA = left, placeB = left
+        placeA.items[0].rank = 3; placeA.items[0].stamps.placement = stamp(7, "a")
+        placeB.items[0].rank = 9; placeB.items[0].stamps.placement = stamp(8, "b")
+        check(placeA.merged(with: placeB) == placeB.merged(with: placeA), "simultaneous reorders converge")
+
+        var addA = left, addB = left
+        addA.items.append(HouseholdListItem(id: "added-a", listID: mergeList, groupID: mergeGroup, text: "Bread",
+                                            createdAt: aged, updatedAt: aged, activityAt: aged))
+        addB.items.append(HouseholdListItem(id: "added-b", listID: mergeList, groupID: mergeGroup, text: "Cheese",
+                                            createdAt: aged, updatedAt: aged, activityAt: aged))
+        check(Set(addA.merged(with: addB).items.map(\.id)) == ["shared", "added-a", "added-b"],
+              "rows added while both phones were offline all survive")
+
+        var removed = left, edited = left
+        removed.deletions.append(ListDeletion(id: "shared", kind: .item, stamp: stamp(10, "a")))
+        edited.items[0].text = "Milk (2)"; edited.items[0].stamps.content = stamp(99, "b")
+        check(removed.merged(with: edited).items.isEmpty, "a deletion beats a much later edit to the same row")
+        check(edited.merged(with: removed).items.isEmpty, "the same holds merging the other way")
+        check(removed.merged(with: edited).isDeleted(id: "shared", kind: .item),
+              "the deletion record is kept rather than swept")
+
+        let once = left.merged(with: right)
+        check(once.merged(with: right) == once, "replaying the same merge changes nothing")
+
+        // A removed section stays removed, and rows left behind by it do not come
+        // back either. The store moves a section's rows to General before it goes;
+        // this is the merge being defensive about an archive that did not.
+        var withSection = left
+        withSection.groups.append(HouseholdListGroup(id: "produce", listID: mergeList, name: "Fruit & vegetables", rank: 5))
+        withSection.items.append(HouseholdListItem(id: "produce-row", listID: mergeList, groupID: "produce", text: "Avocados"))
+        var withoutSection = withSection
+        withoutSection.deletions.append(ListDeletion(id: "produce", kind: .group, stamp: stamp(10, "b")))
+        withoutSection.groups.removeAll { $0.id == "produce" }
+        let suppressed = withSection.merged(with: withoutSection)
+        check(suppressed.groups.allSatisfy { $0.id != "produce" },
+              "a removed section does not come back on merge")
+        check(suppressed.isDeleted(id: "produce", kind: .group),
+              "its deletion record is kept rather than swept")
+        check(suppressed.items.allSatisfy { $0.groupID != "produce" },
+              "a row stranded by a removed section does not come back either")
+
+        // 10. Two stores through the lists cloud.
+        let serverCloud = MockListsCloud()
+        let listsSyncSuiteA = "helipad.lists.sync.a.\(UUID().uuidString)"
+        let listsSyncSuiteB = "helipad.lists.sync.b.\(UUID().uuidString)"
+        let syncDefaultsA = UserDefaults(suiteName: listsSyncSuiteA)!
+        let syncDefaultsB = UserDefaults(suiteName: listsSyncSuiteB)!
+        defer {
+            syncDefaultsA.removePersistentDomain(forName: listsSyncSuiteA)
+            syncDefaultsB.removePersistentDomain(forName: listsSyncSuiteB)
+        }
+        let syncHostA = listsHost("household-sync", "phone-a", into: syncDefaultsA)
+        let syncHostB = listsHost("household-sync", "phone-b", into: syncDefaultsB)
+        let deviceA = HouseholdListsStore(cloud: serverCloud)
+        let deviceB = HouseholdListsStore(cloud: serverCloud)
+        deviceA.attach(to: syncHostA)
+        deviceB.attach(to: syncHostB)
+
+        let syncList = deviceA.defaultList(.groceries)!.id
+        let syncGroup = deviceA.generalGroup(of: syncList)!.id
+        deviceA.addItem(listID: syncList, groupID: syncGroup, text: "Milk", quantity: "2 cartons")
+        await deviceA.sync()
+        check(serverCloud.pushCount == 1, "a local change is published")
+        check(deviceA.syncState == .upToDate, "the publisher reports up to date")
+        await deviceB.sync()
+        check(deviceB.activeItems(of: syncList).map(\.text) == ["Milk"], "the other phone receives the row")
+        check(deviceB.syncState == .upToDate, "the receiver reports up to date")
+
+        let quietRevisions = serverCloud.revisionCount
+        let quietPulls = serverCloud.pullCount
+        await deviceA.sync()
+        check(serverCloud.revisionCount == quietRevisions + 1 && serverCloud.pullCount == quietPulls,
+              "a quiet poll asks for the revision without pulling the document")
+
+        serverCloud.failPushes = true
+        deviceB.addItem(listID: syncList, groupID: syncGroup, text: "Bread")
+        await deviceB.sync()
+        check(deviceB.archive.localRevision > deviceB.archive.uploadedRevision,
+              "a failed upload leaves the change pending locally")
+        check(deviceB.syncState != .upToDate, "a failed upload is not reported as up to date")
+        check(deviceB.activeItems(of: syncList).map(\.text).sorted() == ["Bread", "Milk"],
+              "the unsent row is still usable while it waits")
+        serverCloud.failPushes = false
+        await deviceB.sync()
+        check(deviceB.syncState == .upToDate, "the pending change goes up once the connection returns")
+        await deviceA.sync()
+        check(deviceA.activeItems(of: syncList).map(\.text).sorted() == ["Bread", "Milk"],
+              "both phones end up with both rows")
+
+        // An edit made while the upload is suspended must survive its response.
+        deviceA.addItem(listID: syncList, groupID: syncGroup, text: "Apples")
+        serverCloud.onPush = {
+            await Task.yield()
+            deviceA.addItem(listID: syncList, groupID: syncGroup, text: "Pears during upload")
+        }
+        await deviceA.sync()
+        check(deviceA.activeItems(of: syncList).contains { $0.text == "Pears during upload" }, "upload acknowledgement preserves newer local edits")
+        check(serverCloud.document?.items.contains { $0.text == "Pears during upload" } == true, "newer edits are published in a following upload")
+        check(deviceA.archive.localRevision == deviceA.archive.uploadedRevision, "only acknowledged changes become clean")
+        check(!deviceA.archive.connectionFingerprint.contains("://"), "the local connection fingerprint is a digest")
+        check(serverCloud.document?.connectionFingerprint == "", "the store boundary strips connection metadata too")
+
+        serverCloud.onRevision = {
+            await Task.yield()
+            deviceA.addItem(listID: syncList, groupID: syncGroup, text: "Added during revision check")
+        }
+        await deviceA.sync()
+        check(serverCloud.document?.items.contains { $0.text == "Added during revision check" } == true, "a quiet-poll reply cannot hide a newly pending edit")
+
+        serverCloud.failPushes = true
+        deviceA.addItem(listID: syncList, groupID: syncGroup, text: "Offline addition")
+        await deviceA.sync()
+        deviceA.addItem(listID: syncList, groupID: syncGroup, text: "Another offline addition")
+        if case .failed = deviceA.syncState {} else { preconditionFailure("Editing must not hide the sync failure") }
+        serverCloud.failPushes = false
+        await deviceA.sync()
+
+        deviceA.addItem(listID: syncList, groupID: syncGroup, text: "Old connection upload")
+        serverCloud.onPush = { syncHostA.connection = "postgres://changed" }
+        await deviceA.sync()
+        check(deviceA.archive.localRevision > deviceA.archive.uploadedRevision, "a response from an old connection cannot mark the new session clean")
+        syncHostA.connection = "postgres://test"
+        await deviceA.sync()
+
+        // A missing remote row must clear its stale CAS revision before create.
+        serverCloud.document = nil
+        serverCloud.revision = nil
+        deviceA.addItem(listID: syncList, groupID: syncGroup, text: "After remote restore")
+        await deviceA.sync()
+        check(deviceA.syncState == .upToDate && serverCloud.document != nil, "a missing row is recreated without a stale expected revision")
+
+        // 11. Recovery, and switching household.
+        let recoverySuite = "helipad.lists.recover.\(UUID().uuidString)"
+        let recoveryDefaults = UserDefaults(suiteName: recoverySuite)!
+        defer { recoveryDefaults.removePersistentDomain(forName: recoverySuite) }
+        let corrupt = Data("not a lists document".utf8)
+        recoveryDefaults.set(corrupt, forKey: HouseholdListsPersistence.storageKey(householdID: "household-r"))
+        let recoveryHost = listsHost("household-r", "phone-r", into: recoveryDefaults)
+        let recovery = HouseholdListsStore(cloud: MockListsCloud())
+        recovery.attach(to: recoveryHost)
+        check(recovery.recoveryNeeded, "an unreadable document asks for an answer instead of being replaced")
+        check(HouseholdListsPersistence.quarantined(householdID: "household-r", from: recoveryDefaults) == corrupt,
+              "the unreadable bytes are kept")
+        check(recovery.lists(.todos).count == 1, "the household can still use Lists while it decides")
+        recovery.resolveRecovery(keepingCopy: true)
+        check(!recovery.recoveryNeeded, "answering the recovery prompt returns Lists to normal")
+        check(HouseholdListsPersistence.quarantined(householdID: "household-r", from: recoveryDefaults) == corrupt,
+              "keeping the copy leaves the old bytes recoverable")
+
+        let switchDefaults = UserDefaults(suiteName: "helipad.lists.switch.\(UUID().uuidString)")!
+        let switchHost = listsHost("household-one", "phone-s", into: switchDefaults)
+        let switching = HouseholdListsStore(cloud: MockListsCloud())
+        switching.attach(to: switchHost)
+        let oneList = switching.defaultList(.todos)!.id
+        let oneGroup = switching.generalGroup(of: oneList)!.id
+        switching.addItem(listID: oneList, groupID: oneGroup, text: "First household only")
+        switchHost.householdID = "household-two"
+        switching.reload()
+        check(switching.activeItems(of: oneList).isEmpty, "a new household does not inherit the last one's lists")
+        check(switching.archive.householdID == "household-two", "the document follows the household")
+        switchHost.householdID = "household-one"
+        switching.reload()
+        check(switching.activeItems(of: oneList).map(\.text) == ["First household only"],
+              "switching back finds the first household's lists untouched")
+
+        // 12. A list edit must not touch the schedule.
+        let appSuite = "helipad.lists.app.\(UUID().uuidString)"
+        let appDefaults = UserDefaults(suiteName: appSuite)!
+        defer { appDefaults.removePersistentDomain(forName: appSuite) }
+        let app = AppStore(timeZone: "UTC", cloudService: TestCloud(), secretStore: secrets,
+                           schedulesNotifications: false, now: { now })
+        app.restore(from: appDefaults)
+        // `restore` derives the household identity from the stored metadata, so
+        // read it back rather than assuming one.
+        let appHousehold = app.cloudHouseholdID
+        check(!appHousehold.isEmpty, "a restored household has an identity for its lists")
+
+        let appList = app.lists.defaultList(.groceries)!.id
+        let appGroup = app.lists.generalGroup(of: appList)!.id
+        let snapshotBefore = appDefaults.data(forKey: HeliPersistence.storageKey)
+        let listsRevisionBefore = app.contentRevision
+        let pendingBefore = app.syncPending
+        let householdRevisionBefore = app.plan.seriesDefinitions?.count ?? 0
+
+        let appItem = app.lists.addItem(listID: appList, groupID: appGroup, text: "Oat milk", quantity: "2 cartons")!
+        app.lists.setCompleted(id: appItem, to: true)
+        app.lists.moveItem(id: appItem, by: 0)
+        _ = app.lists.addGroup(listID: appList, name: "Fruit & vegetables")
+
+        check(app.contentRevision == listsRevisionBefore, "a list edit does not bump the schedule revision")
+        check(app.syncPending == pendingBefore, "a list edit does not mark the household as pending")
+        check(appDefaults.data(forKey: HeliPersistence.storageKey) == snapshotBefore,
+              "a list edit does not rewrite the household snapshot")
+        check(app.tombstones.isEmpty, "a list edit leaves schedule tombstones alone")
+        check((app.plan.seriesDefinitions?.count ?? 0) == householdRevisionBefore,
+              "a list edit does not touch recurrence definitions")
+        check(appDefaults.data(forKey: HouseholdListsPersistence.storageKey(householdID: appHousehold)) != nil,
+              "lists are written to their own document instead")
+        check(app.lists.archive.householdID == appHousehold, "the lists document is keyed to the household")
+
+        print("Production regression checks passed: credentials, sync races/conflicts/retry, two-phone merge and convergence, live sync quiescence, rollover, clock, analysis caching, solo events, Google Calendar read/write/reconciliation/conflicts, stats tracking, event provenance/legacy decoding, and Lists identity/storage/commands/convergence/sync/recovery/isolation.")
     }
 }

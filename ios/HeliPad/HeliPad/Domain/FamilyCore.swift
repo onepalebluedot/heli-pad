@@ -195,6 +195,9 @@ public enum FamilyCore {
 
     public static func eventDraft(template: TemplateItem, date: String) -> TaskRecord {
         let t = normalize(template)
+        // Provenance travels with the draft so the saved event records that a
+        // shortcut made it, and the suggestion detector stops counting it as
+        // work someone did by hand.
         return TaskRecord(
             id: UUID().uuidString,
             date: date,
@@ -213,7 +216,8 @@ public enum FamilyCore {
             locked: false,
             gcal: false,
             notes: t.notes ?? "",
-            allDay: false
+            allDay: false,
+            origin: .shortcut(templateID: t.id)
         )
     }
 }

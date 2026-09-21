@@ -87,7 +87,7 @@ public struct PlanRoutinesView: View {
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)
                             .background(HeliColors.forestTint)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
 
                     Image(systemName: "chevron.right")
@@ -153,9 +153,9 @@ public struct PlanRoutinesView: View {
         }
         .padding(14)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 12)
                 .stroke(HeliColors.sageRule, lineWidth: 0.8)
         )
     }

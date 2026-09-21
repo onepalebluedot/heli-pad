@@ -179,7 +179,25 @@ public enum PlanCore {
         let finish = end(event)
         let buffer = options.buffer
 
-        let others = events.filter { $0.date == event.date && $0.id != event.id && owned($0, name) }
+        // An all-day event holds no start time to protect. It never borrows the
+        // day's travel window, so it neither creates an overlap nor inherits one.
+        if event.allDay {
+            return CandidateDetail(
+                name: name,
+                origin: options.home.isEmpty ? "Home" : options.home,
+                eta: 0,
+                leave: start,
+                slack: nil,
+                onwardSlack: nil,
+                unknown: false,
+                conflict: false,
+                reason: "All day"
+            )
+        }
+
+        // All-day rows are invisible to the timed plan for the same reason: they
+        // are not a prior stop, an onward stop, or something to collide with.
+        let others = events.filter { $0.date == event.date && $0.id != event.id && owned($0, name) && !$0.allDay }
         var prior: TaskRecord?
         for other in others where end(other) <= start {
             if prior == nil || end(other) > end(prior!) { prior = other }
@@ -287,6 +305,14 @@ public enum PlanCore {
             if missing {
                 risks.append(Risk(type: "driver", label: needsTravel(event) ? "Needs driver" : "Needs caregiver"))
             }
+
+            // An all-day event carries no timing or travel to get wrong. Only the
+            // "who owns it" question still applies, so stop here.
+            if event.allDay {
+                let status = missing ? "missing" : "ready"
+                return AnalyzedEvent(event: event, detail: detail, risks: risks, status: status)
+            }
+
             if !missing && detail.conflict {
                 risks.append(Risk(type: "overlap", label: detail.reason))
             }

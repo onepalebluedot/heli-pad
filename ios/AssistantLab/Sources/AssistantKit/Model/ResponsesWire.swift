@@ -19,7 +19,26 @@ public enum ResponsesWire {
         model: String,
         request: LunaRequest
     ) throws -> [String: Any] {
-        [
+        if case .structured(let name, let schemaJSON) = request.kind {
+            // No tools at all. The relay's allowlist check passes trivially on
+            // an empty array, and there is nothing for the model to reach for.
+            let schema = try JSONSerialization.jsonObject(with: Data(schemaJSON.utf8))
+            return [
+                "model": model,
+                "instructions": request.instructions,
+                "input": request.items.map(item),
+                "tools": [],
+                "text": ["format": [
+                    "type": "json_schema",
+                    "name": name,
+                    "strict": true,
+                    "schema": schema
+                ]],
+                "max_output_tokens": request.maxOutputTokens,
+                "store": false
+            ]
+        }
+        return [
             "model": model,
             "instructions": request.instructions,
             "input": request.items.map(item),
@@ -57,7 +76,7 @@ public enum ResponsesWire {
     /// Tool calls take precedence: if the model both called tools and emitted
     /// text, the tools are what happens next and the text is discarded rather
     /// than shown.
-    public static func parse(_ data: Data) throws -> LunaReply {
+    public static func parse(_ data: Data, kind: LunaRequestKind = .assistantTurn) throws -> LunaReply {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw LunaError.invalidResponse("body was not a JSON object")
         }
@@ -92,6 +111,12 @@ public enum ResponsesWire {
             }
         }
 
+        if case .structured = kind {
+            guard let decisionJSON else {
+                throw LunaError.invalidResponse("no structured output")
+            }
+            return .structured(decisionJSON)
+        }
         if !calls.isEmpty { return .toolCalls(calls) }
         guard let decisionJSON else {
             throw LunaError.invalidResponse("no tool call and no decision")

@@ -10,6 +10,7 @@ public struct Proposal: Hashable, Sendable, Identifiable {
     public enum Kind: String, Hashable, Sendable {
         case createEvents
         case assignTasks
+        case addListItems
     }
 
     public var id: String
@@ -106,6 +107,7 @@ public struct ProposalCard: Hashable, Sendable, Codable {
     /// duration, a fallback location. Shown so the user confirms what will
     /// actually be saved, not an abbreviation of it.
     public var assumptions: [String]
+    public var listItems: [String]?
     public var expiresAt: Date
 
     public init(
@@ -118,7 +120,8 @@ public struct ProposalCard: Hashable, Sendable, Codable {
         conflicts: [ScheduleConflict],
         destinationNote: String,
         assumptions: [String] = [],
-        expiresAt: Date
+        expiresAt: Date,
+        listItems: [String]? = nil
     ) {
         self.proposalID = proposalID
         self.headline = headline
@@ -130,5 +133,6 @@ public struct ProposalCard: Hashable, Sendable, Codable {
         self.destinationNote = destinationNote
         self.assumptions = assumptions
         self.expiresAt = expiresAt
+        self.listItems = listItems
     }
 }

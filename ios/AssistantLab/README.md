@@ -342,6 +342,51 @@ than grouped elements, and the uppercase eyebrows ("TRY", "RECORDED") may be
 spelled out letter by letter by the screen reader. Both need a real VoiceOver
 pass to confirm.
 
+## Shortcut suggestions
+
+The Family tab's "Smart suggestions" panel is generated through the same relay
+as the chat, and hides itself when there is nothing worth saying.
+
+The split of work is the point:
+
+- **Code finds the patterns and owns every number.**
+  `ShortcutPatternFinder` groups hand-made events by normalised title, place,
+  start rounded to the half hour and duration rounded to the quarter. It needs
+  at least 3 occurrences across at least 2 distinct weeks, inside the last 120
+  days, and skips anything already created as a recurring series or already
+  covered by a saved shortcut.
+- **The model decides which are worth interrupting someone about**, and names
+  them in the household's own words. It is told plainly that declining
+  everything is the right answer when nothing stands out.
+- **Labels are grounded.** A label may only restate facts the candidate
+  carries; `ProseValidator` rejects an invented figure and the real title is
+  used instead. The evidence line under each suggestion ("You added this 30
+  times across 6 weeks, most recently Sep 11") is app-authored.
+
+**Cadence.** At most once every 14 days, and only when the pattern finder
+actually produced candidates - if the schedule shows nothing, no request is
+made and no tokens are spent. Results are cached device-local; dismissing one
+stops it being offered again. Failures keep the cached result rather than
+showing an error: a suggestion is never worth an error card.
+
+**Cost.** One tool-less structured request per fortnight per device, capped at
+400 output tokens.
+
+### What this replaced
+
+The previous version grouped events by an exact signature including start time
+and travel mode. That produced the two bugs visible on screen: two identical
+looking "Soni Drop Off" suggestions (same habit, start times fifteen minutes
+apart, so two groups), and a suggestion for a school that already had a "Drop
+Off" shortcut (compared by exact signature, so a near-duplicate slipped
+through). It also gave no reason for any suggestion, which is what made them
+feel arbitrary. Both bugs have regression tests.
+
+Verified live against `gpt-5.6-luna`: 30 hand-made school drop-offs collapse
+into one candidate, soccer is excluded because its place already has a
+shortcut, and a pair of deliberately weak patterns - one tailing off months
+ago, one already covered - is declined outright.
+
 ## In the app
 
 Wired in on 12 September 2026. Two existing files changed:

@@ -381,6 +381,10 @@ public struct TaskRecord: Identifiable, Codable, Hashable {
     public var formattedAddress: String?
     /// Set on save when this record's content actually changed.
     public var stamp: RecordStamp? = nil
+    /// How this event was created. Nil for households saved before provenance
+    /// existed; those are judged on `seriesId` and `calendarId` instead, and
+    /// are never rewritten on decode.
+    public var origin: EventOrigin? = nil
 
     public init(
         id: String,
@@ -410,7 +414,8 @@ public struct TaskRecord: Identifiable, Codable, Hashable {
         locationMissing: Bool? = nil,
         latitude: Double? = nil,
         longitude: Double? = nil,
-        formattedAddress: String? = nil
+        formattedAddress: String? = nil,
+        origin: EventOrigin? = nil
     ) {
         self.id = id
         self.date = date
@@ -440,6 +445,7 @@ public struct TaskRecord: Identifiable, Codable, Hashable {
         self.latitude = latitude
         self.longitude = longitude
         self.formattedAddress = formattedAddress
+        self.origin = origin
     }
 }
 
@@ -647,6 +653,11 @@ public struct CalendarMetadata: Codable, Hashable {
     public var googleCalendarIDs: [String]? = nil
     public var lastGoogleImport: Date? = nil
     public var googleExportCalendarID: String? = nil
+    /// Record id -> the provider's own version of that event at the last
+    /// import or export. An import that matches this is the provider repeating
+    /// itself, not news, so it must not overwrite what the household has since
+    /// typed here. Without it every re-import reverts local edits.
+    public var importSignatures: [String: String]? = nil
 
     public init(
         exports: [String: String] = [:],
@@ -656,7 +667,8 @@ public struct CalendarMetadata: Codable, Hashable {
         lastAppleImport: Date? = nil,
         googleCalendarIDs: [String]? = nil,
         lastGoogleImport: Date? = nil,
-        googleExportCalendarID: String? = nil
+        googleExportCalendarID: String? = nil,
+        importSignatures: [String: String]? = nil
     ) {
         self.exports = exports
         self.pulled = pulled
@@ -666,6 +678,7 @@ public struct CalendarMetadata: Codable, Hashable {
         self.googleCalendarIDs = googleCalendarIDs
         self.lastGoogleImport = lastGoogleImport
         self.googleExportCalendarID = googleExportCalendarID
+        self.importSignatures = importSignatures
     }
 }
 

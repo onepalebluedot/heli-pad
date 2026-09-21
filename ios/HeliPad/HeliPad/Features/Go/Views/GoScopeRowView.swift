@@ -31,9 +31,9 @@ public struct GoScopeRowView: View {
                     .padding(.horizontal, 12)
                     .frame(height: 42)
                     .background(HeliColors.cardWarmWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .stroke(store.goScopeOpen == "crew" ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
                     )
                 }
@@ -59,9 +59,9 @@ public struct GoScopeRowView: View {
                     .padding(.horizontal, 12)
                     .frame(height: 42)
                     .background(HeliColors.cardWarmWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .stroke(store.goScopeOpen == "kid" ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
                     )
                 }
@@ -96,7 +96,7 @@ public struct GoScopeRowView: View {
                     .padding(.vertical, 6)
                     .frame(maxWidth: .infinity)
                     .background(selected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
             }
 
@@ -115,12 +115,12 @@ public struct GoScopeRowView: View {
                 .padding(.vertical, 6)
                 .frame(maxWidth: .infinity)
                 .background(isAll ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
         }
         .padding(10)
         .background(HeliColors.cardWarmWhite.opacity(0.85))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var kidDrawer: some View {
@@ -162,6 +162,6 @@ public struct GoScopeRowView: View {
         }
         .padding(10)
         .background(HeliColors.cardWarmWhite.opacity(0.85))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }

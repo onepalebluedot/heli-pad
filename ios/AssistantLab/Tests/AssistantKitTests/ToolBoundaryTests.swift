@@ -22,7 +22,8 @@ final class ToolBoundaryTests: XCTestCase {
         XCTAssertEqual(
             Set(ToolName.allCases.map(\.rawValue)),
             ["find_events", "get_event", "list_household_people", "list_saved_places",
-             "preview_create_events", "preview_assign_tasks", "get_schedule_trends", "get_app_help"]
+             "preview_create_events", "preview_assign_tasks", "get_schedule_trends", "get_app_help",
+             "read_household_lists", "preview_add_list_items"]
         )
         // Nothing in the catalog writes. Confirmation is a UI action.
         XCTAssertTrue(ToolCatalog.all.allSatisfy { definition in

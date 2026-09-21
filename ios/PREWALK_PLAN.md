@@ -1,13 +1,264 @@
-# HeliPad prewalk: UI gaps, recurrence, assistant, and navigation
+# HeliPad prewalk: remaining work, performance, to-dos, and groceries
 
 Reviewed September 11, 2026. Originally a planning deliverable with no
 application source changed.
 
-**Updated September 12, 2026.** Section C is implemented and integrated, and
-the navigation changed. Read **V1** below first: it records what is actually in
-the code and where it departs from the direction planned here. Everything after
-that section is the original plan, preserved so the earlier direction can be
-picked back up.
+**Updated September 12, 2026, after the lists and performance review.** Read the
+current backlog below first. It supersedes the status of the historical
+checkboxes later in this document. The earlier plan remains as implementation
+context, not a list of features to rebuild. Assistant integration exists, but
+production service, integration, and verification work remains.
+
+**Navigation clarified September 13, 2026; Lists home revised September 20, 2026:**
+Settings stays in the top-right gear and opens its existing sheet. The fifth
+bottom destination is Lists. Use `Go | Plan | Assistant | Family | Lists`.
+
+**Lists home contract (September 20, 2026):** the Lists destination opens two
+large horizontally swipeable cards, **To-do** and **Grocery**, one visible at a
+time. Each centers the supplied illustration above its title and remaining
+count, with an **Open list** action, and opens that household's default list in
+one tap. Accessible page controls also switch cards, and the chosen card is
+preserved on return. Nothing else is on the home screen: **two lists only**, so
+there is no custom-list row, no category switcher, and no list-chip strip.
+Sections inside each list are how the household organises its work. This
+replaces the segmented-control description previously carried in L01/N01, and it
+replaces the earlier proposal to put Settings in the bottom navigation.
+
+**Lists work order:** `LISTS_IMPLEMENTATION_PLAN.md` (full-app hybrid navigation
+and household collaboration) is the authoritative Lists specification; the
+L01–L10 checklist below is its backlog summary. `ListsLab/` is an experiment
+kept for interaction and test references only — its sample data, private-link
+sharing, Mac service, and separate navigation shell are not shipped, and its
+passing tests are **not** evidence that any production acceptance criterion
+below has passed.
+
+## Current review scope and results
+
+This review covers the working tree, including existing uncommitted changes,
+across Go, Plan, Family, Settings, Onboarding, Assistant, persistence, cloud
+merge, calendars, location, routing, and notifications. Only this plan was
+edited. No application implementation was requested or performed.
+
+Verification on September 12, 2026:
+
+- `bash scripts/test-production.sh` passed. Its checks cover credentials, sync races and convergence, rollover, clock/analysis caching, solo events, calendar adapter behavior, statistics, and event provenance. Compilation emitted existing MapKit/geocoding deprecation and isolation warnings.
+- `swift test --package-path AssistantLab` passed: 168 tests, zero failures.
+- These are local tests. This review did not launch the simulator, build the full iOS target, profile a device, contact a production household, or exercise authenticated calendar/AI services. Performance items below describe source-supported opportunities, not measured speedups. UI lifecycle failures are identified as risks where runtime confirmation is still needed.
+
+Paths in the current backlog are relative to the repository root. P0 means
+data integrity or household isolation; P1 means a requested feature or a
+material correctness/performance issue; P2 means a follow-up improvement.
+
+### Reconcile the historical checklist before implementation
+
+| Earlier work | Current source status | Remaining work |
+| --- | --- | --- |
+| U01, U02, U03, U09, U10, U11 | Canonical planning/settings mutations, place CRUD, setup prefill, name/error handling, and the Plan shortcut action now have implementations. | Retain regression and UI verification; do not implement the old fixes wholesale. |
+| U04 | Editor address invalidation and resolution tokens exist. | Background geocoding still needs stale-result checks; see F04. |
+| U05, U06 | Go preserves unfinished work and carries assigned, known-route, and unknown-route counts. | Verify large-text and long/all-day-event presentation; route result correctness remains in F04/F05. |
+| U07 | EventKit import and Google authentication/import/create/update/delete paths exist. | Complete imports, durable external writes, provider concurrency, and recurrence round trips remain; see F01/F02. |
+| U08, U13 | Local driver-needed reminders, explicit trigger timezone, eligible-fire-time sorting, and scheduling error reporting exist. Reassignment alerts are explicitly unavailable. | Queue rebuilding and reminder scope/wording remain; see PF02/F05. Authenticated APNs delivery remains under historical U08/A01. |
+| R01–R05 | Series definitions, exceptions, finite recurrence controls, store commands, shortcut defaults, and onboarding propagation exist. | R06/V02 device, DST, two-device, and external-calendar verification remains. Preserve existing identities and exceptions. |
+| A03–A06 | Assistant tools, proposals, transcript, trends, and native tab exist. | Navigation, session lifecycle, common metric definitions, and deployed-service checks remain; see F07/F08 and A01/A02. |
+| Smart Suggestions | Provenance, tolerance-based grouping, per-session caches, snoozing, local fallback, and draft review now exist. | Fix integration and async invalidation gaps in F06; do not replace the detector with another implementation. |
+| N01/N02/N03 | Four destinations and a Settings sheet are implemented. | N01 now adds Lists as the fifth destination and keeps the top-right Settings gear. L01 defines the swipeable two-card Lists home and the sectioned list detail. Accessibility and navigation verification remain. Liquid Glass is optional follow-up work after functional delivery. |
+
+## Lists: hybrid navigation and household collaboration
+
+The requested addition is an undated to-do list and a grocery list users can
+check off. Neither requires children, a driver, a place, a start time, or a
+recurrence rule. There are currently no corresponding models or screens;
+`TaskRecord` in `HeliPad/HeliPad/Domain/Models.swift` represents a scheduled
+event and requires a date and time.
+
+Full specification: `LISTS_IMPLEMENTATION_PLAN.md`. That document is the
+authoritative navigation, sharing, and verification contract for this section;
+L00–L10 below are its backlog summary.
+
+Product decisions:
+
+- **Hybrid navigation.** Lists is the fifth destination, and it is two lists:
+  **To-do** and **Grocery**. The home shows two large horizontally swipeable
+  cards, one visible at a time, each centering the supplied artwork above the
+  list name, its remaining count, and an **Open list** action. Accessible page
+  controls switch cards; the chosen card is preserved on return. Nothing else is
+  on the home screen — no custom-list row, no category switcher, no chip strip.
+- **Fixed defaults.** Two deterministic list identities per household, one per
+  kind, with fixed names and positions. They cannot be created or deleted, so
+  there is no list-creation path anywhere. Every list has a stable default
+  **General** section. New households receive empty lists, never lab samples.
+- **Sections are the structure.** list → section → item → optional to-do steps.
+  No separate folder entity, no nested sections.
+- **Household-wide sharing** once household sync is configured. Without a
+  connection, lists stay usable locally with truthful status. Per-participant
+  permissions and external invitations are deferred.
+- **Audit metadata, not due dates.** Creation/completion timestamps are audit
+  metadata. Defer due dates, child links, assignments, reminders, recipes,
+  pantry inventory, prices, and AI categorization.
+- **ListsLab is a reference.** It supplies useful interactions and test cases.
+  Its sample data, private-link sharing, Mac service, and separate navigation
+  shell are not shipped, and its tests are not production acceptance evidence.
+
+- [x] **L00 / P1: Reconcile the agent backlog.** *(Done September 20, 2026.)* The navigation contract above replaces the segmented-control description, the deferred "multiple custom lists" line is removed, L02 and L05 now name the separate storage and cloud contracts, L07–L10 are added, and execution order, the navigation status table, and the historical navigation text agree with `LISTS_IMPLEMENTATION_PLAN.md`.
+
+- [ ] **L01 / P1: Add a Lists destination with a swipeable two-card home.**
+  - Target: `HeliPad/HeliPad/App/ContentView.swift`, `MainTab.lists`, and a new `Features/Lists/` area. Order: `Go | Plan | Assistant | Family | Lists`; Settings stays in the top-right gear and opens its existing sheet. Implement the shared navigation change once under N01 and validate all five destinations on compact phones.
+  - Lists home: two large horizontally swipeable cards (To-do, Grocery), one visible at a time, each centering the supplied artwork above the list name, its remaining count, and an **Open list** action. Accessible page controls switch cards, tapping a card opens that list, and the chosen card is preserved on return. Nothing else is on the home screen — no custom-list row, no category switcher, no chip strip.
+  - List detail: Back to Lists, title, remaining count, compact sync status, sectioned items, the section-management row, and the bottom quick-add.
+  - Keep capture quick: a visible text field, keyboard submit/Add, and a checkbox per row, with the checkbox on the same line as the item's name. Provide empty states, remaining counts, accessible actions, and useful error feedback. Core/caregiver filters must not hide shared list items.
+  - Store navigation, drafts, expanded sections, completed-section visibility, and scroll anchors per household and list ID outside transient detail views; returning from another main tab restores the previous Lists position, and switching household clears that state.
+  - Acceptance: each list is one tap from Lists home and there is no second navigation step; Settings stays reachable from every destination; drafts and scroll positions survive navigation; every row is reachable with the keyboard and the bottom bar visible; VoiceOver announces item text, checked state, list name, remaining count, and the page position; hit targets are at least 44 points.
+
+- [ ] **L02 / P1: Introduce independent list records, commands, and local storage.**
+  - Targets: new list domain types under the full app's `Domain` area, `AppStore`, `Persistence`, Xcode source registration, and test compilation inputs where needed. Do not fabricate dated `TaskRecord` rows or expand the scheduling model with dummy dates.
+  - Types: `HouseholdList` (identity, kind, name, ordering, creation/update metadata), `HouseholdListGroup` (list identity, name, ordering), `HouseholdListItem` (list/section identity, text, optional quantity and note, completion, ordering, activity/review metadata), `ListSubtask` (parent item identity, text, completion, ordering; to-dos), plus a versioned list snapshot carrying deletion records and sync metadata.
+  - Defaults: two deterministic list identities per household, one per kind, with fixed names and positions and no deletion. Every list has a stable default "General" section. New households receive empty lists, never lab samples.
+  - Ordering: stable integer ordering ranks with record-ID tie-breaking; reorder commands update the affected sibling ranks atomically. Array position and item text are never identity. Persist explicit `setCompleted(id:to:)`; replaying a toggle must not reverse the requested final state.
+  - Commands: an observable `HouseholdListsStore` owned by `AppStore` centralizes list/group/item/subtask creation, editing, movement, ordering, explicit completion, deletion, purchased-item clearing, review snoozing, and Undo. UI bindings must not bypass commands.
+  - Storage: a versioned, atomic archive scoped to household and connection identity, kept **separate** from the legacy household snapshot so an older app cannot discard unfamiliar list fields when saving. Preserve archives across household changes; never automatically upload the previous household's lists into a newly selected household. Use an ordered persistence writer, report local-save failures, protect corrupt or unsupported archives from replacement with a recovery path, and preserve lists across schedule resets, setup reruns, and week rollover.
+  - Invalidation: list mutations publish a dedicated list revision. They must not call the existing schedule-wide save path, rebuild reminders, rehash events, rewrite unchanged credentials, or trigger calendar, routing, or suggestion work — see PF01.
+  - Acceptance: every command survives offline relaunch; failed persistence is visible; old household data loads unchanged; schedule operations preserve lists; completion, edits, and deletions never affect Go/Plan, calendar export, suggestions, notifications, child statistics, or driving totals. Full detail in `LISTS_IMPLEMENTATION_PLAN.md` §2.
+
+- [ ] **L03 / P1: Deliver the to-do workflow.**
+  - Support quick add, inline editing or a lightweight detail editor, completion/reopening, manual ordering, movement to another group, and removal with Undo. Keep active items in user order and completed items in a collapsible section. Do not automatically delete completed items at midnight or during week rollover.
+  - The capture bar must identify its target group explicitly: default to General, remember the last selected group per list, let the user change it, and let a group's "Add item" action preselect that group. Expanding a group must never silently redirect quick-add.
+  - To-dos carry notes and collapsible steps. Completing every step does not automatically complete the parent, and checking the parent preserves its step states for reopening.
+  - Acceptance: add "Replace furnace filter" with text alone; edit it; complete, reopen, reorder, and delete/undo it. No date picker, child selector, caregiver assignment, or event editor appears. Rapid keyboard submission does not duplicate one submission or drop another. Full detail in `LISTS_IMPLEMENTATION_PLAN.md` §5.
+
+- [ ] **L04 / P1: Deliver the grocery workflow.**
+  - Support item name, optional quantity such as "2 cartons", optional note, quick add, check/uncheck, edit, movement to another group, and delete/Undo. Preserve active-item order; move checked items into a collapsible Purchased section without disturbing the current tap or scroll position.
+  - Detecting a duplicate normalizes whitespace and case within the current list and offers **Edit existing** or **Add another**. Never silently combine quantities, brands, or units. Reopening a purchased item restores its group and ordering and preserves its quantity and note. Keep reuse simple; do not add an inferred shopping schedule.
+  - **Clear purchased** carries a batch Undo that targets exactly the purchased IDs shown when it was invoked; it must not clear items another device added or checked in the meantime.
+  - Undo is one persistent, household-scoped batch for the latest destructive action. Preserve its saved contents across navigation and relaunch until it is undone or replaced by the next destructive action. Persist Undo locally only.
+  - Acceptance: "Milk · 2 cartons" can be checked with one tap and reopened. Checking ten rows quickly loses no changes. Clearing purchased leaves active and concurrently added items untouched, and Undo cannot overwrite newer edits made by another device. Full detail in `LISTS_IMPLEMENTATION_PLAN.md` §5.
+
+- [ ] **L05 / P0 prerequisite for shared lists: Add live household synchronization.**
+  - Evidence: current snapshot, fingerprints, stamp tracking, and `merge` enumerate events/people/templates/places explicitly (`AppStore.swift:516,621,653,866`). Simply adding an array to the UI or snapshot does not make lists sync. Existing ordinary tombstones expire after 30 days (`AppStore.swift:463,961`).
+  - Contract: extend the existing Neon integration with a `HouseholdListsCloudService` exposing `fetchListsRevision`, `pullLists`, and `pushLists` (requiring an expected remote revision). Store the versioned list snapshot in a **separate** `helipad_household_lists` record keyed by household ID, using compare-and-swap writes with pull/merge/retry on revision conflict. Older clients keep writing the existing household record without erasing lists; that is why lists must not ride the household snapshot (see L02).
+  - Lifecycle: coordinate list sync through the app's foreground sync lifecycle with independent list revisions, pending state, and errors, so a schedule-sync failure cannot block lists. Two-second active cadence only while Lists is visible, bounded idle/error backoff, no polling in the background, refresh on foregrounding and after local changes.
+  - Merge: reuse `RecordStamp` ordering with independent stamps for editable fields, completion, placement/order, and review snoozing; merge by identity, never array position or text. Different-field edits survive together; simultaneous edits to the same field resolve deterministically by stamp. Detail editors carry expected field stamps and preserve stale drafts for review instead of overwriting incoming changes.
+  - Deletion: keep list-specific deletion records **without time-based expiry** in this release. Deletion wins for the deleted identity, including edits arriving after long offline periods. Deleting a list suppresses its descendants. Undo restores fresh identities; it never removes a deletion record or overwrites a remotely edited record.
+  - Session: capture household identity and connection generation for all async work; discard responses from an obsolete session and clear visible drafts, navigation, and Undo state on household change. Switching caregiver within one household retains shared lists.
+  - Status: show **On this device**, **Waiting to sync**, or **Up to date** truthfully, and persist local edits before claiming they are saved. Do not claim participant-based authorization or expose invitations the app cannot support.
+  - Acceptance: two devices converge after concurrent additions, edits, checks, reorders, and reconnects; deleted content does not resurrect; old-client household uploads leave lists intact; switching households shows only that household's lists and rejects late responses from the prior household. Full detail in `LISTS_IMPLEMENTATION_PLAN.md` §3.
+
+- [ ] **L06 / P2, after manual lists work: Extend the assistant to list operations.**
+  - Add typed queries and reviewed proposals for "Add milk to groceries", "Add replace the filter to my to-dos", and explicit completion/removal requests. Route them through L02 commands, with resolved list/item IDs and the existing proposal validation. Listing items is read-only.
+  - "Add milk to groceries" targets the Groceries list, and a to-do request targets the To-dos list. There are only two lists, so an unnamed target is never ambiguous; a request that names a list the household does not have is a clarification, not a guess.
+  - Extend the assistant boundary and receipt types with list/item identities and accurate local-versus-synced outcomes. Require current household identity and expected record revisions at confirmation; repeated confirmation is idempotent. Update the data-disclosure text to cover list information actually sent, and fetch only the lists needed for the request.
+  - Section administration, and the two fixed lists themselves, remain manual in this release.
+  - Acceptance: these requests never create calendar events or ask for a child/date. Confirm once creates or updates exactly the reviewed items; cancellation and duplicate confirmation are harmless. Report local save versus cloud sync accurately. Stale proposals cannot alter another household or overwrite newer edits. Keep manual lists independent of the assistant service. Full detail in `LISTS_IMPLEMENTATION_PLAN.md` §8.
+
+- [ ] **L07 / P1: Add manageable sections.**
+  - Under the sections, one row: an **Add section** button, plus two icon-only buttons that put the sections into a mode.
+  - **Edit** turns each section header into an editable name field, committed when the field is submitted or the mode is left; a blank name is refused rather than renaming a section to nothing. General offers no removal; every other section does, and removing it moves its rows into General with their wording intact.
+  - **Rearrange** gives each section a grip; dragging a section onto another puts it in that position, and the sections animate into their new places.
+  - Acceptance: both lists behave identically; General cannot be removed; removing a section never deletes tasks or groceries; a reorder survives relaunch and merge. Full detail in `LISTS_IMPLEMENTATION_PLAN.md` §6.
+
+- [ ] **L08 / P1: Keep nesting shallow and lists fixed.**
+  - Keep nesting at list → section → item → optional to-do steps. No separate folder entity and no nested sections.
+  - The two lists are derived from the household id and are never created, renamed or deleted, so no screen may offer list creation.
+  - Acceptance: nothing in the app offers to create a list or a nested section. Full detail in `LISTS_IMPLEMENTATION_PLAN.md` §6.
+
+- [ ] **L09 / P1: Add advisory cleanup.**
+  - Deterministic inactivity rules: groceries 14 days, to-dos 45 days, completed items excluded, and **Keep for now** suppressing that item's suggestion household-wide for 30 days.
+  - Meaningful item edits, step changes, and reopening restart inactivity; viewing, reordering, and syncing do not, so a placement-only update must preserve activity metadata (see L02).
+  - Show a compact **Still need these?** entry within the affected list; its review screen offers Keep and Remove with Undo. Evaluate when opening or foregrounding a list and when relevant data changes. No scheduled AI request and no automatic deletion.
+  - Acceptance: both devices respect Keep; old unfinished items become eligible; completed items are excluded; removal always follows an explicit action.
+
+- [ ] **L10 / P1: Verify and gate the release.**
+  - Tests: empty initialization, deterministic default identities, legacy household loading, corrupt-list recovery, and household/connection switching; durable commands, explicit completion, duplicate handling, ordering, subtasks, group removal, batch deletion, and Undo after relaunch; two independent clients covering offline additions, different-field edits, same-field conflicts, simultaneous reorders, delete-versus-edit, retained deletion records, replay, and edits made during an in-flight upload; older household clients writing while list sync continues; failed list uploads retaining local pending changes; cleanup thresholds and household-wide snooze; and no schedule revision, calendar write, route request, credential rewrite, or reminder rebuild from list edits.
+  - Register new sources in the full iOS target and production test inputs. Run `bash scripts/test-production.sh`, the AssistantLab tests when its interfaces change, and a full HeliPad build.
+  - Verify the real app on compact iPhones with large Dynamic Type, VoiceOver, Reduce Motion, keyboard presentation, five-tab navigation, and household changes. Exercise two-device collaboration across separate networks using a test household.
+  - Profile 500 groceries and 500 to-dos alongside representative event history. Target p95 visible check-off response under 100 ms and healthy active-list propagation within roughly five seconds. Record measured results rather than inferring performance from code.
+  - Gate: complete the manual feature only when L01–L05 and L07–L10 pass. L06 follows as a separate assistant increment.
+
+## Performance opportunities
+
+- [ ] **PF01 / P1: Reduce work per save before adding rapid check-offs.**
+  - Evidence: `AppStore.save` calls `reconcile`, stamps the full household, increments revisions, persists, and refreshes reminders (`AppStore.swift:691`). Reconciliation enumerates every series' dates and normalizes all records; stamping serializes every record; `persist` writes three Keychain values and a full JSON snapshot (`AppStore.swift:345,653,764`; `Persistence.swift:118`). These operations are synchronous on normal UI mutation paths.
+  - Change: measure those stages, then separate schedule/list/settings invalidation. A grocery completion must not regenerate series date sets, recompute schedule suggestions, write unchanged secrets, or rebuild reminders. Track changed entities through domain commands; serialize immutable snapshots with ordered completion so an older async write cannot replace a newer one. Keep reliable local durability while coalescing cloud uploads.
+  - Acceptance: instrument 100, 1,000, and 10,000 stored events plus 500 grocery and 500 to-do items. Record p50/p95 input-to-checkbox latency, main-thread time, encoding time, and writes per action on a physical supported phone. Proposed interaction target: p95 visible check-off feedback under 100 ms. A burst of 20 list changes causes no route/AI requests or notification rebuilds and remains intact after relaunch.
+
+- [ ] **PF02 / P1: Bound routing work and update the reminder queue incrementally.**
+  - Evidence: `NotificationService.applySchedule` removes all owned requests before calculating replacements, awaits routing for every future eligible event, and only then takes 48 candidates (`NotificationService.swift:96,137,168`). Every GPS update in `ContentView.swift:117` requests another rebuild. A 30-week schedule can therefore route hundreds of events for a queue of at most 48, and cancellation can leave the old queue already removed.
+  - Change: prepare candidates before replacing requests, diff stable IDs, preserve unaffected requests, and serialize generations so a canceled run cannot overwrite a newer queue. Bound route lookups by an explicit reminder horizon and safe eligibility rules; do not restore the old bug of truncating raw events before fire-time eligibility. Replenish through foreground/schedule changes. Coalesce GPS changes, share in-flight route requests, and evict expired/least-used route cache entries. Current route caches have a TTL but no eviction (`GoogleMapsService.swift:97,450,487`).
+  - Acceptance: a 30-week household has a documented upper bound on route requests per refresh, shared queue capacity, and correct nearest eligible reminders. Repeated saves/GPS updates neither empty the queue nor duplicate requests. Cancellation and route failures preserve valid previously scheduled reminders. F05 defines unknown-route behavior.
+
+- [ ] **PF03 / P2: Reuse date and series projections across Plan and Family.**
+  - Evidence: `AppStore.records()` flattens and sorts all history on every call (`AppStore.swift:285`). `PlanView.body` calls `summary` and `decisionQueue`, which calls `summary` again; `PlanScheduleView` separately computes day loads. `PlanViewModel.routineGroups` filters all records for every visible series. Family calculates caregiver loads twice for the workload card. Go already caches its analysis and its clock wakes once per minute; preserve these improvements.
+  - Change: build a shared per-revision event/date/series index and one week analysis that supplies counts, decisions, day indicators, and routines. Cache only against relevant input revisions, including settings, locations, reviews, and remote merges. Reuse date formatting safely after profiling; avoid turning unrelated list updates into schedule invalidations.
+  - Acceptance: diagnostics show one analysis per unchanged week/options revision across its consumers. Lists and clock ticks do not recompute Plan analysis. Editing a route/rule/event or receiving a remote merge invalidates the correct result. Week 30 browsing stays responsive in the PF01 fixture.
+
+- [ ] **PF04 / P2: Reduce idle network and location activity.**
+  - Evidence: foreground cloud polling runs every four seconds (`AppStore.swift:1135`) even while the user reads Family or Assistant. It already fetches only the revision when clean. Location updates run throughout foreground app use (`ContentView.swift:103`; `LocationService.swift:20`).
+  - Change: measure requests and energy, retain prompt propagation while someone actively shops, and apply bounded backoff/jitter to idle or repeatedly failing polling. Keep an explicit sync action and immediate foreground/local-change refresh. Request sustained location only while a route/departure use case needs it; Lists should work without location permission. Avoid adding new server infrastructure solely as a speculative performance fix.
+  - Acceptance: document freshness targets and idle/active request counts; no polling or GPS loop continues in the background. A revoked/failed connection does not retry every four seconds indefinitely. Grocery collaboration remains responsive and offline actions remain usable.
+
+- [ ] **PF05 / P2: Profile view invalidation and large collections.**
+  - Evidence: many screens observe the entire `AppStore`; save/reconcile publishes changes to broad collections. Plan and Family use eager stacks. The assistant has already isolated composer input from transcript publication; do not undo that optimization.
+  - Change: use Instruments/SwiftUI profiling to identify actual redraw and allocation costs. Give list screens focused observable state, stable row IDs, and lazy/native list rendering. Cache expensive derived values only where measured; avoid a blanket framework rewrite. Review existing concurrency-isolation warnings before moving shared mutable state off the main actor.
+  - Acceptance: 1,000 list rows scroll smoothly; typing an item does not rebuild calendar analysis or the entire list. Capture before/after traces, memory, frame hitches, and the device/build configuration. No performance claim is complete based on source inspection alone.
+
+## Remaining functionality and correctness
+
+- [ ] **F01 / P0: Make calendar imports complete before treating absence as deletion.**
+  - Evidence: `GoogleCalendarService.fetchEvents` requests 250 items, never follows pagination, continues on HTTP failure, and decodes failure as an empty item array (`Services/GoogleCalendarService.swift:489`). `AppStore.mergeGoogleCalendarEvents` removes existing selected-calendar events absent from that response (`AppStore.swift:1690`). This path can interpret incomplete or failed retrieval as a remote deletion.
+  - Change: fetch every page, preserve provider status/cursors, and return an explicit completeness result per calendar and time window. Reconcile deletions only after the relevant scope completed successfully; surface partial failures and preserve existing records. Scope token/cursor recovery and account switching explicitly. Keep bounded full import as a fallback if incremental sync is deferred.
+  - Acceptance: more than 250 events import completely; a page-two timeout, 401/403, malformed response, or one failing calendar never deletes previously imported events. An actual remote cancellation is removed once a complete authoritative result confirms it. Extend service/transport tests, not only tests that feed arrays directly into merge.
+
+- [ ] **F02 / P0: Make calendar writes durable and safe across retries and local edits.**
+  - Evidence: the event editor exports in an untracked task with `try?` (`GoAddEditStopSheet.swift:1361`); exports replace the whole captured record or append it after the network await (`AppStore.swift:1757`), so an edit/deletion during export can be overwritten or resurrected. Provider creation uses a POST without a stable supplied event identity. Import does not persist each event's ETag into the export metadata, so a first update of an imported event can omit `If-Match`. Delete failures are swallowed (`AppStore.swift:1820`).
+  - Change: persist an operation/outbox with stable idempotency identity, household/account, local revision, provider identity/ETag, and pending/failed/confirmed state. Revalidate context on completion and attach external metadata to the current record without replacing newer fields or reviving deleted rows. Make failed writes retryable and visible. Preserve reviewed export intent on edits.
+  - Complete historical U07 recurrence mapping: current export loops materialized occurrences and `taskToEventPayload` has no recurrence rule. Decide and document provider-series mapping, one-occurrence exceptions, range changes, and explicit local-only deletion versus provider deletion. This needs a contract, not hundreds of silent single-event writes.
+  - Acceptance: timeout after remote creation does not duplicate on retry; editing/deleting locally while export runs preserves the latest intent; switching households/accounts discards stale completion; a provider edit returns a conflict; partial series export can resume. Imported ETags, overnight/all-day boundaries, recurrence rules, and moved/deleted exceptions round-trip in a test account. Never describe a pending local save as exported.
+
+- [ ] **F03 / P1: Preserve navigation state and make event links open the actual event.**
+  - Evidence: `ContentView.swift:53` conditionally instantiates destination views whose Plan/Family view models are local `StateObject`s. Tab-state preservation therefore needs runtime verification. Assistant `onOpenEvent` ignores the event ID, silently returns for dates outside the current week, and sets `store.activeDay` before showing Plan (`ContentView.swift:268`), while Plan uses its own `currentWeek`/`selectedDay`.
+  - Change: give destinations durable navigation/draft state and an explicit event route containing event ID/date. Select the correct week/day and open or highlight the actual record; explain deleted/inaccessible targets. Coordinate sheet transitions through dismissal completion rather than fixed 0.2-second delays. Add manual bounded event search as a P2 follow-up so finding history does not require AI or paging every week.
+  - Acceptance: Plan week/day, Family segment, Assistant composer draft, and both new list drafts survive tab switches. Assistant links work for today, next month, and history. Review-to-editor/assignment opens exactly one sheet and retains edits. Verify behavior in the running iOS app.
+
+- [ ] **F04 / P1: Bind route and geocoding results to the request that produced them.**
+  - Evidence: hero routing writes one unkeyed `realTimeDeviceEta` after awaiting (`AppStore.swift:1242`). `GoView.swift:85` launches tasks on appearance, hero-ID changes, and GPS updates, but has no request generation check; editing the destination of the same event does not change its ID. `resolveMissingPlaceCoordinates` re-finds by name and checks only missing latitude after geocoding (`AppStore.swift:1190`), not unchanged address/household.
+  - Change: key and validate async results by household, event/place identity, destination revision, origin, and request generation. Cancel obsolete requests, clear the prior hero's ETA immediately, refresh on relevant field changes, and attach geocoded coordinates only to the address that was resolved. Validate fix age/accuracy before labeling GPS live.
+  - Acceptance: slow route A cannot replace route B after a hero switch; changing the same event's destination refreshes ETA; a failed request cannot leave another stop's time displayed. Changing/deleting an address or switching households during geocoding cannot attach stale coordinates.
+
+- [ ] **F05 / P1: Show truthful travel/weather/reminder states.**
+  - Evidence: `GoogleMapsService.calculateDriveTime` returns and caches a straight-line/30-mph fallback with the same shape as a provider result (`GoogleMapsService.swift:450`). `WeatherService` returns fixed sunny 78-degree data on failure and uses a cache unkeyed by location. `NotificationService.swift:144,174` converts unknown travel to zero and labels even non-travel events "Leave in 10 minutes". Reminder selection does not receive an active-caregiver/recipient scope.
+  - Change: carry estimate provenance/freshness and an explicit unavailable state. Retain genuine cached weather with its timestamp, key it by location, and refresh when stale on foreground. Do not present sample weather or guessed travel as live. Distinguish an appointment reminder from a departure reminder, state what happens when travel is unknown, and define whose assigned/Family/TBD events trigger this device's alerts.
+  - Acceptance: failed providers show last-known/estimated/unavailable truthfully; household/location changes do not reuse another place's weather. A home activity gets an activity reminder. A failed route does not silently claim an accurate leave time. Switching caregiver preferences reschedules only the intended device reminders, and lists never produce departure/driver alerts.
+
+- [ ] **F06 / P0 for session isolation, P1 for UI: Finish Smart Suggestions integration.**
+  - Evidence: `FamilyView.swift:90` sets `editingTemplateIsNew`, but the editor call still uses `editingTemplate == nil` (`FamilyView.swift:149`); a prefilled suggestion therefore appears as an existing shortcut with a delete action. `refreshLocally` only filters cached suggestions, so newly eligible candidates do not appear during that pass. AI refresh runs on the session task rather than a candidate revision (`FamilyView.swift:216`). Remote `AppStore.merge/apply` do not bump `contentRevision`. `AssistantSuggestionStore.swift:114` publishes results after await without validating the saved session/candidate revision; `loadedKey` is assigned but not used to reject stale results.
+  - Change: wire the explicit draft state into the editor, publish new deterministic local candidates on relevant changes, and refresh ranking using changed candidates plus the existing cadence/backoff. Propagate remote event/shortcut changes to invalidation. Cancel/discard stale async results before storage or display and permit the new session to refresh. Gate background model requests on the app's data-disclosure choice while retaining local suggestions. Distinguish a valid empty AI ranking, malformed response, offline fallback, and successful model ranking in cache policy.
+  - Acceptance: opening a suggestion shows New Shortcut with no deletion control; cancel is read-only and save creates once. A third qualifying event appears without leaving Family; a remotely created equivalent shortcut removes the card. An old household's delayed response never appears in the new one. Configuring AI after a local fallback permits ranking without a false 14-day successful-model cache. Tests must exercise the app store/UI integration, not only the pure policy structs.
+
+- [ ] **F07 / P1: Correct assistant session and conversation lifecycle.**
+  - Evidence: `AssistantHost.reset()` clears every transcript file, and `ContentView` calls it on caregiver changes and when closing Settings from Assistant (`AssistantHost.swift:133`; `ContentView.swift:76,98`). Host identity includes user/household but not changing date/timezone or service configuration, and there is no direct household-ID observer in the shell. `AssistantChatModel` captures its session when initialized.
+  - Change: separate service reconfiguration, session switching, cancellation, explicit Clear conversation, and sign-out. Keep stored conversations scoped and only delete them through the appropriate explicit action. Refresh date/week/timezone context before a turn. Invalidate pending proposals and async work immediately when identity changes, and rebuild the visible assistant without requiring another tab switch.
+  - Acceptance: opening/closing unchanged Settings does not erase history; returning to a caregiver restores their conversation; explicit clear affects the specified scope. Midnight/timezone changes resolve "today" correctly. Household switches during an active request neither display old results nor permit stale proposal confirmation. Historical A01 production authentication and Keychain token migration remain prerequisites for release.
+
+- [ ] **F08 / P1: Complete accessibility, metric consistency, and recovery.**
+  - Accessibility: `Core/Theme/HeliTypography.swift` uses fixed point sizes throughout. Adopt scalable text styles and adaptable layouts across existing screens and Lists; verify VoiceOver labels, checked state, contrast, Reduce Motion, and keyboard/safe-area behavior. Treat Liquid Glass as separate P2 polish, not a dependency of Lists.
+  - Metrics (P2): Family's category fallback uses shortcut titles, while Assistant trends use `event.kind.category` (`Features/Family/FamilyViewModel.swift`; `AssistantLab/Sources/AssistantKit/Trends/TrendService.swift:97`). Share event metric/category definitions and explicit date ranges. Verify that "needs a driver" excludes activities that do not require transport, or relabel it as needing a caregiver. A household with no children should get a useful empty state. List items must stay excluded from these metrics.
+  - Recovery: `HeliPersistence.load` quarantines decode failures and returns nil; unsupported versions return nil; save encoding errors are discarded (`Domain/Persistence.swift:101,118`). Add a visible recoverable-data state, backup/recovery route, explicit save failures, and a safe unsupported-version path before extending the snapshot. Never silently replace an unreadable household with sample data and then overwrite the recovery copy.
+  - Acceptance: accessibility sizes remain usable on compact phones; equivalent periods produce matching Family/Assistant numbers; corrupted/unsupported snapshots retain recoverable bytes and show a useful action; failed persistence does not report a successful save. Cover lists in backup, restore, and explicit household reset behavior.
+
+### Execution order and release evidence
+
+1. **Complete L00 first:** this backlog and `LISTS_IMPLEMENTATION_PLAN.md` must agree before list code is written. Then fix F01/F02 calendar data risks and F06 session invalidation. Preserve the existing uncommitted feature work; inspect current references before modifying shared files.
+2. Establish the L02 storage and L05 sharing contracts, then implement L01 (swipeable two-card home, list detail, navigation), L03/L04 (item workflows), L07/L08 (sections and fixed lists), and L09 (cleanup). Apply the PF01 separation of side effects alongside these commands. A local-only first milestone may ship before L05 synchronization, but it must say that edits are device-local until L05 passes. L10 gates the manual feature.
+3. Address PF02 and F03/F04/F05 correctness, then profile PF03–PF05 with representative data. L06 assistant support follows working manual lists and only after L01–L05 and L07–L10 pass. A01/A02 and APNs delivery remain separate production-service work.
+4. Run targeted migration, list-command, merge, async-race, and provider-failure tests, then the existing suites. Build the full iOS target and verify the real UI on an available iOS 17-compatible target and iOS 26+ where available. Report unavailable runtimes/credentials rather than substituting mock success.
+5. Record device performance traces and two-device offline/online list scenarios. Require zero dropped rapid check-offs, zero cross-household results, no calendar/statistics/reminder changes from list edits, and successful old-snapshot recovery. Mark an item complete only with the evidence its acceptance criteria require.
+
+## Historical plan and evidence
+
+The material below preserves earlier decisions and observations. Its old line
+numbers and unchecked boxes are historical; use the current status table and
+backlog above when choosing implementation work. Prior claims about deployed
+models, device verification, or missing integrations are not new verification
+from this review.
 
 ## Scope and evidence
 
@@ -26,7 +277,7 @@ picked back up.
 - The app currently targets iOS 17. Use availability-gated native Liquid Glass on iOS 26+ and an accessible material fallback on older supported OS versions.
 - `PRODUCTION_REVIEW.md` and `README.md` contain historical observations. Current source already has absolute-date storage, real-clock defaults, Keychain integration secrets, revision-checked cloud writes, and per-record merge. Do not reintroduce or redo those fixes based on stale documentation.
 
-Paths below are relative to `HeliPad/HeliPad/` unless prefixed otherwise. Priorities: **P0** data integrity/security prerequisite; **P1** requested feature or materially misleading behavior; **P2** smaller interaction/confidence patch. All unchecked items are implementation work, not completed features.
+Historical paths below are relative to `HeliPad/HeliPad/` unless prefixed otherwise. Priorities: **P0** data integrity/security prerequisite; **P1** requested feature or materially misleading behavior; **P2** smaller interaction/confidence patch. The current status table above supersedes these original unchecked boxes.
 
 ## V1 — what shipped, and where it diverges from this plan
 
@@ -51,15 +302,10 @@ device. It also satisfies one of N01's own acceptance points better than the
 original — a destination keeps its scroll position and unsent draft across tab
 switches, where a sheet resets both.
 
-What the original still has going for it: Settings in the bar frees the top
-right entirely, and a raised centre action is a stronger affordance for a
-feature you want discovered.
-
-Reverting: small and self-contained. `MainTab` drops `.assistant`,
-`PresentedRoute` regains it, `AssistantChatView` takes `.sheet` instead of
-`.embedded`, and the deleted `Features/Assistant/AssistantLauncher.swift`
-comes back from git history. The centre button and the five-slot bar were both
-built and working, so this is a revert, not a rebuild.
+September 13 clarification: retain this ordinary Assistant destination and the
+top-right Settings gear. Add Lists as the fifth destination under N01/L01.
+The previous alternative with Settings in the bottom bar and a raised
+Assistant launcher is no longer an implementation option in this plan.
 
 ### V1-b. The assistant writes its own replies, grounded rather than templated
 
@@ -111,7 +357,7 @@ nobody needs a local relay.
 - **A05** — done, with the metric definitions living in the assistant package
   rather than shared with Family yet.
 - **A06** — done, as a tab rather than a sheet.
-- **N01** — superseded by V1-a. **N02** (Liquid Glass) — not started.
+- **N01** — revised September 13 to add Lists as the fifth destination while retaining the top-right Settings gear, then revised September 20 to replace the segmented-control home first with a two-tile home and then with the swipeable two-card home, and to settle Lists as two fixed lists with no custom lists (`LISTS_IMPLEMENTATION_PLAN.md`). **N02** (Liquid Glass) — not started.
   **N03** — partly; sheet routing is now a single enum, but the Plan Review →
   editor transition named in N03 has not been exercised.
 
@@ -130,9 +376,9 @@ not be made piecemeal.
 2. **Reuse materialized records:** keep `TaskRecord` occurrences and the existing absolute-date partitioning. Extend `PlanCore.occurrences`; remove the sheet's competing generation loop. Store the rule separately so a deleted last occurrence cannot change the apparent intended end date.
 3. **Strictly app-scoped assistant:** Luna interprets natural-language requests into allowlisted app operations. Code controls authorization, validation, calculations, confirmation, and displayed result types. A prompt alone cannot guarantee app-only behavior.
 4. **No silent AI writes:** event creation and assignment produce a review card; the user confirms exact changes. Manual and chat actions use the same domain mutation path.
-5. **Bottom layout:** *(superseded by V1-a; original direction retained.)* `Go | Plan | Assistant | Family | Settings`. Preserve the three existing destinations. Settings opens its existing sheet; Assistant opens a chat sheet without changing the selected destination. Move the top Settings gear into the bottom action rather than inventing another product screen.
-6. **Icon:** a simple speech bubble containing a compact calendar/checkmark motif, in the existing forest-green palette. Use a legible custom vector/SF Symbols composition, not the sample's mascot or an OpenAI logo. Label it “Assistant”; VoiceOver label “Open HeliPad assistant.”
-7. **Native appearance, honest tradeoff:** *(the raised centre action is superseded by V1-a; the Liquid Glass direction still stands as N02.)* a raised exact-center action is custom navigation, not a stock `TabView` tab-bar configuration. Use a minimal safe-area bar with actual system Liquid Glass APIs and standard buttons/navigation behavior. Do not simulate glass with a flat translucent fill or overlap an untouched system bar with conflicting tap targets.
+5. **Bottom layout (September 13 direction; Lists home revised September 20):** `Go | Plan | Assistant | Family | Lists`. Preserve the four existing destinations and add Lists as the fifth button. The Lists home is two large horizontally swipeable cards, To-do and Grocery, one at a time, each centering the supplied artwork above the list name, its remaining count and an Open list action; the chosen card is preserved on return and there is nothing else on the screen. Settings remains the top-right gear and opens its existing sheet; it does not move into the bottom navigation or an overflow menu. Assistant remains an ordinary destination.
+6. **Icons:** retain the existing Assistant speech bubble. Use a legible checklist symbol for Lists with the visible/accessibility label "Lists". Keep To-do and Grocery as the two named cards on the Lists home, with no custom-list row, no category switcher and no chip strip.
+7. **Native appearance:** use five ordinary destination buttons with accessible hit targets and safe-area placement. No raised center launcher is required. N02 remains optional Liquid Glass polish with supported-version and accessibility fallbacks; it must not block Lists or relocate Settings.
 8. **Calendar direction:** `../SYSTEM.md:313–319` supersedes the earlier read-only direction with reviewed pull/push. Existing Settings copy still says read-only. Implement real reviewed Google export for the current “Add to Google Calendar” promise; do not mistake `gcal = true` for a successful write. Apple Calendar connection can remain read-only as advertised. Chat-created events default to app-local unless external export is explicitly selected and authorized.
 
 ## A. Patch existing UI behavior
@@ -278,21 +524,22 @@ not be made piecemeal.
   - Explain before first use which household/children's schedule information is sent to OpenAI. Minimize fields and omit unrelated notes/addresses/coordinates by default. Keep chat history device-local by default, separated by authenticated user/household, with Clear conversation; clear sensitive state on sign-out/household change. Document provider retention accurately: `store: false` is not a blanket zero-retention guarantee.
   - Acceptance: keyboard and safe areas work on small phones; interrupted responses are not presented as final results; clearing history removes local content. Household switching cannot reveal previous household chat. Event links open the correct event/week; proposal buttons cannot be applied after their context becomes invalid.
 
-## D. Add centered launcher and Liquid Glass navigation
+## D. Add Lists as the fifth destination
 
-- [ ] **N01 — P1: Build the centered five-slot action layout.** *(Superseded by V1-a. Retained as the alternative direction.)*
-  - Target: `App/ContentView.swift:3–17,29–55,91–178`, plus a small navigation component if needed.
-  - Change: Go, Plan, centered Assistant, Family, Settings. Retain three destination identities; Assistant and Settings are presentation actions, not fake selectable tabs. Use one mutually exclusive presentation route to avoid competing sheet booleans. Preserve destination state across tab switches and sheet presentation. Remove the relocated top gear.
-  - Icon/layout: subtly raised circular center action, approximately 56 points, with the speech/calendar-checkmark symbol; outer actions have at least 44-point hit targets and readable labels. Do not copy the reference's oversized mascot/notched ornament.
-  - Acceptance: center is geometrically centered regardless of selected label; every destination/action works; opening/dismissing assistant returns to the same screen/week/filter/scroll position. VoiceOver distinguishes selected destinations from launch actions.
+- [ ] **N01 — P1: Keep Settings at the top and add Lists as the fifth bottom button.** *(Revised September 13, 2026, then revised again September 20, 2026, to replace the segmented-control home with the swipeable two-card home. The "Integrate the hybrid navigation — N01 / L01" task in `LISTS_IMPLEMENTATION_PLAN.md` is the authoritative navigation contract.)*
+  - Target: `App/ContentView.swift`, `MainTab.lists`, and the Lists feature defined by L01. N01 owns navigation; L01 owns the Lists home and list details. Implement these as one coordinated change.
+  - Change: use `Go | Plan | Assistant | Family | Lists`. The Lists home shows two large horizontally swipeable cards, To-do and Grocery, one at a time, with the supplied artwork above the list name, its remaining count and an Open list action. Each opens its list in one tap; there are no custom lists and nothing else on the screen. Accessible page controls offer an alternative to swiping. Keep Settings in the top-right gear with its existing sheet. Assistant remains a normal tab.
+  - State: store navigation, drafts, expanded sections, completed-section visibility, and scroll anchors per household and list ID outside transient detail views; returning from another main tab restores the previous Lists position, and a household change clears that state.
+  - Icon/layout: five ordinary destination buttons, a checklist symbol for Lists, readable labels, and at least 44-point hit targets. Retain mutually exclusive sheet routing for Settings and other presentations.
+  - Acceptance: the fifth button opens Lists with either list one tap away and no second navigation step. Settings remains reachable from every destination through the top-right gear. All five buttons work on compact phones and with accessibility text sizes; keyboard and bottom safe areas do not hide list controls. VoiceOver announces Lists, the selected destination, each card's list name, remaining count and page position correctly.
 
-- [ ] **N02 — P1: Apply actual system Liquid Glass with fallback.**
+- [ ] **N02 — P2: Apply actual system Liquid Glass with fallback after functional Lists delivery.**
   - Targets: navigation component, `Core/Theme/HeliColors.swift`, relevant safe-area padding in Go/Plan/Family.
   - Change: iOS 26+ availability-gated `GlassEffectContainer`, system glass button styles or `glassEffect`, with restrained tint and native touch feedback. Use safe-area placement and appropriate scroll-edge treatment; remove the opaque warm-white bar background/border stack where it interferes with glass. On iOS 17–18 use system material and a solid accessible fallback where transparency is reduced. Do not drop iOS 17 support merely to access glass APIs.
   - Acceptance: actual simulator/device visual confirmation over scrolling content, light/dark appearances, Reduce Transparency, Increase Contrast, Reduce Motion, Dynamic Type, landscape and compact iPhones. Bottom content remains reachable; glass layers do not muddy text or consume touches. Keep glass confined to navigation/controls, not every content card.
 
 - [ ] **N03 — P2: Verify presentation and navigation transitions.**
-  - Cover assistant from each destination, Settings from each destination, onboarding presentation, keyboard appearance/dismissal, and rapid repeated taps.
+  - Cover all five destinations, the Lists home and both of its cards, both list details, the section-management modes, the top-right Settings gear from each destination, onboarding presentation, keyboard appearance/dismissal, and rapid repeated taps.
   - Also exercise Plan Review → event editor. Source presents the next sheet before dismissing review (`PlanReviewSheet.swift:197–199,435–437`; `PlanView.swift:141–144`); whether this loses presentation is a runtime-sensitive inference, not a confirmed failure.
   - Acceptance: exactly one intended sheet opens; no invisible overlay, duplicate editor, lost draft, blocked bottom control, or content hidden behind the home indicator. Fix shared routing if the review transition fails.
 

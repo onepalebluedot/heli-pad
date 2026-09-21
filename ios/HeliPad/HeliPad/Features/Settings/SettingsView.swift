@@ -190,9 +190,9 @@ public struct SettingsView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
                 .background(HeliColors.cardWarmWhite)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .stroke(HeliColors.sageRule.opacity(0.7), lineWidth: 0.8)
                 )
             }
@@ -203,7 +203,7 @@ public struct SettingsView: View {
                 }
                 .padding(16)
                 .background(HeliColors.cardWarmWhite.opacity(0.85))
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .padding(.top, 4)
             }
         }
@@ -336,9 +336,9 @@ public struct SettingsView: View {
                         }
                     }
                     .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: 8)
                             .stroke(HeliColors.sageRule, lineWidth: 0.8)
                     )
                     .shadow(color: Color.black.opacity(0.06), radius: 6, y: 3)
@@ -374,6 +374,7 @@ public struct SettingsView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.roundedRectangle(radius: 8))
             .tint(HeliColors.forestGreen)
         }
         .onAppear {
@@ -510,9 +511,9 @@ public struct SettingsView: View {
             }
             .padding(10)
             .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .stroke(HeliColors.sageRule, lineWidth: 0.8)
             )
 
@@ -662,7 +663,7 @@ public struct SettingsView: View {
                 }
                 .padding(12)
                 .background(HeliColors.forestTint)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .buttonStyle(.plain)
 
@@ -719,9 +720,9 @@ public struct SettingsView: View {
                 }
                 .padding(10)
                 .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(HeliColors.sageRule, lineWidth: 0.8)
                 )
 
@@ -811,9 +812,9 @@ public struct SettingsView: View {
                 }
                 .padding(10)
                 .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(HeliColors.sageRule, lineWidth: 0.8)
                 )
 
@@ -871,7 +872,7 @@ public struct SettingsView: View {
                     }
                     .padding(10)
                     .background(HeliColors.sunOchre.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
 
                 Button(action: {
@@ -988,9 +989,9 @@ public struct SettingsView: View {
                 }
                 .padding(10)
                 .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(HeliColors.sageRule, lineWidth: 0.8)
                 )
 
@@ -1188,9 +1189,8 @@ public struct SettingsView: View {
     }
 
     private func reconcileCalendarConnections() {
-        if store.connections["google"] == true {
-            do { try store.setConnection("google", enabled: false) }
-            catch { errorMessage = error.localizedDescription }
+        if store.connections["google"] == true && !store.isGoogleAuthenticated {
+            store.connections["google"] = false
         }
         if store.connections["apple"] == true && !AppleCalendarService.shared.hasReadAccess {
             do { try store.setConnection("apple", enabled: false) }
@@ -1265,8 +1265,8 @@ public struct SettingsView: View {
                 .font(.system(size: 13, design: .monospaced))
                 .padding(10)
                 .background(HeliColors.canvasIvory)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(HeliColors.sageRule, lineWidth: 0.8))
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -1284,8 +1284,8 @@ public struct SettingsView: View {
                 .font(.system(size: 13, design: .monospaced))
                 .padding(10)
                 .background(HeliColors.canvasIvory)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(HeliColors.sageRule, lineWidth: 0.8))
             }
 
             // Says whether the service is actually reachable, rather than
@@ -1328,7 +1328,7 @@ public struct SettingsView: View {
             }
             .padding(10)
             .background(HeliColors.sunOchre.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
 
             Text("What gets sent: event titles, dates, times, saved place names and household first names — only for the question asked. Street addresses, coordinates and event notes are not sent. Chat history stays on this device.")
                 .font(HeliTypography.caption(11))

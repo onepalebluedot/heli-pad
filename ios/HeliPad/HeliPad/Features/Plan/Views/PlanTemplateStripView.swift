@@ -76,9 +76,9 @@ public struct PlanTemplateStripView: View {
             .frame(width: 140)
             .padding(10)
             .background(HeliColors.cardWarmWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: 10)
                     .stroke(HeliColors.sageRule, lineWidth: 0.8)
             )
         }

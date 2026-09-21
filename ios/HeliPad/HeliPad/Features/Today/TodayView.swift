@@ -139,7 +139,7 @@ struct TodayView: View {
         .foregroundStyle(TodayTheme.ivory)
         .background(
             LinearGradient(colors: [TodayTheme.greenMid, TodayTheme.green], startPoint: .topLeading, endPoint: .bottomTrailing),
-            in: RoundedRectangle(cornerRadius: 26, style: .continuous)
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
         )
         .shadow(color: TodayTheme.green.opacity(0.28), radius: 18, y: 10)
     }
@@ -205,7 +205,7 @@ struct TodayView: View {
             stampView(task, group: group)
         }
         .padding(12)
-        .background(Color.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(Color.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .contextMenu {
             Button("Complete") { vm.completeTask(id: task.id) }
             Button("Snooze +10") { vm.snoozeTask(id: task.id, by: 10) }
@@ -339,7 +339,7 @@ struct HeroPrimaryButton: ButtonStyle {
             .foregroundStyle(TodayTheme.green)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .background(TodayTheme.creamBtn, in: Capsule())
+            .background(TodayTheme.creamBtn, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .opacity(configuration.isPressed ? 0.85 : 1)
     }
 }
@@ -351,7 +351,7 @@ struct HeroSecondaryButton: ButtonStyle {
             .foregroundStyle(TodayTheme.ivory)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .background(Color.white.opacity(0.14), in: Capsule())
+            .background(Color.white.opacity(0.14), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .opacity(configuration.isPressed ? 0.85 : 1)
     }
 }

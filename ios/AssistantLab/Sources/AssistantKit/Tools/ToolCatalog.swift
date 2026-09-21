@@ -12,13 +12,15 @@ public enum ToolName: String, CaseIterable, Codable, Sendable {
     case previewAssignTasks = "preview_assign_tasks"
     case getScheduleTrends = "get_schedule_trends"
     case getAppHelp = "get_app_help"
+    case readHouseholdLists = "read_household_lists"
+    case previewAddListItems = "preview_add_list_items"
 
     /// Operations that only read. Nothing in this catalog writes: the two
     /// `preview_*` operations build a proposal the user must confirm, and
     /// confirmation is a UI action with no tool behind it (A04).
     public var isReadOnly: Bool {
         switch self {
-        case .previewCreateEvents, .previewAssignTasks: return false
+        case .previewCreateEvents, .previewAssignTasks, .previewAddListItems: return false
         default: return true
         }
     }
@@ -44,7 +46,8 @@ public struct ToolDefinition: Sendable {
 public enum ToolCatalog {
     public static let all: [ToolDefinition] = [
         findEvents, getEvent, listHouseholdPeople, listSavedPlaces,
-        previewCreateEvents, previewAssignTasks, getScheduleTrends, getAppHelp
+        previewCreateEvents, previewAssignTasks, getScheduleTrends, getAppHelp,
+        readHouseholdLists, previewAddListItems
     ]
 
     public static func definition(for name: ToolName) -> ToolDefinition {
@@ -58,6 +61,28 @@ public enum ToolCatalog {
     }
 
     // MARK: - Definitions
+
+    static let readHouseholdLists = ToolDefinition(
+        name: .readHouseholdLists,
+        description: "Read the household's undated To-do and Grocery lists, including section names and sync status. No date or child is needed. Read this before preparing additions.",
+        parameters: .object(description: "List query", properties: [
+            ("kind", .nullable(.stringEnum(description: "Null reads both lists.", values: AssistantListKind.allCases.map(\.rawValue)))),
+            ("include_completed", .boolean(description: "Normally false; true only when completed or purchased items are requested."))
+        ])
+    )
+
+    static let previewAddListItems = ToolDefinition(
+        name: .previewAddListItems,
+        description: "Prepare additions to an undated list for confirmation. Infer groceries for food/shopping, todos for chores; never ask for date, child, owner, or quantity. This does not save until the user confirms.",
+        parameters: .object(description: "List additions", properties: [
+            ("kind", .stringEnum(description: "Destination list.", values: AssistantListKind.allCases.map(\.rawValue))),
+            ("section", .nullable(.string(description: "Existing section name from read_household_lists, only if requested. Null uses General."))),
+            ("items", .array(description: "Items explicitly requested by the user.", items: .object(description: "One item", properties: [
+                ("text", .string(description: "Item text, at most 200 characters.")),
+                ("quantity", .nullable(.string(description: "User-provided grocery quantity, at most 80 characters. Null if unspecified or a to-do.")))
+            ]), maxItems: 20))
+        ])
+    )
 
     static let findEvents = ToolDefinition(
         name: .findEvents,
@@ -101,10 +126,12 @@ public enum ToolCatalog {
         description: "Build a review of events that would be created, including every occurrence of a finite weekly series and any conflicts. This saves nothing. The person using the app confirms or cancels the review.",
         parameters: .object(description: "Proposed events", properties: [
             ("title", .string(description: "Event title exactly as the user said it.")),
-            ("start_date", .string(description: "First occurrence date, YYYY-MM-DD.")),
+            ("start_date", .nullable(.string(description: "First occurrence date, YYYY-MM-DD. Null when no date was stated; the app assumes today in the household timezone, not another day."))),
             ("start_time", .string(description: "Start time, 24-hour HH:mm.")),
             ("end_time", .nullable(.string(description: "End time, 24-hour HH:mm, later than start_time on the same day. Pass null when the request did not say how long it lasts - the app fills in its own default for this kind of activity and shows the user what it assumed. Do not invent a duration."))),
-            ("location_name", .nullable(.string(description: "A saved place name, spelled exactly as list_saved_places returned it. Call list_saved_places first: the household's places are not guessable from the title. Null only when no saved place fits, which puts the event at home."))),
+            ("location_name", .nullable(.string(description: "User-provided place name or street address, or an exact saved place name. Accept unsaved locations as text. Null leaves the location blank for the user to fill in later; never substitute Home."))),
+            ("lookup_location", .boolean(description: "True to look up location_name using Apple Maps. Use false when the user wants text only or a blank location. An ambiguous or unavailable lookup retains the text without choosing a destination.")),
+            ("context", .nullable(.string(description: "Optional event notes or context supplied by the user, up to 4000 characters. Null when none was provided."))),
             ("kind", .stringEnum(description: "Activity kind. This sets both the category the event is filed under and its default duration, so pick the closest fit rather than defaulting to 'other'. dropoff and pickup are school runs; practice is any sport or physical activity, including swimming; lesson is music, dance, art or tutoring; clinic is medical or dental; play is playdates and parties; dinner, cook and home are time at home; drive is a plain journey; other only when none of these fit.", values: EventKind.allCases.map(\.rawValue))),
             ("child_ids", .array(description: "Household person ids of the children involved. Empty if none were named.", items: .string(description: "Child person id"), maxItems: 10)),
             ("owner_id", .nullable(.string(description: "Caregiver person id to assign, or null to leave unassigned for later."))),

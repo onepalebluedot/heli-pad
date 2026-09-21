@@ -104,7 +104,7 @@ public actor AssistantEngine {
             }
 
             let request = LunaRequest(
-                instructions: Instructions.text(for: session, planning: planning),
+                instructions: Instructions.text(for: session, planning: planning, now: now()),
                 items: items,
                 maxOutputTokens: configuration.maxOutputTokens
             )
@@ -129,7 +129,7 @@ public actor AssistantEngine {
                 for call in calls {
                     items.append(.toolCall(call))
                     do {
-                        let validated = try ToolArgumentParser.validate(call)
+                        let validated = try ToolArgumentParser.validate(call, in: session)
                         let outcome = try await router.run(validated, in: session)
                         executed.append(validated.name)
                         collectedCards.append(contentsOf: outcome.cards)
@@ -159,6 +159,15 @@ public actor AssistantEngine {
                         rejections: rejections
                     )
                 }
+
+            case .structured:
+                // The chat loop never asks for one of these, so a client that
+                // returns one is misbehaving rather than merely unhelpful.
+                return AssistantTurn(
+                    cards: [.failure(AssistantCopy.failure(.invalidModelResponse))],
+                    executedTools: executed,
+                    rejections: rejections
+                )
 
             case .final(let decision):
                 items.append(.assistantDecision(encode(decision)))
@@ -208,12 +217,15 @@ public actor AssistantEngine {
             case .assignTasks:
                 let n = receipt.updatedEventIDs.count
                 headline = "Assigned \(n) event\(n == 1 ? "" : "s")"
+            case .addListItems:
+                let n = receipt.createdListItemIDs?.count ?? 0
+                headline = "Added \(n) list item\(n == 1 ? "" : "s")"
             }
             let card = ReceiptCard(
                 headline: headline,
-                detail: proposal.ruleDescription ?? "",
+                detail: proposal.batch.listAdditions?.map { "\($0.kind.title) · \($0.section): \($0.displayText)" }.joined(separator: "\n") ?? proposal.ruleDescription ?? "",
                 syncLabel: AssistantCopy.syncLabel(receipt.syncState),
-                externalCalendarLabel: AssistantCopy.externalCalendarLabel(exported: receipt.exportedToExternalCalendar),
+                externalCalendarLabel: proposal.kind == .addListItems ? nil : AssistantCopy.externalCalendarLabel(exported: receipt.exportedToExternalCalendar),
                 rows: rows
             )
             return AssistantTurn(cards: [.receipt(card)])
@@ -235,6 +247,60 @@ public actor AssistantEngine {
 
     public func cancelProposal(_ id: String) async {
         await proposals.cancel(id)
+    }
+
+    /// Returns a draft that exists only inside a pending create review. Saved
+    /// events use the host's normal open-event route instead.
+    public func proposedEvent(proposalID: String, eventID: String) async -> AssistantEvent? {
+        await proposals.createdEvent(proposalID: proposalID, eventID: eventID)
+    }
+
+    /// Applies an editor result to the pending proposal and rebuilds the card
+    /// from the proposal store's authoritative batch. Nothing is persisted to
+    /// the household until the user still chooses Confirm.
+    public func updateProposedEvent(
+        proposalID: String,
+        event: AssistantEvent,
+        card: ProposalCard,
+        in session: AssistantSession
+    ) async throws -> ProposalCard {
+        let proposal = try await proposals.updateCreatedEvent(
+            proposalID: proposalID,
+            event: event,
+            in: session
+        )
+        let events = proposal.batch.creates.sorted {
+            $0.date == $1.date ? $0.time < $1.time : $0.date < $1.date
+        }
+
+        var updated = card
+        updated.affectedCount = events.count
+        updated.conflicts = proposal.conflicts
+        updated.ruleDescription = proposal.ruleDescription
+        updated.expiresAt = proposal.expiresAt
+        updated.assumptions = []
+        updated.rows = events.prefix(ToolRouter.displayRowCap).map {
+            EventRow(
+                eventID: $0.id,
+                date: $0.date,
+                time: $0.time,
+                endTime: $0.endTime,
+                title: $0.title,
+                ownerLabel: $0.isUnassigned ? "Needs a driver" : $0.owner,
+                isUnassigned: $0.isUnassigned,
+                locationName: $0.location,
+                category: $0.kind.category,
+                isPast: $0.date < session.today
+            )
+        }
+        if let first = events.first {
+            updated.headline = "Create \u{201C}\(first.title)\u{201D}"
+        }
+        if let firstDate = events.first?.date, let lastDate = events.last?.date,
+           let range = DateRange(start: firstDate, end: lastDate) {
+            updated.periodLabel = range.label
+        }
+        return updated
     }
 
     // MARK: - Rendering
@@ -348,6 +414,8 @@ public actor AssistantEngine {
             return cards.contains { if case .places = $0 { return true }; return false }
         case .helpShown:
             return cards.contains { if case .help = $0 { return true }; return false }
+        case .listsRead:
+            return cards.contains { if case .householdList = $0 { return true }; return false }
         }
     }
 

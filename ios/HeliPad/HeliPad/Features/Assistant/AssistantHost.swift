@@ -48,6 +48,20 @@ public final class AssistantHost: ObservableObject {
         "\(store.currentUser)|\(store.cloudHouseholdID)"
     }
 
+    /// The configured relay client, or nil when the service is not set up.
+    /// Background work - shortcut suggestions - goes through the same channel
+    /// as the chat, so there is one place the provider key can be reached from
+    /// and one set of server-side checks.
+    public func makeClient() -> LunaClient? {
+        guard let relayURL, let token = store.assistantSessionToken.nonEmpty else { return nil }
+        return RelayLunaClient(
+            configuration: AssistantConfiguration(relayBaseURL: relayURL),
+            tokens: StaticTokenProvider(token)
+        )
+    }
+
+    public var currentSession: AssistantSession { session() }
+
     public func prepare() {
         // A changed caregiver or household invalidates everything: the
         // transcript, the engine's context and any pending review.
@@ -102,11 +116,16 @@ public final class AssistantHost: ObservableObject {
     /// then it is assembled locally, which is why the relay must not trust it:
     /// the caregiver picker is a preference, not authentication.
     private func session() -> AssistantSession {
-        AssistantSession(
+        let zone = store.timeZone == "device" ? TimeZone.current.identifier : store.timeZone
+        let date = DateFormatter()
+        date.locale = Locale(identifier: "en_US_POSIX")
+        date.timeZone = TimeZone(identifier: zone) ?? .current
+        date.dateFormat = "yyyy-MM-dd"
+        return AssistantSession(
             householdID: store.cloudHouseholdID,
             userID: store.currentUser,
-            timeZoneIdentifier: store.timeZone == "device" ? TimeZone.current.identifier : store.timeZone,
-            today: PlanCore.currentDeviceDate(),
+            timeZoneIdentifier: zone,
+            today: date.string(from: Date()),
             displayedWeekStart: store.weekStart
         )
     }

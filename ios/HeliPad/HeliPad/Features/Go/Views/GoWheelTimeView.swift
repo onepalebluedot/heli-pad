@@ -38,12 +38,12 @@ public struct GoWheelTimeView: View {
                         // Track bar
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                RoundedRectangle(cornerRadius: 4, style: .continuous)
                                     .fill(HeliColors.cardWarmWhite)
                                     .frame(height: 10)
 
                                 let fillWidth = geo.size.width * CGFloat(Double(load.minutes) / Double(maxMinutes))
-                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                RoundedRectangle(cornerRadius: 4, style: .continuous)
                                     .fill(col.ink)
                                     .frame(width: max(8, fillWidth), height: 10)
                             }
@@ -65,7 +65,7 @@ public struct GoWheelTimeView: View {
         }
         .padding(16)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .padding(.horizontal, 20)
     }
 }

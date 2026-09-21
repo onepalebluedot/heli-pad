@@ -30,7 +30,7 @@ public struct IntegrationsGuideSheet: View {
                     .padding(18)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(HeliColors.cardWarmWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                     // Tab Picker
                     Picker("Service", selection: $selectedTab) {
@@ -255,7 +255,7 @@ public struct IntegrationsGuideSheet: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(HeliColors.forestTint)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private func stepRow(step: Int, title: String, desc: String) -> some View {
@@ -280,9 +280,9 @@ public struct IntegrationsGuideSheet: View {
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(HeliColors.sageRule.opacity(0.5), lineWidth: 0.8)
         )
     }

@@ -194,9 +194,9 @@ public struct PlanDecisionListView: View {
         }
         .padding(14)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 12)
                 .stroke(item.status == "missing" ? HeliColors.clayText.opacity(0.3) : HeliColors.sageRule, lineWidth: 1)
         )
     }

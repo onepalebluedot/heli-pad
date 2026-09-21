@@ -30,6 +30,8 @@ const ALLOWED_TOOLS = new Set([
   "preview_assign_tasks",
   "get_schedule_trends",
   "get_app_help",
+  "read_household_lists",
+  "preview_add_list_items",
 ]);
 
 const UPSTREAM = "https://api.openai.com/v1/responses";

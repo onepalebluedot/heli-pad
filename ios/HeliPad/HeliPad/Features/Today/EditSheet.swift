@@ -28,7 +28,7 @@ struct EditSheet: View {
                 }
             }
             .padding(20)
-            .background(TodayTheme.page, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .background(TodayTheme.page, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .gesture(
                 DragGesture().onEnded { value in
                     if value.translation.height > 80 {
@@ -85,7 +85,7 @@ struct EditSheet: View {
                         .foregroundStyle(TodayTheme.terracotta)
                         .padding(10)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(TodayTheme.terracotta.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .background(TodayTheme.terracotta.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                     // Tap-only — never swipe (SWIPE-TAP-MAP).
                     Button(vm.askConfirmSent ? "Asked \(vm.askConfirmName)" : "Ask \(vm.askConfirmName) to confirm") {
@@ -94,7 +94,7 @@ struct EditSheet: View {
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(TodayTheme.creamBtn, in: Capsule())
+                    .background(TodayTheme.creamBtn, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .foregroundStyle(TodayTheme.green)
                     .disabled(vm.askConfirmSent)
                 }

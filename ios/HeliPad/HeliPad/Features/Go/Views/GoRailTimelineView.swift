@@ -23,8 +23,16 @@ public struct GoRailTimelineView: View {
 
     public var body: some View {
         VStack(spacing: 16) {
-            let morning = events.filter { PlanCore.mins($0.event.time) < 720 }
-            let afternoon = events.filter { PlanCore.mins($0.event.time) >= 720 }
+            // All-day items belong to the whole day, not to a slot in it, so
+            // they sit above the clock rather than at midnight inside Morning.
+            let allDay = events.filter { $0.event.allDay }
+            let timed = events.filter { !$0.event.allDay }
+            let morning = timed.filter { PlanCore.mins($0.event.time) < 720 }
+            let afternoon = timed.filter { PlanCore.mins($0.event.time) >= 720 }
+
+            if !allDay.isEmpty {
+                periodSection(title: "All day", items: allDay)
+            }
 
             if !morning.isEmpty {
                 periodSection(title: "Morning", items: morning)
@@ -54,9 +62,9 @@ public struct GoRailTimelineView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 48)
                 .background(HeliColors.activeNavTab)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .stroke(HeliColors.sageRule, lineWidth: 1)
                 )
             }
@@ -87,9 +95,9 @@ public struct GoRailTimelineView: View {
             }
             .padding(.horizontal, 14)
             .background(HeliColors.cardWarmWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(HeliColors.sageRule.opacity(0.8), lineWidth: 0.8)
             )
         }
@@ -104,7 +112,7 @@ public struct GoRailTimelineView: View {
             HStack(alignment: .top, spacing: 10) {
                 // Time Column
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(formatTime(e.time))
+                    Text(e.allDay ? "All day" : formatTime(e.time))
                         .font(HeliTypography.railTime(13))
                         .foregroundColor(e.done ? HeliColors.mutedGray : HeliColors.greenInk)
                 }

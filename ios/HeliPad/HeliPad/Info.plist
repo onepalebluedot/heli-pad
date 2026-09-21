@@ -2,23 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!--
-	  Xcode still generates the standard keys (bundle id, version, scene
-	  manifest, orientations) and merges them over this file. Only keys that
-	  cannot be expressed as an INFOPLIST_KEY_ build setting belong here.
-
-	  App Transport Security: iOS blocks plaintext HTTP from apps by default.
-	  NSAllowsLocalNetworking lifts that for local destinations only -
-	  localhost, *.local and link-local addresses. Anything on the internet
-	  still has to be HTTPS, so this does not weaken transport security for
-	  the real assistant relay; it exists so the app can be pointed at a relay
-	  running on a developer's own machine.
-	-->
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
-	</dict>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -31,5 +14,10 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

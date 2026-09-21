@@ -69,6 +69,83 @@ final class ConfirmationTests: XCTestCase {
         XCTAssertTrue(created.allSatisfy { $0.time == "16:00" && $0.location == "Eastside Pool" })
     }
 
+    func testPendingCreateCanBeEditedBeforeConfirmation() async throws {
+        let (engine, _) = makeEngine()
+        let before = household.snapshot(household: Fixtures.householdID).count
+        let review = await engine.send("Schedule karate every Thursday at 17:00 for 4 weeks", in: Fixtures.session)
+        let proposalID = try XCTUnwrap(review.pendingProposalID)
+        guard case .proposal(let originalCard)? = review.cards.first(where: {
+            if case .proposal = $0 { return true }
+            return false
+        }) else { return XCTFail("expected a review card") }
+        let eventID = try XCTUnwrap(originalCard.rows.first?.eventID)
+        let proposedEvent = await engine.proposedEvent(proposalID: proposalID, eventID: eventID)
+        var event = try XCTUnwrap(proposedEvent)
+
+        event.title = "Advanced karate"
+        event.time = "18:15"
+        event.endTime = "19:30"
+        event.location = "Northside Dojo"
+
+        let updatedCard = try await engine.updateProposedEvent(
+            proposalID: proposalID,
+            event: event,
+            card: originalCard,
+            in: Fixtures.session
+        )
+
+        XCTAssertEqual(household.snapshot(household: Fixtures.householdID).count, before)
+        XCTAssertTrue(updatedCard.assumptions.isEmpty)
+        XCTAssertTrue(updatedCard.rows.allSatisfy {
+            $0.title == "Advanced karate" && $0.time == "18:15" && $0.locationName == "Northside Dojo"
+        })
+
+        _ = await engine.confirm(proposalID: proposalID, in: Fixtures.session)
+        let created = household.snapshot(household: Fixtures.householdID).filter { $0.title == "Advanced karate" }
+        XCTAssertEqual(created.count, 4)
+        XCTAssertTrue(created.allSatisfy {
+            $0.time == "18:15" && $0.endTime == "19:30" && $0.location == "Northside Dojo"
+        })
+    }
+
+    func testPendingSingleCreateCanChangeDateBeforeConfirmation() async throws {
+        let (engine, _) = makeEngine()
+        let before = household.snapshot(household: Fixtures.householdID).count
+        let review = await engine.send("Schedule steaks at 18:30", in: Fixtures.session)
+        let proposalID = try XCTUnwrap(review.pendingProposalID)
+        guard case .proposal(let originalCard)? = review.cards.first(where: {
+            if case .proposal = $0 { return true }
+            return false
+        }) else { return XCTFail("expected a review card") }
+        let eventID = try XCTUnwrap(originalCard.rows.first?.eventID)
+        let proposedEvent = await engine.proposedEvent(proposalID: proposalID, eventID: eventID)
+        var event = try XCTUnwrap(proposedEvent)
+
+        event.date = "2026-09-20"
+        event.title = "Cook steaks for dinner"
+        event.endTime = "19:15"
+
+        let updatedCard = try await engine.updateProposedEvent(
+            proposalID: proposalID,
+            event: event,
+            card: originalCard,
+            in: Fixtures.session
+        )
+
+        XCTAssertEqual(household.snapshot(household: Fixtures.householdID).count, before)
+        XCTAssertEqual(updatedCard.ruleDescription, "Once on Sep 20")
+        XCTAssertEqual(updatedCard.periodLabel, "Sep 20–Sep 20")
+        XCTAssertEqual(updatedCard.rows.first?.date, "2026-09-20")
+
+        _ = await engine.confirm(proposalID: proposalID, in: Fixtures.session)
+        let created = household.snapshot(household: Fixtures.householdID).filter {
+            $0.title == "Cook steaks for dinner"
+        }
+        XCTAssertEqual(created.count, 1)
+        XCTAssertEqual(created.first?.date, "2026-09-20")
+        XCTAssertEqual(created.first?.endTime, "19:15")
+    }
+
     func testAssigningNextWeeksPickupsResolvesARealCaregiver() async throws {
         let (engine, _) = makeEngine()
         let review = await engine.send("Assign next week's pickups to Alex", in: Fixtures.session)

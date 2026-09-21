@@ -11,6 +11,29 @@ public enum ConfirmationError: Error, Equatable, Sendable {
     case saveFailed(reason: String)
 }
 
+public enum ProposalEditError: LocalizedError, Equatable, Sendable {
+    case unavailable
+    case expired
+    case wrongHousehold
+    case unsupported
+    case eventNotFound
+
+    public var errorDescription: String? {
+        switch self {
+        case .unavailable:
+            return "This review is no longer available to edit."
+        case .expired:
+            return "This review expired. Ask the assistant to prepare it again."
+        case .wrongHousehold:
+            return "This review belongs to a different household."
+        case .unsupported:
+            return "Only newly proposed events can be edited before confirmation."
+        case .eventNotFound:
+            return "That proposed event is no longer part of this review."
+        }
+    }
+}
+
 /// Holds reviews awaiting a decision, and makes confirming one idempotent.
 ///
 /// An actor because confirmation can be triggered twice — an impatient second
@@ -55,6 +78,77 @@ public actor ProposalStore {
         pending[id] ?? archive[id]
     }
 
+    public func createdEvent(proposalID: String, eventID: String) -> AssistantEvent? {
+        guard let proposal = pending[proposalID],
+              proposal.kind == .createEvents,
+              !proposal.isExpired(at: now()) else { return nil }
+        return proposal.batch.creates.first { $0.id == eventID }
+    }
+
+    /// Replaces the editable fields in a not-yet-confirmed create proposal.
+    /// For a recurring proposal, the tapped row edits the shared series
+    /// details while the already-reviewed occurrence dates remain unchanged.
+    public func updateCreatedEvent(
+        proposalID: String,
+        event editedEvent: AssistantEvent,
+        in session: AssistantSession
+    ) async throws -> Proposal {
+        guard var proposal = pending[proposalID] else { throw ProposalEditError.unavailable }
+        guard proposal.householdID == session.householdID else { throw ProposalEditError.wrongHousehold }
+        guard !proposal.isExpired(at: now()) else {
+            pending.removeValue(forKey: proposalID)
+            throw ProposalEditError.expired
+        }
+        guard proposal.kind == .createEvents else { throw ProposalEditError.unsupported }
+        guard let original = proposal.batch.creates.first(where: { $0.id == editedEvent.id }) else {
+            throw ProposalEditError.eventNotFound
+        }
+
+        let seriesID = original.seriesId
+        proposal.batch.creates = proposal.batch.creates.map { candidate in
+            let isTarget = candidate.id == original.id
+            let isSameSeries = seriesID != nil && candidate.seriesId == seriesID
+            guard isTarget || isSameSeries else { return candidate }
+
+            var updated = candidate
+            if seriesID == nil { updated.date = editedEvent.date }
+            updated.time = editedEvent.time
+            updated.endTime = editedEvent.endTime
+            updated.title = editedEvent.title
+            updated.owner = editedEvent.owner
+            updated.kids = editedEvent.kids
+            updated.location = editedEvent.location
+            updated.resolvedLocation = editedEvent.resolvedLocation
+            updated.placeID = editedEvent.placeID
+            updated.kind = editedEvent.kind
+            updated.notes = editedEvent.notes
+            return updated
+        }
+        if seriesID == nil {
+            proposal.ruleDescription = "Once on \(CalendarMath.shortLabel(editedEvent.date))"
+        }
+
+        let live = try await query.events(in: session)
+        let planning = try await query.planningContext(in: session)
+
+        // Actor calls above may suspend. Do not resurrect a review that was
+        // confirmed or cancelled while conflict data was loading.
+        guard pending[proposalID] != nil else { throw ProposalEditError.unavailable }
+        guard !proposal.isExpired(at: now()) else {
+            pending.removeValue(forKey: proposalID)
+            throw ProposalEditError.expired
+        }
+
+        proposal.conflicts = ConflictFinder.conflicts(
+            proposed: proposal.batch.creates,
+            existing: live,
+            planning: planning
+        )
+        proposal.affectedCount = proposal.batch.creates.count
+        pending[proposalID] = proposal
+        return proposal
+    }
+
     /// Cancel is a no-op on household data by construction: the proposal is
     /// dropped and nothing was ever written.
     public func cancel(_ id: String) {
@@ -71,7 +165,10 @@ public actor ProposalStore {
     }
 
     public func confirm(_ id: String, in session: AssistantSession) async throws -> MutationReceipt {
-        if let receipt = applied[id] { return receipt }
+        if let receipt = applied[id] {
+            guard archive[id]?.householdID == session.householdID else { throw ConfirmationError.wrongHousehold }
+            return receipt
+        }
 
         guard let proposal = pending[id] else {
             throw ConfirmationError.unknownProposal(id)

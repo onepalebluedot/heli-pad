@@ -125,7 +125,7 @@ public struct DirectOpenAIClient: LunaClient {
         }
         switch http.statusCode {
         case 200:
-            return try ResponsesWire.parse(data)
+            return try ResponsesWire.parse(data, kind: request.kind)
         case 429:
             throw LunaError.quotaExceeded
         default:

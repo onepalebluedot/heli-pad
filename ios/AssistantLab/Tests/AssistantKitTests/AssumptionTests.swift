@@ -44,6 +44,33 @@ final class AssumptionTests: XCTestCase {
 
     // MARK: - 1. Duration
 
+    func testContextAndTextOnlyLocationArePreserved() async throws {
+        var arguments = create(place: "The Archive, 123 Main Street")
+        arguments["context"] = "Bring the invitation"
+        arguments["lookup_location"] = false
+        let outcome = try await router.run(ToolArgumentParser.validate(call(arguments)), in: Fixtures.session)
+        XCTAssertEqual(outcome.proposal?.batch.creates.first?.notes, "Bring the invitation")
+        XCTAssertEqual(outcome.proposal?.batch.creates.first?.location, "The Archive, 123 Main Street")
+        XCTAssertTrue(try card(outcome).assumptions.contains("Context: Bring the invitation"))
+    }
+
+    func testUnsuccessfulLookupKeepsTheOriginalText() async throws {
+        var arguments = create(place: "The Archive")
+        arguments["lookup_location"] = true
+        let outcome = try await router.run(ToolArgumentParser.validate(call(arguments)), in: Fixtures.session)
+        XCTAssertEqual(outcome.proposal?.batch.creates.first?.location, "The Archive")
+        XCTAssertNil(outcome.proposal?.batch.creates.first?.resolvedLocation)
+        XCTAssertTrue(try card(outcome).assumptions.contains { $0.contains("kept as text") })
+    }
+
+    func testOversizedLocationAndContextAreRejected() {
+        for field in ["location_name", "context"] {
+            var arguments = create()
+            arguments[field] = String(repeating: "x", count: 4001)
+            XCTAssertThrowsError(try ToolArgumentParser.validate(call(arguments)))
+        }
+    }
+
     func testAMissingEndTimeUsesTheAppsDefaultForThatKind() throws {
         let validated = try ToolArgumentParser.validate(call(create(kind: "practice")))
         guard case .previewCreateEvents(let args) = validated else { return XCTFail("wrong case") }
@@ -56,7 +83,7 @@ final class AssumptionTests: XCTestCase {
     func testEachKindGetsItsOwnDefault() throws {
         let expected: [(String, String)] = [
             ("pickup", "16:30"),    // 30
-            ("lesson", "16:45"),    // 45
+            ("lesson", "17:00"),    // 60
             ("practice", "17:30"),  // 90
             ("clinic", "17:00"),    // 60
             ("play", "18:00")       // 120
@@ -96,16 +123,14 @@ final class AssumptionTests: XCTestCase {
 
     // MARK: - 2. Saved places
 
-    func testFallingBackToHomeIsStatedAndListsTheAlternatives() async throws {
+    func testMissingLocationStaysBlankAndRequestsLaterEntry() async throws {
         let validated = try ToolArgumentParser.validate(call(create(place: NSNull())))
         let outcome = try await router.run(validated, in: Fixtures.session)
         let card = try card(outcome)
 
         let line = try XCTUnwrap(card.assumptions.first { $0.contains("No place was named") })
-        XCTAssertTrue(line.contains("at Home"), line)
-        // The user can see what they could have picked instead.
-        XCTAssertTrue(line.contains("Eastside Pool"), line)
-        XCTAssertFalse(line.contains("Home,"), "home should not be offered as an alternative to itself")
+        XCTAssertTrue(line.contains("fill it in later"), line)
+        XCTAssertEqual(outcome.proposal?.batch.creates.first?.location, "")
     }
 
     func testANamedPlaceProducesNoAssumption() async throws {
@@ -173,7 +198,7 @@ final class AssumptionTests: XCTestCase {
 
         let root = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(outcome.modelPayload.utf8)) as? [String: Any])
         XCTAssertEqual(root["end_time"] as? String, "17:30")
-        XCTAssertEqual(root["place"] as? String, "Home")
+        XCTAssertEqual(root["place"] as? String, "")
         XCTAssertEqual((root["app_supplied_defaults"] as? [String])?.count, 2)
     }
 }

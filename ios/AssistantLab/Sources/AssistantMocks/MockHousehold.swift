@@ -18,6 +18,7 @@ public final class MockHousehold: HouseholdQueryPort, HouseholdCommandPort, @unc
     private var people: [String: [AssistantPerson]]
     private var places: [String: [AssistantPlace]]
     private var planning: [String: PlanningContext]
+    private var listItems: [String: [ListItemAddition]] = [:]
 
     /// Set to make the next write fail, for the offline and retry cases.
     public var nextWriteError: MutationError?
@@ -59,12 +60,28 @@ public final class MockHousehold: HouseholdQueryPort, HouseholdCommandPort, @unc
 
     // MARK: - Commands
 
+    public func householdLists(in session: AssistantSession) async throws -> [AssistantHouseholdList] {
+        lock.withLock {
+            AssistantListKind.allCases.map { kind in
+                AssistantHouseholdList(kind: kind, sections: ["General"], items: (listItems[session.householdID] ?? [])
+                    .filter { $0.kind == kind }.map { AssistantListItem(id: $0.id, text: $0.text, quantity: $0.quantity, section: $0.section) },
+                    syncLabel: cloudReachable ? "Up to date" : "Waiting to sync")
+            }
+        }
+    }
+
     public func apply(_ batch: MutationBatch, in session: AssistantSession) async throws -> MutationReceipt {
         try lock.withLock {
         if let error = nextWriteError {
             nextWriteError = nil
             throw error
         }
+
+        var currentItems = listItems[session.householdID] ?? []
+        for addition in batch.listAdditions ?? [] where !currentItems.contains(where: { $0.id == addition.id }) {
+            currentItems.append(addition)
+        }
+        listItems[session.householdID] = currentItems
 
         var current = events[session.householdID] ?? []
 
@@ -114,7 +131,8 @@ public final class MockHousehold: HouseholdQueryPort, HouseholdCommandPort, @unc
             syncState: cloudReachable ? .syncedToHousehold : .savedLocallySyncPending,
             // Nothing here talks to Google or Apple Calendar, and saying
             // otherwise is exactly the failure A04 warns about.
-            exportedToExternalCalendar: false
+            exportedToExternalCalendar: false,
+            createdListItemIDs: batch.listAdditions?.map(\.id)
         )
         }
     }

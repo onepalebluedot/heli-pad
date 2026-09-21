@@ -207,10 +207,13 @@ public final class GoogleCalendarService: GoogleCalendarProtocol {
     // MARK: - Auth Status & Storage
 
     public func isAuthenticated() -> Bool {
-        guard let token = try? secretStore.get(keyAccessToken), !token.isEmpty else {
-            return false
+        if let token = try? secretStore.get(keyAccessToken), !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return true
         }
-        return true
+        if let refreshToken = try? secretStore.get(keyRefreshToken), !refreshToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return true
+        }
+        return false
     }
 
     public func currentEmail() -> String? {
@@ -394,24 +397,25 @@ public final class GoogleCalendarService: GoogleCalendarProtocol {
     // MARK: - Token Refresh
 
     public func validAccessToken() async throws -> String {
-        guard let token = try secretStore.get(keyAccessToken), !token.isEmpty else {
-            throw GoogleCalendarError.unauthenticated
-        }
-
+        let token = (try? secretStore.get(keyAccessToken))?.trimmingCharacters(in: .whitespacesAndNewlines)
         let expiryTimestamp = (try? secretStore.get(keyTokenExpiry)).flatMap(Double.init) ?? 0
         let now = Date().timeIntervalSince1970
-        // Refresh if within 60 seconds of expiration
-        if expiryTimestamp > 0 && now >= (expiryTimestamp - 60) {
+
+        // If access token is missing or within 60 seconds of expiration, refresh it
+        if token == nil || token?.isEmpty == true || (expiryTimestamp > 0 && now >= (expiryTimestamp - 60)) {
             return try await refreshAccessToken()
         }
-        return token
+        return token!
     }
 
     private func refreshAccessToken() async throws -> String {
-        guard let refreshToken = try secretStore.get(keyRefreshToken), !refreshToken.isEmpty else {
+        guard let refreshToken = (try? secretStore.get(keyRefreshToken))?.trimmingCharacters(in: .whitespacesAndNewlines), !refreshToken.isEmpty else {
             throw GoogleCalendarError.unauthenticated
         }
-        let clientId = try secretStore.get(keyClientId) ?? AppConfig.defaultGoogleClientId
+        let storedClientId = (try? secretStore.get(keyClientId))?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let clientId = (storedClientId != nil && !storedClientId!.isEmpty)
+            ? storedClientId!
+            : AppConfig.defaultGoogleClientId
         guard !clientId.isEmpty else {
             throw GoogleCalendarError.missingClientId
         }
@@ -438,6 +442,9 @@ public final class GoogleCalendarService: GoogleCalendarProtocol {
 
         let tokenResponse = try JSONDecoder().decode(GoogleTokenResponse.self, from: data)
         try secretStore.set(tokenResponse.access_token, for: keyAccessToken)
+        if let newRefreshToken = tokenResponse.refresh_token?.trimmingCharacters(in: .whitespacesAndNewlines), !newRefreshToken.isEmpty {
+            try secretStore.set(newRefreshToken, for: keyRefreshToken)
+        }
         let expiryDate = Date().addingTimeInterval(TimeInterval(tokenResponse.expires_in))
         try secretStore.set(String(expiryDate.timeIntervalSince1970), for: keyTokenExpiry)
 

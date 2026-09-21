@@ -16,6 +16,10 @@ public class FamilyViewModel: ObservableObject {
 
     @Published public var showTemplateSheet: Bool = false
     @Published public var editingTemplate: TemplateItem? = nil
+    /// True when the editor is showing an unsaved draft rather than an
+    /// existing shortcut. A reviewed suggestion is prefilled but still new, so
+    /// "is this new" can no longer be inferred from `editingTemplate == nil`.
+    @Published public var editingTemplateIsNew: Bool = true
 
     @Published public var showLocationSheet: Bool = false
     @Published public var editingLocation: LocationItem? = nil

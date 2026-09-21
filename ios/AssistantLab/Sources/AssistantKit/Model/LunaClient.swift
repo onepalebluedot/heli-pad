@@ -16,13 +16,33 @@ public enum ConversationItem: Hashable, Sendable {
     case toolRejected(callID: String, reason: String)
 }
 
+/// What shape of request this is.
+///
+/// The assistant's chat turn needs the tool catalog and the decision schema.
+/// Background work like shortcut suggestions needs neither: it is one call,
+/// with its own output schema and no tools at all, which is both cheaper and
+/// a smaller surface.
+public enum LunaRequestKind: Sendable {
+    case assistantTurn
+    /// A single structured answer. `schemaJSON` is a JSON Schema document as a
+    /// string - a string rather than a dictionary so the value stays Sendable.
+    case structured(name: String, schemaJSON: String)
+}
+
 public struct LunaRequest: Sendable {
+    public var kind: LunaRequestKind
     public var instructions: String
     public var items: [ConversationItem]
     /// Explicit, non-negotiable ceiling on generated tokens.
     public var maxOutputTokens: Int
 
-    public init(instructions: String, items: [ConversationItem], maxOutputTokens: Int) {
+    public init(
+        kind: LunaRequestKind = .assistantTurn,
+        instructions: String,
+        items: [ConversationItem],
+        maxOutputTokens: Int
+    ) {
+        self.kind = kind
         self.instructions = instructions
         self.items = items
         self.maxOutputTokens = maxOutputTokens
@@ -143,6 +163,9 @@ public struct FinalDecision: Codable, Hashable, Sendable {
 public enum LunaReply: Sendable {
     case toolCalls([RawToolCall])
     case final(FinalDecision)
+    /// Raw JSON matching the schema a `.structured` request asked for. The
+    /// caller decodes and validates it; nothing here is displayed as-is.
+    case structured(String)
 }
 
 public enum LunaError: Error, Equatable, Sendable {

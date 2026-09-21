@@ -27,6 +27,7 @@ public struct AssistantChatView: View {
     @ObservedObject private var model: AssistantChatModel
     private let presentation: Presentation
     private let onOpenEvent: (String, String) -> Void
+    private let onEditProposedEvent: (String, String, String) -> Void
     private let onDismiss: () -> Void
 
     @State private var showsClearConfirmation = false
@@ -35,11 +36,13 @@ public struct AssistantChatView: View {
         model: AssistantChatModel,
         presentation: Presentation = .sheet,
         onOpenEvent: @escaping (String, String) -> Void = { _, _ in },
+        onEditProposedEvent: @escaping (String, String, String) -> Void = { _, _, _ in },
         onDismiss: @escaping () -> Void = {}
     ) {
         self.model = model
         self.presentation = presentation
         self.onOpenEvent = onOpenEvent
+        self.onEditProposedEvent = onEditProposedEvent
         self.onDismiss = onDismiss
     }
 
@@ -312,6 +315,7 @@ public struct AssistantChatView: View {
             message: message,
             pendingProposalID: model.pendingProposalID,
             onOpenEvent: onOpenEvent,
+            onEditProposedEvent: onEditProposedEvent,
             onConfirmProposal: { model.confirmPendingProposal() },
             onCancelProposal: { model.cancelPendingProposal() },
             onQuickReply: { model.send($0) }
@@ -456,6 +460,7 @@ struct ChatMessageRow: View, Equatable {
     let message: ChatMessage
     let pendingProposalID: String?
     var onOpenEvent: (String, String) -> Void
+    var onEditProposedEvent: (String, String, String) -> Void
     var onConfirmProposal: () -> Void
     var onCancelProposal: () -> Void
     var onQuickReply: (String) -> Void
@@ -486,6 +491,7 @@ struct ChatMessageRow: View, Equatable {
                     AssistantCardView(
                         card: card,
                         onOpenEvent: onOpenEvent,
+                        onEditProposedEvent: onEditProposedEvent,
                         onConfirmProposal: onConfirmProposal,
                         onCancelProposal: onCancelProposal,
                         onQuickReply: onQuickReply

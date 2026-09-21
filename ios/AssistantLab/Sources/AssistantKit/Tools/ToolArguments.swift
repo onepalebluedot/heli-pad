@@ -57,6 +57,8 @@ public enum ValidatedToolCall: Sendable {
     case previewAssignTasks(eventIDs: [String], ownerID: String)
     case getScheduleTrends(range: DateRange, personIDs: [String])
     case getAppHelp(HelpTopic)
+    case readHouseholdLists(kind: AssistantListKind?, includeCompleted: Bool)
+    case previewAddListItems(kind: AssistantListKind, section: String?, items: [ListItemInput])
 
     public var name: ToolName {
         switch self {
@@ -68,8 +70,15 @@ public enum ValidatedToolCall: Sendable {
         case .previewAssignTasks: return .previewAssignTasks
         case .getScheduleTrends: return .getScheduleTrends
         case .getAppHelp: return .getAppHelp
+        case .readHouseholdLists: return .readHouseholdLists
+        case .previewAddListItems: return .previewAddListItems
         }
     }
+}
+
+public struct ListItemInput: Hashable, Sendable {
+    public var text: String
+    public var quantity: String
 }
 
 public struct FindEventsArgs: Hashable, Sendable {
@@ -93,7 +102,10 @@ public struct CreateEventsArgs: Hashable, Sendable {
     /// default for this kind. Surfaced on the review so the assumption is
     /// visible rather than silent.
     public var durationWasAssumed: Bool = false
-    /// True when no saved place was named and the event fell back to home.
+    public var dateWasAssumed: Bool = false
+    public var lookupLocation: Bool = false
+    public var context: String = ""
+    /// True when no location was supplied.
     public var locationWasAssumed: Bool = false
 }
 
@@ -107,7 +119,7 @@ public enum ToolArgumentParser {
     /// planner materialises and keeps one call from sweeping all history.
     public static let maxRangeDays = 731
 
-    public static func validate(_ call: RawToolCall) throws -> ValidatedToolCall {
+    public static func validate(_ call: RawToolCall, in session: AssistantSession? = nil) throws -> ValidatedToolCall {
         guard let tool = ToolName(rawValue: call.name) else {
             throw ToolRejection.unknownTool(call.name)
         }
@@ -136,7 +148,38 @@ public enum ToolArgumentParser {
             return .listSavedPlaces(verifiedOnly: try bool(tool: tool, object: object, key: "verified_only"))
 
         case .previewCreateEvents:
-            return .previewCreateEvents(try createArgs(tool: tool, object: object))
+            return .previewCreateEvents(try createArgs(tool: tool, object: object, today: session?.today))
+
+        case .readHouseholdLists:
+            let kind = try optionalString(tool: tool, object: object, key: "kind")
+            if let kind, AssistantListKind(rawValue: kind) == nil {
+                throw ToolRejection.invalidValue(tool: tool.rawValue, field: "kind", detail: "expected todos or groceries")
+            }
+            return .readHouseholdLists(kind: kind.flatMap(AssistantListKind.init(rawValue:)), includeCompleted: try bool(tool: tool, object: object, key: "include_completed"))
+
+        case .previewAddListItems:
+            let raw = try nonEmptyString(tool: tool, object: object, key: "kind")
+            guard let kind = AssistantListKind(rawValue: raw) else {
+                throw ToolRejection.invalidValue(tool: tool.rawValue, field: "kind", detail: "expected todos or groceries")
+            }
+            let section = try optionalString(tool: tool, object: object, key: "section")
+            guard (section?.count ?? 0) <= 60,
+                  let rows = try value(tool: tool, object: object, key: "items") as? [[String: Any]],
+                  !rows.isEmpty, rows.count <= 20 else {
+                throw ToolRejection.invalidValue(tool: tool.rawValue, field: "items", detail: "one to twenty items and a short section name required")
+            }
+            let inputs = try rows.map { row -> ListItemInput in
+                guard Set(row.keys).isSubset(of: ["text", "quantity"]) else {
+                    throw ToolRejection.invalidValue(tool: tool.rawValue, field: "items", detail: "unsupported item field")
+                }
+                let text = try nonEmptyString(tool: tool, object: row, key: "text")
+                let quantity = try optionalString(tool: tool, object: row, key: "quantity") ?? ""
+                guard text.count <= 200, quantity.count <= 80 else {
+                    throw ToolRejection.invalidValue(tool: tool.rawValue, field: "items", detail: "item text or quantity is too long")
+                }
+                return ListItemInput(text: text, quantity: kind == .groceries ? quantity : "")
+            }
+            return .previewAddListItems(kind: kind, section: section, items: inputs)
 
         case .previewAssignTasks:
             let ids = try stringArray(tool: tool, object: object, key: "event_ids", max: 60)
@@ -286,12 +329,18 @@ public enum ToolArgumentParser {
         return range
     }
 
-    private static func createArgs(tool: ToolName, object: [String: Any]) throws -> CreateEventsArgs {
+    private static func createArgs(tool: ToolName, object: [String: Any], today: String?) throws -> CreateEventsArgs {
         let title = try nonEmptyString(tool: tool, object: object, key: "title")
         guard title.count <= 80 else {
             throw ToolRejection.invalidValue(tool: tool.rawValue, field: "title", detail: "at most 80 characters")
         }
-        let startDate = try date(tool: tool, object: object, key: "start_date")
+        let dateWasAssumed = object["start_date"] is NSNull
+        let startDate: String
+        if dateWasAssumed, let today, CalendarMath.isValidDate(today) {
+            startDate = today
+        } else {
+            startDate = try date(tool: tool, object: object, key: "start_date")
+        }
         let startTime = try time(tool: tool, object: object, key: "start_time")
         guard let startMinutes = CalendarMath.minutes(startTime) else {
             throw ToolRejection.invalidValue(tool: tool.rawValue, field: "start_time", detail: "expected 24-hour HH:mm")
@@ -303,9 +352,8 @@ public enum ToolArgumentParser {
         }
 
         // A missing end time is filled from the app's own table rather than by
-        // the model. An end that runs past midnight is clamped to the end of
-        // the day, because the record format cannot express a stop that lands
-        // on the following date.
+        // the model. An end that runs past midnight needs an explicit time,
+        // because the record format cannot express an overnight stop.
         let endTime: String
         let durationWasAssumed: Bool
         if let stated = try optionalString(tool: tool, object: object, key: "end_time") {
@@ -380,6 +428,10 @@ public enum ToolArgumentParser {
         }
 
         let locationName = try optionalString(tool: tool, object: object, key: "location_name")
+        let context = object["context"] == nil ? "" : try optionalString(tool: tool, object: object, key: "context") ?? ""
+        guard (locationName?.count ?? 0) <= 500, context.count <= 4000 else {
+            throw ToolRejection.invalidValue(tool: tool.rawValue, field: "location_name/context", detail: "location is limited to 500 characters and context to 4000")
+        }
 
         return CreateEventsArgs(
             title: TitleNormalizer.normalize(title),
@@ -391,6 +443,9 @@ public enum ToolArgumentParser {
             ownerID: try optionalString(tool: tool, object: object, key: "owner_id"),
             rule: RecurrenceRule(mode: mode, weekdays: weekdays, bound: bound, startDate: startDate),
             durationWasAssumed: durationWasAssumed,
+            dateWasAssumed: dateWasAssumed,
+            lookupLocation: object["lookup_location"] == nil ? false : try bool(tool: tool, object: object, key: "lookup_location"),
+            context: context,
             locationWasAssumed: locationName == nil
         )
     }

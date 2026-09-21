@@ -28,6 +28,9 @@ enum CardPrinter {
                 + c.places.map { "\u{2502} \($0.name)\($0.isVerified ? "" : "  (no location saved)")" }
                 + ["\u{2514}"]
 
+        case .householdList(let c):
+            return [c.list.kind.title, c.list.syncLabel] + c.list.items.map { "\($0.section): \($0.text) \($0.quantity)" }
+
         case .proposal(let c):
             var out = ["\u{250C} REVIEW \u{00B7} \(c.headline)"]
             if let rule = c.ruleDescription { out.append("\u{2502} \(rule)") }

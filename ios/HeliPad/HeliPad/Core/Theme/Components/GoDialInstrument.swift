@@ -8,6 +8,7 @@ public struct GoDialInstrument: View {
     public var isWord: Bool
     public var isHours: Bool
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var breathPhase: Bool = false
 
     public init(
@@ -28,13 +29,19 @@ public struct GoDialInstrument: View {
 
     private var colors: (deep: Color, bright: Color) {
         switch tone {
-        case .now, .started:
+        case .now, .started, .late:
             return HeliColors.ringNow
         case .soon:
             return HeliColors.ringSoon
-        default:
+        case .later, .ontrack, .driverNeeded:
             return HeliColors.ringLater
+        case .clear:
+            return HeliColors.ringClear
         }
+    }
+
+    private var ringTransition: Animation? {
+        reduceMotion ? nil : .spring(duration: 0.65, bounce: 0.18)
     }
 
     public var body: some View {
@@ -107,7 +114,7 @@ public struct GoDialInstrument: View {
                                 )
                             )
                             .frame(width: size * 0.22, height: size * 0.22)
-                            .scaleEffect(breathPhase ? 1.08 : 0.94)
+                            .scaleEffect(reduceMotion ? 1 : (breathPhase ? 1.08 : 0.94))
 
                         // Bead Core
                         Circle()
@@ -122,6 +129,8 @@ public struct GoDialInstrument: View {
                     .position(x: bx, y: by)
                 }
             }
+            .animation(ringTransition, value: fraction)
+            .animation(ringTransition, value: tone)
 
             // Center Display
             VStack(spacing: 4) {
@@ -158,8 +167,20 @@ public struct GoDialInstrument: View {
         }
         .frame(width: 168, height: 168)
         .onAppear {
+            guard !reduceMotion else { return }
             withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) {
                 breathPhase = true
+            }
+        }
+        .onChange(of: reduceMotion) { _, shouldReduceMotion in
+            if shouldReduceMotion {
+                withAnimation(nil) {
+                    breathPhase = false
+                }
+            } else {
+                withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) {
+                    breathPhase = true
+                }
             }
         }
     }

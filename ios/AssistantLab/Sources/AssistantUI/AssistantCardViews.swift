@@ -9,6 +9,7 @@ import AssistantKit
 public struct AssistantCardView: View {
     public let card: AssistantCard
     public var onOpenEvent: ((String, String) -> Void)?
+    public var onEditProposedEvent: ((String, String, String) -> Void)?
     public var onConfirmProposal: (() -> Void)?
     public var onCancelProposal: (() -> Void)?
     public var onQuickReply: ((String) -> Void)?
@@ -16,12 +17,14 @@ public struct AssistantCardView: View {
     public init(
         card: AssistantCard,
         onOpenEvent: ((String, String) -> Void)? = nil,
+        onEditProposedEvent: ((String, String, String) -> Void)? = nil,
         onConfirmProposal: (() -> Void)? = nil,
         onCancelProposal: (() -> Void)? = nil,
         onQuickReply: ((String) -> Void)? = nil
     ) {
         self.card = card
         self.onOpenEvent = onOpenEvent
+        self.onEditProposedEvent = onEditProposedEvent
         self.onConfirmProposal = onConfirmProposal
         self.onCancelProposal = onCancelProposal
         self.onQuickReply = onQuickReply
@@ -59,6 +62,28 @@ public struct AssistantCardView: View {
                             .padding(.vertical, 10)
                     }
                 }
+            }
+
+        case .householdList(let c):
+            HeliCard {
+                VStack(alignment: .leading, spacing: 10) {
+                    sectionHead(c.list.kind.title, icon: "list-checks")
+                    Text(c.list.syncLabel).font(.caption).foregroundStyle(HeliColors.mutedGray)
+                    if c.list.items.isEmpty { Text("No items here.").font(.body) }
+                    ForEach(c.list.items) { item in
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(item.text).font(.body)
+                                Text([item.section, item.quantity].filter { !$0.isEmpty }.joined(separator: " · "))
+                                    .font(.caption).foregroundStyle(HeliColors.mutedGray)
+                            }
+                        }
+                    }
+                    if c.omittedCount > 0 { Text("\(c.omittedCount) more items in Lists").font(.caption) }
+                }
+                .foregroundStyle(HeliColors.greenInk)
+                .padding(16)
             }
 
         case .people(let c):
@@ -109,6 +134,7 @@ public struct AssistantCardView: View {
             ProposalCardView(
                 card: c,
                 onOpenEvent: onOpenEvent,
+                onEditProposedEvent: onEditProposedEvent,
                 onConfirm: onConfirmProposal,
                 onCancel: onCancelProposal
             )
@@ -294,6 +320,8 @@ public struct AssistantCardView: View {
 
 struct EventRowView: View {
     let row: EventRow
+    var actionIcon: String? = nil
+    var actionHint = "Opens this event"
     var onOpen: ((String, String) -> Void)?
 
     var body: some View {
@@ -333,6 +361,11 @@ struct EventRowView: View {
                 }
 
                 Spacer(minLength: 6)
+                if let actionIcon {
+                    HeliIcon(name: actionIcon, size: 11)
+                        .foregroundStyle(HeliColors.forestGreen)
+                        .padding(.top, 2)
+                }
                 OwnerChip(label: row.ownerLabel, isUnassigned: row.isUnassigned)
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -343,7 +376,7 @@ struct EventRowView: View {
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(row.title), \(CalendarMath.shortLabel(row.date)) at \(row.time), \(row.ownerLabel)")
-        .accessibilityHint("Opens this event")
+        .accessibilityHint(actionHint)
     }
 }
 
@@ -371,6 +404,7 @@ struct OwnerChip: View {
 struct ProposalCardView: View {
     let card: ProposalCard
     var onOpenEvent: ((String, String) -> Void)?
+    var onEditProposedEvent: ((String, String, String) -> Void)?
     var onConfirm: (() -> Void)?
     var onCancel: (() -> Void)?
     @State private var showsAllRows = false
@@ -397,7 +431,7 @@ struct ProposalCardView: View {
                                 .foregroundStyle(HeliColors.greenInk)
                         }
                     }
-                    Text("\(card.affectedCount) event\(card.affectedCount == 1 ? "" : "s") \u{00B7} \(card.periodLabel)")
+                    Text("\(card.affectedCount) \(card.listItems == nil ? "event" : "item")\(card.affectedCount == 1 ? "" : "s") \u{00B7} \(card.periodLabel)")
                         .font(HeliTypography.caption(10.5))
                         .foregroundStyle(HeliColors.mutedGray)
                     Text(card.destinationNote)
@@ -407,6 +441,16 @@ struct ProposalCardView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
                 .padding(.bottom, 12)
+
+                if let items = card.listItems {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(Array(items.enumerated()), id: \.offset) { _, text in
+                            Label(text, systemImage: "circle").font(.body)
+                        }
+                    }
+                    .foregroundStyle(HeliColors.greenInk)
+                    .padding(16)
+                }
 
                 // What the app filled in because the request did not say.
                 if !card.assumptions.isEmpty {
@@ -471,7 +515,17 @@ struct ProposalCardView: View {
                             .frame(height: 0.8)
                             .padding(.leading, 16)
                     }
-                    EventRowView(row: row, onOpen: onOpenEvent)
+                    EventRowView(
+                        row: row,
+                        actionIcon: "pencil",
+                        actionHint: "Edits this proposed event"
+                    ) { eventID, date in
+                        if let onEditProposedEvent {
+                            onEditProposedEvent(card.proposalID, eventID, date)
+                        } else {
+                            onOpenEvent?(eventID, date)
+                        }
+                    }
                 }
 
                 if card.rows.count > 4 {

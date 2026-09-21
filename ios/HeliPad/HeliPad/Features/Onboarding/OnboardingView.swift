@@ -119,7 +119,7 @@ public struct OnboardingView: View {
                 .padding(.horizontal, 22)
                 .padding(.vertical, 14)
                 .background(canAdvance ? HeliColors.forestGreen : HeliColors.mutedGray.opacity(0.45))
-                .clipShape(Capsule())
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .buttonStyle(.plain)
             .disabled(!canAdvance)

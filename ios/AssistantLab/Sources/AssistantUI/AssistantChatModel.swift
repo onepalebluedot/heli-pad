@@ -65,6 +65,13 @@ public final class AssistantChatModel: ObservableObject {
     public func send(_ text: String) {
         let outgoing = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !outgoing.isEmpty, !isWorking else { return }
+        // A chat can stay open across midnight. "Today" must not remain the
+        // day the assistant was first constructed, or use the phone's zone.
+        let date = DateFormatter()
+        date.locale = Locale(identifier: "en_US_POSIX")
+        date.timeZone = session.timeZone
+        date.dateFormat = "yyyy-MM-dd"
+        session.today = date.string(from: Date())
         append(ChatMessage(author: .user, date: Date(), text: outgoing))
 
         // A new question supersedes any review still on screen: confirming it
@@ -101,6 +108,41 @@ public final class AssistantChatModel: ObservableObject {
         ]))
     }
 
+    public func proposedEvent(proposalID: String, eventID: String) async -> AssistantEvent? {
+        guard pendingProposalID == proposalID else { return nil }
+        return await engine.proposedEvent(proposalID: proposalID, eventID: eventID)
+    }
+
+    public func updatePendingProposalEvent(
+        proposalID: String,
+        event: AssistantEvent
+    ) async throws {
+        guard pendingProposalID == proposalID,
+              let currentCard = proposalCard(id: proposalID) else {
+            throw ProposalEditError.unavailable
+        }
+
+        let updatedCard = try await engine.updateProposedEvent(
+            proposalID: proposalID,
+            event: event,
+            card: currentCard,
+            in: session
+        )
+
+        guard pendingProposalID == proposalID else { throw ProposalEditError.unavailable }
+        for messageIndex in messages.indices {
+            guard let cardIndex = messages[messageIndex].cards.firstIndex(where: {
+                guard case .proposal(let card) = $0 else { return false }
+                return card.proposalID == proposalID
+            }) else { continue }
+
+            messages[messageIndex].cards[cardIndex] = .proposal(updatedCard)
+            transcript.replace(messages[messageIndex], for: session)
+            return
+        }
+        throw ProposalEditError.unavailable
+    }
+
     public func cancel() {
         task?.cancel()
         task = nil
@@ -125,6 +167,17 @@ public final class AssistantChatModel: ObservableObject {
         task = nil
         pendingProposalID = turn.pendingProposalID
         append(ChatMessage(author: .assistant, date: Date(), cards: turn.cards))
+    }
+
+    private func proposalCard(id: String) -> ProposalCard? {
+        for message in messages {
+            for card in message.cards {
+                if case .proposal(let proposal) = card, proposal.proposalID == id {
+                    return proposal
+                }
+            }
+        }
+        return nil
     }
 
     private func append(_ message: ChatMessage) {

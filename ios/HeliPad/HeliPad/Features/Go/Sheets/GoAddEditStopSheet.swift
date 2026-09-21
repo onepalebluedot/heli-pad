@@ -14,6 +14,9 @@ public struct GoAddEditStopSheet: View {
     public var preselectedWeekCount: Int?
     public var initialEditScope: RecurrenceEditScope
     public var onSaved: (() -> Void)?
+    /// When present, the form edits an unsaved proposal draft instead of
+    /// writing to AppStore. The proposal remains subject to Confirm/Cancel.
+    public var onDraftSaved: ((TaskRecord) async throws -> Void)?
 
     @FocusState private var isWhatFocused: Bool
     @FocusState private var isWhereFocused: Bool
@@ -25,10 +28,15 @@ public struct GoAddEditStopSheet: View {
     @State private var customLocation: String = ""
     @State private var startMinutes: Int = 15 * 60
     @State private var durationMinutes: Int = 30
+    /// An all-day event owns the whole date instead of a slot in it: no start,
+    /// no length, no travel window to collide with or be reminded about.
+    @State private var isAllDay: Bool = false
     @State private var driver: String = "Dad"
     @State private var mode: String = "Drive"
     @State private var gcal: Bool = false
     @State private var customTitle: String = ""
+    @State private var addContext = false
+    @State private var eventContext = ""
 
     // Google Places & Autocomplete State
     @State private var placePredictions: [PlacePrediction] = []
@@ -50,6 +58,7 @@ public struct GoAddEditStopSheet: View {
     @State private var editScope: RecurrenceEditScope = .occurrence
     @State private var showDeleteConfirmation = false
     @State private var showSaveSeriesConfirmation = false
+    @State private var isSavingDraft = false
 
     // Shortcut / Template State
     @State private var saveAsTemplate: Bool = false
@@ -79,7 +88,8 @@ public struct GoAddEditStopSheet: View {
         preselectedDays: Set<Int>? = nil,
         preselectedWeekCount: Int? = nil,
         initialEditScope: RecurrenceEditScope = .occurrence,
-        onSaved: (() -> Void)? = nil
+        onSaved: (() -> Void)? = nil,
+        onDraftSaved: ((TaskRecord) async throws -> Void)? = nil
     ) {
         self.store = store
         self.existingStop = existingStop
@@ -88,6 +98,7 @@ public struct GoAddEditStopSheet: View {
         self.preselectedWeekCount = preselectedWeekCount
         self.initialEditScope = initialEditScope
         self.onSaved = onSaved
+        self.onDraftSaved = onDraftSaved
     }
 
     private let presets: [(id: TaskKind, label: String, icon: String, defaultMins: Int, place: String)] = [
@@ -115,74 +126,84 @@ public struct GoAddEditStopSheet: View {
                         whereSection
                         whenSection
                         driverSection
+                        notesSection
                     }
 
-                    // Shortcut / Template Toggle
-                    VStack(spacing: 8) {
-                        Toggle(isOn: $saveAsTemplate) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 15))
-                                    .foregroundColor(HeliColors.forestGreen)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Save as Activity Shortcut")
-                                        .font(HeliTypography.cardTitle(13.5))
-                                        .foregroundColor(HeliColors.greenInk)
-                                    Text("Add to quick templates for 1-tap re-use")
-                                        .font(HeliTypography.caption(11))
-                                        .foregroundColor(HeliColors.mutedGray)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(HeliColors.cardWarmWhite)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(saveAsTemplate ? HeliColors.forestGreen.opacity(0.5) : HeliColors.sageRule, lineWidth: 0.8)
-                        )
-
-                        if saveAsTemplate {
-                            HStack {
-                                Text("Shortcut Category:")
-                                    .font(HeliTypography.caption(12))
-                                    .foregroundColor(HeliColors.mutedGray)
-                                Spacer()
-                                Picker("Category", selection: $templateCategory) {
-                                    ForEach(TaskKind.categories, id: \.self) { cat in
-                                        Text(cat).tag(cat)
+                    if onDraftSaved == nil {
+                        // Shortcut / Template Toggle. A shortcut carries a start
+                        // time and a length, so an all-day event has nothing to
+                        // save into one.
+                        if !isAllDay {
+                        VStack(spacing: 8) {
+                            Toggle(isOn: $saveAsTemplate) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "sparkles")
+                                        .font(.system(size: 15))
+                                        .foregroundColor(HeliColors.forestGreen)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Save as Activity Shortcut")
+                                            .font(HeliTypography.cardTitle(13.5))
+                                            .foregroundColor(HeliColors.greenInk)
+                                        Text("Add to quick templates for 1-tap re-use")
+                                            .font(HeliTypography.caption(11))
+                                            .foregroundColor(HeliColors.mutedGray)
                                     }
                                 }
-                                .pickerStyle(.menu)
-                                .tint(HeliColors.forestGreen)
                             }
                             .padding(.horizontal, 14)
-                            .padding(.vertical, 6)
-                            .background(HeliColors.canvasIvory)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .padding(.vertical, 10)
+                            .background(HeliColors.cardWarmWhite)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(saveAsTemplate ? HeliColors.forestGreen.opacity(0.5) : HeliColors.sageRule, lineWidth: 0.8)
+                            )
+
+                            if saveAsTemplate {
+                                HStack {
+                                    Text("Shortcut Category:")
+                                        .font(HeliTypography.caption(12))
+                                        .foregroundColor(HeliColors.mutedGray)
+                                    Spacer()
+                                    Picker("Category", selection: $templateCategory) {
+                                        ForEach(TaskKind.categories, id: \.self) { cat in
+                                            Text(cat).tag(cat)
+                                        }
+                                    }
+                                    .pickerStyle(.menu)
+                                    .tint(HeliColors.forestGreen)
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 6)
+                                .background(HeliColors.canvasIvory)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            }
                         }
-                    }
+                        }
 
-                    // Calendar intent toggle
-                    Toggle("Request Google Calendar export", isOn: $gcal)
-                        .font(HeliTypography.body(13))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(HeliColors.cardWarmWhite)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .disabled(!store.isGoogleAuthenticated)
+                        // Calendar intent toggle
+                        Toggle("Request Google Calendar export", isOn: $gcal)
+                            .font(HeliTypography.body(13))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(HeliColors.cardWarmWhite)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .disabled(!store.isGoogleAuthenticated)
 
-                    if !store.isGoogleAuthenticated {
-                        Text("Connect Google Calendar in Settings or Plan before requesting export. Local saves are never labeled as exported.")
-                            .font(HeliTypography.caption(11))
-                            .foregroundColor(HeliColors.mutedGray)
+                        if !store.isGoogleAuthenticated {
+                            Text("Connect Google Calendar in Settings or Plan before requesting export. Local saves are never labeled as exported.")
+                                .font(HeliTypography.caption(11))
+                                .foregroundColor(HeliColors.mutedGray)
+                        }
                     }
 
                     // Primary Action Button
                     Button(action: requestSave) {
                         HStack(spacing: 6) {
-                            if isRepeating {
+                            if isSavingDraft {
+                                ProgressView()
+                                    .tint(.white)
+                            } else if isRepeating {
                                 Image(systemName: "repeat")
                                     .font(.system(size: 13, weight: .semibold))
                             }
@@ -192,9 +213,10 @@ public struct GoAddEditStopSheet: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 48)
                         .background(HeliColors.forestGreen)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                     .padding(.top, 6)
+                    .disabled(isSavingDraft)
 
                     // Destructive Remove Button
                     if existingStop != nil {
@@ -216,13 +238,19 @@ public struct GoAddEditStopSheet: View {
                 .padding(18)
             }
             .background(HeliColors.canvasIvory)
-            .navigationTitle(existingStop != nil ? "Edit stop" : "New stop")
+            .navigationTitle(onDraftSaved != nil ? "Edit proposed event" : (existingStop != nil ? "Edit stop" : "New stop"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Dismiss") { dismiss() }
+                        .font(HeliTypography.buttonLabel(14))
+                        .foregroundColor(HeliColors.mutedGray)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { requestSave() }
                         .font(HeliTypography.buttonLabel(14))
                         .foregroundColor(HeliColors.forestGreen)
+                        .disabled(isSavingDraft)
                 }
             }
             .onAppear {
@@ -273,6 +301,7 @@ public struct GoAddEditStopSheet: View {
     }
 
     private var actionButtonTitle: String {
+        if onDraftSaved != nil { return "Update proposal" }
         if existingStop != nil { return editScope == .series ? "Save entire series" : "Save this occurrence" }
         if isRepeating { return "Add \(previewOccurrenceCount) repeating stops" }
         if previewOccurrenceCount > 1 { return "Add \(previewOccurrenceCount) stops this week" }
@@ -280,7 +309,9 @@ public struct GoAddEditStopSheet: View {
     }
 
     private var whenSummaryValue: String {
-        let timeStr = "\(TimeFormat.formatTime(startMinutes)) (\(TimeFormat.formatDurationShort(durationMinutes)))"
+        let timeStr = isAllDay
+            ? "All day"
+            : "\(TimeFormat.formatTime(startMinutes)) (\(TimeFormat.formatDurationShort(durationMinutes)))"
         if isRepeating {
             return "\(repeatDaysSummary) · \(previewOccurrenceCount) stops · \(timeStr)"
         } else if repeatDays.count > 1 {
@@ -304,6 +335,8 @@ public struct GoAddEditStopSheet: View {
     private func seedInitialValues() {
         editScope = initialEditScope
         if let e = existingStop {
+            eventContext = e.notes
+            addContext = !e.notes.isEmpty
             title = e.title
             customTitle = e.title
             kind = e.kind
@@ -316,8 +349,9 @@ public struct GoAddEditStopSheet: View {
             } else if let loc = store.locations.first(where: { $0.name == e.location }), let lat = loc.latitude, let lng = loc.longitude {
                 selectedCoordinate = CLLocationCoordinate2D(latitude: lat, longitude: lng)
             }
-            startMinutes = PlanCore.mins(e.time)
-            durationMinutes = max(10, PlanCore.mins(e.endTime) - startMinutes)
+            isAllDay = e.allDay
+            startMinutes = e.allDay ? 15 * 60 : PlanCore.mins(e.time)
+            durationMinutes = e.allDay ? 30 : max(10, PlanCore.mins(e.endTime) - startMinutes)
             driver = e.owner
             mode = e.mode
             gcal = e.gcal
@@ -361,6 +395,8 @@ public struct GoAddEditStopSheet: View {
             // Start from whatever the caller handed us — the day they were looking
             // at, or a shortcut's template — and fill the gaps with the defaults.
             let seed = prefill
+            eventContext = seed?.notes ?? ""
+            addContext = !eventContext.isEmpty
             kind = seed?.kind ?? .other
 
             let seedLocation = (seed?.location ?? "").trimmingCharacters(in: .whitespaces)
@@ -401,7 +437,11 @@ public struct GoAddEditStopSheet: View {
                 mode = seedMode
             }
 
-            if let seedTime = seed?.time, !seedTime.isEmpty {
+            isAllDay = seed?.allDay ?? false
+            if isAllDay {
+                startMinutes = 15 * 60
+                durationMinutes = 30
+            } else if let seedTime = seed?.time, !seedTime.isEmpty {
                 startMinutes = PlanCore.mins(seedTime)
                 let seedEnd = PlanCore.mins(seed?.endTime ?? "")
                 durationMinutes = seedEnd > startMinutes ? (seedEnd - startMinutes) : 30
@@ -442,7 +482,7 @@ public struct GoAddEditStopSheet: View {
                     .font(HeliTypography.destTitle(18))
                     .foregroundColor(.white)
                 Spacer()
-                Text(TimeFormat.formatDuration(durationMinutes))
+                Text(isAllDay ? "All day" : TimeFormat.formatDuration(durationMinutes))
                     .font(HeliTypography.railMeta(12))
                     .foregroundColor(Color.white.opacity(0.85))
             }
@@ -481,9 +521,22 @@ public struct GoAddEditStopSheet: View {
 
                 Spacer()
 
-                Text("\(TimeFormat.formatTime(startMinutes)) → \(TimeFormat.formatTime(startMinutes + durationMinutes))")
-                    .font(HeliTypography.railTime(12))
-                    .foregroundColor(.white)
+                if isAllDay {
+                    HStack(spacing: 4) {
+                        HeliIcon("sun", size: 10)
+                        Text("ALL DAY")
+                            .font(HeliTypography.eyebrow(9.5))
+                    }
+                    .foregroundColor(HeliColors.greenInk)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(HeliColors.butterYellow)
+                    .clipShape(Capsule())
+                } else {
+                    Text("\(TimeFormat.formatTime(startMinutes)) → \(TimeFormat.formatTime(startMinutes + durationMinutes))")
+                        .font(HeliTypography.railTime(12))
+                        .foregroundColor(.white)
+                }
             }
 
             HStack(spacing: 8) {
@@ -525,7 +578,7 @@ public struct GoAddEditStopSheet: View {
         }
         .padding(14)
         .background(HeliColors.toneForest)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     // MARK: - Section Card Template
@@ -536,31 +589,50 @@ public struct GoAddEditStopSheet: View {
         badge: String? = nil,
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                HeliIcon(icon, size: 14)
-                    .foregroundColor(HeliColors.forestGreen)
-                    .frame(width: 20)
-                Text(label)
-                    .font(HeliTypography.railTitle(13.5))
-                    .foregroundColor(HeliColors.mutedGray)
-                Spacer()
-                if let badge = badge, !badge.isEmpty {
-                    Text(badge)
-                        .font(HeliTypography.caption(11.5))
-                        .foregroundColor(HeliColors.greenInk)
-                        .lineLimit(1)
-                }
-            }
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 9) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(HeliColors.forestGreen)
+                            .frame(width: 26, height: 26)
+                        HeliIcon(icon, size: 13)
+                            .foregroundColor(HeliColors.cardWarmWhite)
+                    }
 
-            content()
+                    Text(label.uppercased())
+                        .font(HeliTypography.eyebrow(11))
+                        .foregroundColor(HeliColors.forestGreen)
+                        .tracking(1.4)
+
+                    Spacer(minLength: 6)
+
+                    if let badge = badge, !badge.isEmpty {
+                        Text(badge)
+                            .font(HeliTypography.caption(11.5))
+                            .foregroundColor(HeliColors.greenInk)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(HeliColors.cardWarmWhite)
+                            .clipShape(Capsule())
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(HeliColors.forestTint)
+
+                content()
+                    .padding(14)
+            }
         }
-        .padding(14)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(HeliColors.sageRule, lineWidth: 0.8)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(HeliColors.forestGreen.opacity(0.22), lineWidth: 1)
         )
     }
 
@@ -599,9 +671,9 @@ public struct GoAddEditStopSheet: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
                 .background(HeliColors.canvasIvory)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: 8)
                         .stroke(isWhatFocused ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: isWhatFocused ? 1.2 : 0.8)
                 )
 
@@ -678,7 +750,7 @@ public struct GoAddEditStopSheet: View {
                         .background(isSolo ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
                         .clipShape(Capsule())
                         .overlay(
-                            Capsule().stroke(isSolo ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
+                            Capsule().strokeBorder(isSolo ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
                         )
                     }
                     .buttonStyle(.plain)
@@ -703,7 +775,7 @@ public struct GoAddEditStopSheet: View {
                             .background(selected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
                             .clipShape(Capsule())
                             .overlay(
-                                Capsule().stroke(selected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
+                                Capsule().strokeBorder(selected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
                             )
                         }
                         .buttonStyle(.plain)
@@ -787,9 +859,9 @@ public struct GoAddEditStopSheet: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
                 .background(HeliColors.canvasIvory)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: 8)
                         .stroke(isWhereFocused ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: isWhereFocused ? 1.2 : 0.8)
                 )
 
@@ -860,8 +932,8 @@ public struct GoAddEditStopSheet: View {
                         }
                     }
                     .background(HeliColors.cardWarmWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.forestGreen.opacity(0.4), lineWidth: 1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(HeliColors.forestGreen.opacity(0.4), lineWidth: 1))
                 }
 
                 // Selected Address Details Badge
@@ -896,9 +968,9 @@ public struct GoAddEditStopSheet: View {
                     }
                     .padding(10)
                     .background(HeliColors.forestTint)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: 8)
                             .stroke(HeliColors.forestGreen.opacity(0.35), lineWidth: 1)
                     )
 
@@ -999,6 +1071,7 @@ public struct GoAddEditStopSheet: View {
                         .datePickerStyle(.compact)
                         .labelsHidden()
                         .tint(HeliColors.forestGreen)
+                        .disabled(onDraftSaved != nil && prefill?.seriesId != nil)
                         .onChange(of: stopDate) { _, newD in
                             dateString = stringFromDate(newD)
                             let w = weekdayIndex(for: newD)
@@ -1016,158 +1089,199 @@ public struct GoAddEditStopSheet: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(HeliColors.canvasIvory)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(HeliColors.sageRule, lineWidth: 0.8))
+
+                    if onDraftSaved != nil && prefill?.seriesId != nil {
+                        Text("The reviewed occurrence dates stay fixed; these detail changes apply to the proposed series.")
+                            .font(HeliTypography.caption(11))
+                            .foregroundColor(HeliColors.mutedGray)
+                    }
                 }
 
-                // 2. Weekday Selector (On as default)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("DAYS OF WEEK")
-                        .font(HeliTypography.eyebrow(10))
-                        .foregroundColor(HeliColors.mutedGray)
-                        .tracking(1.2)
+                // All-day: the event owns the date rather than a slot in it.
+                Toggle(isOn: $isAllDay.animation(.easeInOut(duration: 0.2))) {
+                    HStack(spacing: 8) {
+                        HeliIcon("sun", size: 13)
+                            .foregroundColor(HeliColors.forestGreen)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("All day")
+                                .font(HeliTypography.cardTitle(13))
+                                .foregroundColor(HeliColors.greenInk)
+                            Text("No start or length — never clashes with another stop, and sends no leave-by alert")
+                                .font(HeliTypography.caption(11))
+                                .foregroundColor(HeliColors.mutedGray)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                .tint(HeliColors.forestGreen)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(isAllDay ? HeliColors.forestTint : HeliColors.canvasIvory)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(isAllDay ? HeliColors.forestGreen.opacity(0.5) : HeliColors.sageRule, lineWidth: 0.8)
+                )
+                .onChange(of: isAllDay) { _, on in
+                    // A shortcut carries a start time and a length, so an
+                    // all-day event has nothing to save into one.
+                    if on { saveAsTemplate = false }
+                }
 
-                    HStack(spacing: 5) {
-                        ForEach(weekdays) { day in
-                            let isSelected = repeatDays.contains(day.id)
-                            Button(action: {
-                                if isSelected {
-                                    if repeatDays.count > 1 {
-                                        repeatDays.remove(day.id)
+                if onDraftSaved == nil {
+                    // 2. Weekday Selector (On as default)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("DAYS OF WEEK")
+                            .font(HeliTypography.eyebrow(10))
+                            .foregroundColor(HeliColors.mutedGray)
+                            .tracking(1.2)
+
+                        HStack(spacing: 5) {
+                            ForEach(weekdays) { day in
+                                let isSelected = repeatDays.contains(day.id)
+                                Button(action: {
+                                    if isSelected {
+                                        if repeatDays.count > 1 {
+                                            repeatDays.remove(day.id)
+                                        }
+                                    } else {
+                                        repeatDays.insert(day.id)
                                     }
-                                } else {
-                                    repeatDays.insert(day.id)
+                                    if repeatDays.count == 1, let singleDay = repeatDays.first {
+                                        let mon = PlanCore.monday(dateString)
+                                        dateString = PlanCore.dateAdd(mon, singleDay)
+                                        stopDate = dateFromString(dateString)
+                                    }
+                                }) {
+                                    VStack(spacing: 2) {
+                                        Text(day.letter).font(HeliTypography.actionButton(12))
+                                        Text(day.name).font(.system(size: 8.5))
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 6)
+                                    .foregroundColor(isSelected ? HeliColors.cardWarmWhite : HeliColors.greenInk)
+                                    .background(isSelected ? HeliColors.forestGreen : HeliColors.cardWarmWhite)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .stroke(isSelected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 0.8)
+                                    )
                                 }
-                                if repeatDays.count == 1, let singleDay = repeatDays.first {
-                                    let mon = PlanCore.monday(dateString)
-                                    dateString = PlanCore.dateAdd(mon, singleDay)
-                                    stopDate = dateFromString(dateString)
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+
+                    // 3. Repeat Toggle to reveal weekly recurrence
+                    if existingStop?.seriesId == nil || editScope == .series {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Toggle(isOn: $isRepeating.animation(.easeInOut(duration: 0.2))) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "repeat")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(HeliColors.forestGreen)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Repeat")
+                                            .font(HeliTypography.cardTitle(13))
+                                            .foregroundColor(HeliColors.greenInk)
+                                        Text("Repeat this pattern beyond the current week")
+                                            .font(HeliTypography.caption(11))
+                                            .foregroundColor(HeliColors.mutedGray)
+                                    }
                                 }
+                            }
+                            .tint(HeliColors.forestGreen)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .background(HeliColors.canvasIvory)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                            if isRepeating {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Picker("Ends", selection: $recurrenceEndMode) {
+                                        Text("For weeks").tag("weeks")
+                                        Text("Until date").tag("date")
+                                    }
+                                    .pickerStyle(.segmented)
+
+                                    if recurrenceEndMode == "weeks" {
+                                        HStack {
+                                            Button("20 weeks") { recurrenceWeekCount = 20 }
+                                            Button("30 weeks") { recurrenceWeekCount = 30 }
+                                            Spacer()
+                                            Stepper("\(recurrenceWeekCount)", value: $recurrenceWeekCount, in: 2...52)
+                                                .fixedSize()
+                                        }
+                                        Text("For \(recurrenceWeekCount) calendar weeks, including the starting week.")
+                                            .font(HeliTypography.caption(11))
+                                            .foregroundColor(HeliColors.mutedGray)
+                                    } else {
+                                        DatePicker("Repeat through", selection: $recurrenceThroughDate, displayedComponents: .date)
+                                            .datePickerStyle(.compact)
+                                    }
+
+                                    Text(recurrencePreviewSummary)
+                                        .font(HeliTypography.caption(11))
+                                        .foregroundColor(previewOccurrenceCount > 0 ? HeliColors.greenInk : HeliColors.warningText)
+                                }
+                                .padding(.top, 4)
+                            }
+                        }
+                    } else {
+                        Text("Only this occurrence will change. Its series schedule and other assignments stay intact.")
+                            .font(HeliTypography.caption(11))
+                            .foregroundColor(HeliColors.mutedGray)
+                    }
+                }
+
+                if !isAllDay {
+                    Divider().background(HeliColors.sageRule)
+
+                    // 4. Start Hour & Duration Stepper
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("TIME & DURATION")
+                            .font(HeliTypography.eyebrow(10))
+                            .foregroundColor(HeliColors.mutedGray)
+                            .tracking(1.2)
+
+                        VStack(spacing: 8) {
+                            Stepper(onIncrement: {
+                                startMinutes = min(23 * 60, startMinutes + 15)
+                            }, onDecrement: {
+                                startMinutes = max(6 * 60, startMinutes - 15)
                             }) {
-                                VStack(spacing: 2) {
-                                    Text(day.letter).font(HeliTypography.actionButton(12))
-                                    Text(day.name).font(.system(size: 8.5))
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 6)
-                                .foregroundColor(isSelected ? HeliColors.cardWarmWhite : HeliColors.greenInk)
-                                .background(isSelected ? HeliColors.forestGreen : HeliColors.cardWarmWhite)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(isSelected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 0.8)
-                                )
+                                stepperLabel("Start", TimeFormat.formatTime(startMinutes))
                             }
-                            .buttonStyle(.plain)
+
+                            Stepper(onIncrement: {
+                                durationMinutes = min(240, durationMinutes + 15)
+                            }, onDecrement: {
+                                durationMinutes = max(10, durationMinutes - 15)
+                            }) {
+                                stepperLabel("Length", TimeFormat.formatDurationShort(durationMinutes))
+                            }
                         }
                     }
-                }
 
-                // 3. Repeat Toggle to reveal weekly recurrence
-                if existingStop?.seriesId == nil || editScope == .series {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Toggle(isOn: $isRepeating.animation(.easeInOut(duration: 0.2))) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "repeat")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(HeliColors.forestGreen)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Repeat")
-                                        .font(HeliTypography.cardTitle(13))
-                                        .foregroundColor(HeliColors.greenInk)
-                                    Text("Repeat this pattern beyond the current week")
-                                        .font(HeliTypography.caption(11))
-                                        .foregroundColor(HeliColors.mutedGray)
+                    // 5. Hour Presets (7 AM to 8 PM)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(7...20, id: \.self) { hour in
+                                let m = hour * 60
+                                let selected = (startMinutes == m)
+                                Button(action: { startMinutes = m }) {
+                                    Text("\(hour > 12 ? hour - 12 : hour)\(hour >= 12 ? "p" : "a")")
+                                        .font(HeliTypography.railMeta(11))
+                                        .padding(.horizontal, 8)
+                                        .frame(height: 32)
+                                        .foregroundColor(selected ? HeliColors.forestGreen : HeliColors.greenInk)
+                                        .background(selected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
+                                        .clipShape(Capsule())
                                 }
+                                .buttonStyle(.plain)
                             }
-                        }
-                        .tint(HeliColors.forestGreen)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(HeliColors.canvasIvory)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-
-                        if isRepeating {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Picker("Ends", selection: $recurrenceEndMode) {
-                                    Text("For weeks").tag("weeks")
-                                    Text("Until date").tag("date")
-                                }
-                                .pickerStyle(.segmented)
-
-                                if recurrenceEndMode == "weeks" {
-                                    HStack {
-                                        Button("20 weeks") { recurrenceWeekCount = 20 }
-                                        Button("30 weeks") { recurrenceWeekCount = 30 }
-                                        Spacer()
-                                        Stepper("\(recurrenceWeekCount)", value: $recurrenceWeekCount, in: 2...52)
-                                            .fixedSize()
-                                    }
-                                    Text("For \(recurrenceWeekCount) calendar weeks, including the starting week.")
-                                        .font(HeliTypography.caption(11))
-                                        .foregroundColor(HeliColors.mutedGray)
-                                } else {
-                                    DatePicker("Repeat through", selection: $recurrenceThroughDate, displayedComponents: .date)
-                                        .datePickerStyle(.compact)
-                                }
-
-                                Text(recurrencePreviewSummary)
-                                    .font(HeliTypography.caption(11))
-                                    .foregroundColor(previewOccurrenceCount > 0 ? HeliColors.greenInk : HeliColors.warningText)
-                            }
-                            .padding(.top, 4)
-                        }
-                    }
-                } else {
-                    Text("Only this occurrence will change. Its series schedule and other assignments stay intact.")
-                        .font(HeliTypography.caption(11))
-                        .foregroundColor(HeliColors.mutedGray)
-                }
-
-                Divider().background(HeliColors.sageRule)
-
-                // 4. Start Hour & Duration Stepper
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("TIME & DURATION")
-                        .font(HeliTypography.eyebrow(10))
-                        .foregroundColor(HeliColors.mutedGray)
-                        .tracking(1.2)
-
-                    VStack(spacing: 8) {
-                        Stepper(onIncrement: {
-                            startMinutes = min(23 * 60, startMinutes + 15)
-                        }, onDecrement: {
-                            startMinutes = max(6 * 60, startMinutes - 15)
-                        }) {
-                            stepperLabel("Start", TimeFormat.formatTime(startMinutes))
-                        }
-
-                        Stepper(onIncrement: {
-                            durationMinutes = min(240, durationMinutes + 15)
-                        }, onDecrement: {
-                            durationMinutes = max(10, durationMinutes - 15)
-                        }) {
-                            stepperLabel("Length", TimeFormat.formatDurationShort(durationMinutes))
-                        }
-                    }
-                }
-
-                // 5. Hour Presets (7 AM to 8 PM)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(7...20, id: \.self) { hour in
-                            let m = hour * 60
-                            let selected = (startMinutes == m)
-                            Button(action: { startMinutes = m }) {
-                                Text("\(hour > 12 ? hour - 12 : hour)\(hour >= 12 ? "p" : "a")")
-                                    .font(HeliTypography.railMeta(11))
-                                    .padding(.horizontal, 8)
-                                    .frame(height: 32)
-                                    .foregroundColor(selected ? HeliColors.forestGreen : HeliColors.greenInk)
-                                    .background(selected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
-                                    .clipShape(Capsule())
-                            }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -1190,6 +1304,28 @@ public struct GoAddEditStopSheet: View {
         .minimumScaleFactor(0.8)
     }
 
+    // MARK: - Notes Section
+
+    private var notesSection: some View {
+        sectionCard(
+            icon: "list",
+            label: "Notes",
+            badge: addContext && !eventContext.trimmingCharacters(in: .whitespaces).isEmpty ? "Added" : nil
+        ) {
+            VStack(alignment: .leading, spacing: 8) {
+                Toggle("Add context", isOn: $addContext.animation())
+                    .font(HeliTypography.body(13))
+                    .tint(HeliColors.forestGreen)
+                if addContext {
+                    TextField("Notes, instructions, or details", text: $eventContext, axis: .vertical)
+                        .lineLimit(3...8)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityLabel("Event context")
+                }
+            }
+        }
+    }
+
     // MARK: - Driver Section (Always Shown Directly)
 
     private var driverSection: some View {
@@ -1207,9 +1343,9 @@ public struct GoAddEditStopSheet: View {
                         .frame(maxWidth: .infinity, minHeight: 40)
                         .foregroundColor(selected ? HeliColors.forestGreen : HeliColors.greenInk)
                         .background(selected ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .stroke(selected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
                         )
                     }
@@ -1233,9 +1369,9 @@ public struct GoAddEditStopSheet: View {
                     .frame(maxWidth: .infinity, minHeight: 40)
                     .foregroundColor(isFamily ? HeliColors.forestGreen : HeliColors.greenInk)
                     .background(isFamily ? HeliColors.activeNavTab : HeliColors.cardWarmWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .stroke(isFamily ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 1)
                     )
                 }
@@ -1253,9 +1389,9 @@ public struct GoAddEditStopSheet: View {
                     .frame(maxWidth: .infinity, minHeight: 40)
                     .foregroundColor(isTBD ? HeliColors.tbd.text : HeliColors.greenInk)
                     .background(isTBD ? HeliColors.tbd.bg : HeliColors.cardWarmWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .stroke(isTBD ? HeliColors.tbd.ink : HeliColors.sageRule, lineWidth: 1)
                     )
                 }
@@ -1280,13 +1416,16 @@ public struct GoAddEditStopSheet: View {
             saveError = "Give this event a name."
             return
         }
-        let startStr = String(format: "%02d:%02d", startMinutes / 60, startMinutes % 60)
+        // An all-day row spans the date the same way an imported all-day
+        // calendar event does, so both read alike everywhere downstream.
+        let startStr = isAllDay ? "00:00" : String(format: "%02d:%02d", startMinutes / 60, startMinutes % 60)
         let endMinutes = startMinutes + durationMinutes
-        let endStr = String(format: "%02d:%02d", endMinutes / 60, endMinutes % 60)
+        let endStr = isAllDay ? "23:59" : String(format: "%02d:%02d", endMinutes / 60, endMinutes % 60)
         let recurrence = recurrencePattern
         let isSeries = isRepeating || repeatDays.count > 1
+        let sourceRecord = existingStop ?? prefill
         let draft = TaskRecord(
-            id: existingStop?.id ?? "ev-\(UUID().uuidString)",
+            id: sourceRecord?.id ?? "ev-\(UUID().uuidString)",
             date: recurrence.startDate,
             time: startStr,
             endTime: endStr,
@@ -1299,11 +1438,12 @@ public struct GoAddEditStopSheet: View {
             mode: mode,
             kind: kind,
             gcal: gcal,
-            allDay: false,
-            seriesId: existingStop?.seriesId,
-            latitude: selectedCoordinate?.latitude ?? existingStop?.latitude,
-            longitude: selectedCoordinate?.longitude ?? existingStop?.longitude,
-            formattedAddress: selectedAddress.isEmpty ? existingStop?.formattedAddress : selectedAddress
+            notes: addContext ? eventContext : "",
+            allDay: isAllDay,
+            seriesId: sourceRecord?.seriesId,
+            latitude: selectedCoordinate?.latitude ?? sourceRecord?.latitude,
+            longitude: selectedCoordinate?.longitude ?? sourceRecord?.longitude,
+            formattedAddress: selectedAddress.isEmpty ? sourceRecord?.formattedAddress : selectedAddress
         )
 
         do {
@@ -1314,8 +1454,23 @@ public struct GoAddEditStopSheet: View {
                 recurrence: (existingStop?.seriesId != nil && editScope == .occurrence)
                     ? RecurrencePattern(mode: .none, startDate: draft.date, timeZone: store.timeZone)
                     : recurrence,
-                seriesId: existingStop?.seriesId
+                seriesId: sourceRecord?.seriesId
             )
+
+            if let onDraftSaved {
+                isSavingDraft = true
+                Task {
+                    do {
+                        try await onDraftSaved(draft)
+                        onSaved?()
+                        dismiss()
+                    } catch {
+                        saveError = error.localizedDescription
+                    }
+                    isSavingDraft = false
+                }
+                return
+            }
 
             if saveToHouseholdPlaces && !location.isEmpty,
                !store.locations.contains(where: { $0.name.caseInsensitiveCompare(location) == .orderedSame }) {
@@ -1335,15 +1490,13 @@ public struct GoAddEditStopSheet: View {
                 draft: draft,
                 recurrence: recurrence,
                 scope: existingStop == nil ? (isSeries ? .series : .occurrence) : editScope,
-                sourceOccurrenceID: existingStop?.id
+                sourceOccurrenceID: existingStop?.id,
+                updateNotes: true
             )
 
             if (gcal || existingStop?.gcal == true || existingStop?.calendarId?.hasPrefix("google|") == true) && store.isGoogleAuthenticated {
-                Task {
-                    for rec in savedRecords {
-                        try? await store.exportEventToGoogleCalendar(rec)
-                    }
-                }
+                // One save for the whole series, not one per occurrence.
+                Task { await store.exportEventsToGoogleCalendar(savedRecords) }
             }
 
             if saveAsTemplate {
@@ -1401,8 +1554,8 @@ public struct GoAddEditStopSheet: View {
     private var previewOccurrences: [TaskRecord] {
         var preview = existingStop ?? TaskRecord(id: "preview")
         preview.date = recurrencePattern.startDate
-        preview.time = String(format: "%02d:%02d", startMinutes / 60, startMinutes % 60)
-        preview.endTime = String(format: "%02d:%02d", (startMinutes + durationMinutes) / 60, (startMinutes + durationMinutes) % 60)
+        preview.time = isAllDay ? "00:00" : String(format: "%02d:%02d", startMinutes / 60, startMinutes % 60)
+        preview.endTime = isAllDay ? "23:59" : String(format: "%02d:%02d", (startMinutes + durationMinutes) / 60, (startMinutes + durationMinutes) % 60)
         preview.title = computedTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Preview" : computedTitle
         return (try? PlanCore.occurrences(preview, recurrence: recurrencePattern, seriesId: existingStop?.seriesId ?? "preview")) ?? []
     }

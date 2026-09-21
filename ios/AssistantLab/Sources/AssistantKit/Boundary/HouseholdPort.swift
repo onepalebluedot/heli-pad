@@ -10,9 +10,30 @@ public protocol HouseholdQueryPort: AnyObject, Sendable {
     func events(in session: AssistantSession) async throws -> [AssistantEvent]
     func people(in session: AssistantSession) async throws -> [AssistantPerson]
     func places(in session: AssistantSession) async throws -> [AssistantPlace]
+    func searchLocations(query: String, in session: AssistantSession) async throws -> [AssistantLocation]
     /// Planning constants the assistant must not re-derive: travel buffer and
     /// the protected dinner window.
     func planningContext(in session: AssistantSession) async throws -> PlanningContext
+    func householdLists(in session: AssistantSession) async throws -> [AssistantHouseholdList]
+}
+
+public struct AssistantLocation: Codable, Hashable, Sendable {
+    public var name: String
+    public var address: String
+    public var latitude: Double
+    public var longitude: Double
+
+    public init(name: String, address: String, latitude: Double, longitude: Double) {
+        self.name = name
+        self.address = address
+        self.latitude = latitude
+        self.longitude = longitude
+    }
+}
+
+public extension HouseholdQueryPort {
+    func householdLists(in session: AssistantSession) async throws -> [AssistantHouseholdList] { [] }
+    func searchLocations(query: String, in session: AssistantSession) async throws -> [AssistantLocation] { [] }
 }
 
 public struct PlanningContext: Codable, Hashable, Sendable {
@@ -45,6 +66,7 @@ public protocol HouseholdCommandPort: AnyObject, Sendable {
 /// never constructs one.
 public struct MutationBatch: Codable, Hashable, Sendable {
     public var creates: [AssistantEvent]
+    public var listAdditions: [ListItemAddition]?
     /// Event id -> new owner display name, paired with the revision the
     /// proposal was computed against.
     public var reassignments: [Reassignment]
@@ -61,12 +83,13 @@ public struct MutationBatch: Codable, Hashable, Sendable {
         }
     }
 
-    public init(creates: [AssistantEvent] = [], reassignments: [Reassignment] = []) {
+    public init(creates: [AssistantEvent] = [], reassignments: [Reassignment] = [], listAdditions: [ListItemAddition]? = nil) {
         self.creates = creates
         self.reassignments = reassignments
+        self.listAdditions = listAdditions
     }
 
-    public var isEmpty: Bool { creates.isEmpty && reassignments.isEmpty }
+    public var isEmpty: Bool { creates.isEmpty && reassignments.isEmpty && (listAdditions ?? []).isEmpty }
 }
 
 /// What actually happened, so the UI can tell "saved on this device / sync
@@ -75,9 +98,11 @@ public struct MutationReceipt: Codable, Hashable, Sendable {
     public enum SyncState: String, Codable, Sendable {
         case syncedToHousehold
         case savedLocallySyncPending
+        case savedOnDeviceOnly
     }
 
     public var createdEventIDs: [String]
+    public var createdListItemIDs: [String]?
     public var updatedEventIDs: [String]
     public var syncState: SyncState
     /// True only when an authorised external calendar export succeeded. App-local
@@ -88,12 +113,14 @@ public struct MutationReceipt: Codable, Hashable, Sendable {
         createdEventIDs: [String],
         updatedEventIDs: [String],
         syncState: SyncState,
-        exportedToExternalCalendar: Bool = false
+        exportedToExternalCalendar: Bool = false,
+        createdListItemIDs: [String]? = nil
     ) {
         self.createdEventIDs = createdEventIDs
         self.updatedEventIDs = updatedEventIDs
         self.syncState = syncState
         self.exportedToExternalCalendar = exportedToExternalCalendar
+        self.createdListItemIDs = createdListItemIDs
     }
 }
 

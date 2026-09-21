@@ -6,7 +6,7 @@ public struct HeliCard<Content: View>: View {
     public var content: () -> Content
 
     public init(
-        cornerRadius: CGFloat = 26,
+        cornerRadius: CGFloat = 18,
         backgroundColor: Color = HeliColors.cardWarmWhite,
         @ViewBuilder content: @escaping () -> Content
     ) {

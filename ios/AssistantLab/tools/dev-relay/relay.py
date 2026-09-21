@@ -38,6 +38,7 @@ ALLOWED_TOOLS = {
     "find_events", "get_event", "list_household_people", "list_saved_places",
     "preview_create_events", "preview_assign_tasks", "get_schedule_trends",
     "get_app_help",
+    "read_household_lists", "preview_add_list_items",
 }
 
 

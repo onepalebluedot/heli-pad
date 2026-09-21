@@ -56,17 +56,14 @@ final class HouseholdIsolationTests: XCTestCase {
         }
     }
 
-    func testUnsavedPlaceIsRefusedRatherThanInvented() async {
-        do {
-            _ = try await router.run(.previewCreateEvents(CreateEventsArgs(
-                title: "Swimming", startTime: "16:00", endTime: "17:00",
-                locationName: "221B Baker Street", kind: .practice, childIDs: [], ownerID: nil,
-                rule: .single(on: "2026-09-15")
-            )), in: Fixtures.session)
-            XCTFail("expected a refusal")
-        } catch {
-            XCTAssertEqual(error as? ToolRejection, .unknownPlace("221B Baker Street"))
-        }
+    func testUserProvidedUnsavedAddressIsAccepted() async throws {
+        let outcome = try await router.run(.previewCreateEvents(CreateEventsArgs(
+            title: "Swimming", startTime: "16:00", endTime: "17:00",
+            locationName: "221B Baker Street", kind: .practice, childIDs: [], ownerID: nil,
+            rule: .single(on: "2026-09-15")
+        )), in: Fixtures.session)
+        XCTAssertEqual(outcome.proposal?.batch.creates.first?.location, "221B Baker Street")
+        XCTAssertNil(outcome.proposal?.batch.creates.first?.resolvedLocation)
     }
 
     func testTheSameQueryReturnsDifferentDataPerSession() async throws {

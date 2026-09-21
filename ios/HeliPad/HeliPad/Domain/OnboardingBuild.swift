@@ -266,7 +266,8 @@ public extension OnboardingDraft {
             mode: atHome ? "Home" : "Drive",
             kind: atHome ? .home : .drive,
             seriesId: seriesId,
-            originalOccurrenceDate: date
+            originalOccurrenceDate: date,
+            origin: .onboarding
         )
     }
 

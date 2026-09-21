@@ -84,8 +84,8 @@ public struct PlanAssignSheet: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(HeliColors.sageRule, lineWidth: 0.8))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
     }
 
     private func candidateList(ev: TaskRecord) -> some View {
@@ -153,9 +153,9 @@ public struct PlanAssignSheet: View {
                 }
                 .padding(14)
                 .background(HeliColors.cardWarmWhite)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14)
+                    RoundedRectangle(cornerRadius: 10)
                         .stroke(isFamily ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: isFamily ? 1.5 : 0.8)
                 )
             }
@@ -177,8 +177,8 @@ public struct PlanAssignSheet: View {
                 }
                 .padding(14)
                 .background(HeliColors.cardWarmWhite)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(HeliColors.sageRule, lineWidth: 0.8))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
             }
             .buttonStyle(PlainButtonStyle())
         }
@@ -265,9 +265,9 @@ public struct PlanAssignSheet: View {
             }
             .padding(14)
             .background(HeliColors.cardWarmWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: 10)
                     .stroke(isCurrent ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: isCurrent ? 1.5 : 0.8)
             )
         }
@@ -289,8 +289,8 @@ public struct PlanAssignSheet: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(HeliColors.sageRule, lineWidth: 0.8))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
     }
 
     private func routineCaregiverList(rt: RoutineGroup) -> some View {
@@ -325,8 +325,8 @@ public struct PlanAssignSheet: View {
                     }
                     .padding(14)
                     .background(HeliColors.cardWarmWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(HeliColors.sageRule, lineWidth: 0.8))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
                 }
                 .buttonStyle(PlainButtonStyle())
             }

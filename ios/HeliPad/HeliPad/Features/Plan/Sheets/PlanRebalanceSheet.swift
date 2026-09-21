@@ -30,8 +30,8 @@ public struct PlanRebalanceSheet: View {
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(HeliColors.cardWarmWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(HeliColors.sageRule, lineWidth: 0.8))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
 
                     // Before vs After Drive Time Comparison
                     VStack(alignment: .leading, spacing: 10) {
@@ -49,8 +49,8 @@ public struct PlanRebalanceSheet: View {
                         }
                         .padding(14)
                         .background(HeliColors.cardWarmWhite)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(HeliColors.sageRule, lineWidth: 0.8))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
                     }
 
                     // Proposed Changes
@@ -79,7 +79,7 @@ public struct PlanRebalanceSheet: View {
                                 .padding(14)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .background(HeliColors.cardWarmWhite)
-                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
                         } else {
                             ForEach(proposals.changes) { prop in
                                 proposalRow(prop: prop)
@@ -102,7 +102,7 @@ public struct PlanRebalanceSheet: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(HeliColors.forestGreen)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
                         .padding(.top, 6)
                     }
@@ -208,8 +208,8 @@ public struct PlanRebalanceSheet: View {
         }
         .padding(12)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(HeliColors.sageRule, lineWidth: 0.8))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
     }
 
     private func applyProposals(proposals: ProposalsResult) -> Bool {

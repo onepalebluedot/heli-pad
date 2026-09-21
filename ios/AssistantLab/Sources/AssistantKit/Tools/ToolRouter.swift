@@ -59,10 +59,65 @@ public struct ToolRouter: Sendable {
             return try await trends(range, personIDs, session)
         case .getAppHelp(let topic):
             return help(topic)
+        case .readHouseholdLists(let kind, let includeCompleted):
+            return try await readLists(kind, includeCompleted: includeCompleted, session)
+        case .previewAddListItems(let kind, let section, let items):
+            return try await previewListAdditions(kind, section: section, items: items, session)
         }
     }
 
     // MARK: - Reads
+
+    private func readLists(_ kind: AssistantListKind?, includeCompleted: Bool, _ session: AssistantSession) async throws -> ToolOutcome {
+        let lists = try await query.householdLists(in: session).filter { kind == nil || $0.kind == kind }
+        guard !lists.isEmpty else {
+            throw ToolRejection.invalidValue(tool: ToolName.readHouseholdLists.rawValue, field: "kind", detail: "lists are unavailable in this household")
+        }
+        var cards: [AssistantCard] = []
+        var payload: [[String: Any]] = []
+        var count = 0
+        for var list in lists {
+            let items = list.items.filter { includeCompleted || !$0.isCompleted }
+            count += items.count
+            payload.append([
+                "kind": list.kind.rawValue, "sections": list.sections.map { UntrustedText($0).forModel(limit: 60) },
+                "sync_status": list.syncLabel, "total_items": items.count,
+                "items": items.prefix(Self.modelRowCap).map {
+                    ["text": UntrustedText($0.text).forModel(limit: 200), "quantity": UntrustedText($0.quantity).forModel(limit: 80),
+                     "section": UntrustedText($0.section).forModel(limit: 60), "completed": $0.isCompleted] as [String: Any]
+                }
+            ])
+            list.items = Array(items.prefix(Self.displayRowCap))
+            cards.append(.householdList(HouseholdListCard(list: list, omittedCount: max(0, items.count - list.items.count))))
+        }
+        return ToolOutcome(modelPayload: try json(["lists": payload]), cards: cards, slots: .init(count: count))
+    }
+
+    private func previewListAdditions(_ kind: AssistantListKind, section: String?, items: [ListItemInput], _ session: AssistantSession) async throws -> ToolOutcome {
+        guard let list = try await query.householdLists(in: session).first(where: { $0.kind == kind }) else {
+            throw ToolRejection.invalidValue(tool: ToolName.previewAddListItems.rawValue, field: "kind", detail: "list unavailable")
+        }
+        let requested = section ?? "General"
+        let matching = list.sections.filter { $0.caseInsensitiveCompare(requested) == .orderedSame }
+        guard matching.count == 1, let destination = matching.first else {
+            throw ToolRejection.invalidValue(tool: ToolName.previewAddListItems.rawValue, field: "section", detail: "choose a unique existing section from read_household_lists")
+        }
+        let additions = items.map { ListItemAddition(kind: kind, section: destination, text: $0.text, quantity: $0.quantity) }
+        let proposal = Proposal(kind: .addListItems, householdID: session.householdID, createdAt: now(),
+                                expiresAt: now().addingTimeInterval(ProposalStore.lifetime), timeZoneIdentifier: session.timeZoneIdentifier,
+                                batch: MutationBatch(listAdditions: additions), affectedCount: additions.count)
+        let duplicateCount = items.filter { input in
+            list.items.contains { !$0.isCompleted && $0.text.caseInsensitiveCompare(input.text) == .orderedSame }
+        }.count
+        let card = ProposalCard(proposalID: proposal.id, headline: "Add to \(kind.title)", ruleDescription: nil,
+                                affectedCount: additions.count, periodLabel: destination, rows: [], conflicts: [],
+                                destinationNote: "Household list · no date or child required",
+                                assumptions: duplicateCount > 0 ? ["Some items are already on this list. Confirm only if you want another copy."] : [],
+                                expiresAt: proposal.expiresAt, listItems: additions.map(\.displayText))
+        return ToolOutcome(modelPayload: try json(["proposal_id": proposal.id, "list": kind.title, "section": destination,
+                                                  "items": additions.map(\.displayText), "count": additions.count, "saved": false]),
+                           cards: [.proposal(card)], proposal: proposal, slots: .init(count: additions.count))
+    }
 
     private func findEvents(_ args: FindEventsArgs, _ session: AssistantSession) async throws -> ToolOutcome {
         let people = try await query.people(in: session)
@@ -215,27 +270,41 @@ public struct ToolRouter: Sendable {
             ownerName = person.name
         }
 
-        var locationName = planning.homeName
+        var locationName = ""
         if let requested = args.locationName {
-            guard let place = places.first(where: { $0.name.caseInsensitiveCompare(requested) == .orderedSame }) else {
-                throw ToolRejection.unknownPlace(requested)
-            }
-            locationName = place.name
+            locationName = places.first(where: { $0.name.caseInsensitiveCompare(requested) == .orderedSame })?.name ?? requested
         }
 
         // Assumptions are collected rather than applied quietly. Each one is a
         // thing the user did not say, so each one has to be readable on the
         // review before they confirm it.
         var assumptions: [String] = []
+        if args.dateWasAssumed {
+            assumptions.append("No date was given, so this is for today, \(session.today). You can edit it before confirming.")
+        }
+        if !args.context.isEmpty {
+            assumptions.append("Context: \(args.context)")
+        }
+        var resolvedLocation: AssistantLocation?
+        if args.lookupLocation && !locationName.isEmpty {
+            do {
+                let matches = try await query.searchLocations(query: locationName, in: session)
+                if matches.count == 1, let match = matches.first {
+                    resolvedLocation = match
+                    locationName = match.name
+                    assumptions.append("Apple Maps destination: \(match.name), \(match.address). Check this destination before confirming.")
+                } else {
+                    assumptions.append("Location kept as text. \(matches.isEmpty ? "Apple Maps found no destination." : "Apple Maps found multiple destinations; provide a more specific address or select one in the event editor.")")
+                }
+            } catch {
+                assumptions.append("Apple Maps is unavailable. Location kept as text; you can look it up in the event editor later.")
+            }
+        }
         if args.durationWasAssumed {
             assumptions.append("No end time was given, so this runs for HeliPad's default \(args.kind.defaultDurationMinutes) minutes, ending \(args.endTime).")
         }
-        if args.locationWasAssumed {
-            let alternatives = places.filter { $0.name != planning.homeName }
-            let suffix = alternatives.isEmpty
-                ? ""
-                : " Your saved places are \(alternatives.map(\.name).joined(separator: ", "))."
-            assumptions.append("No place was named, so this is at \(planning.homeName).\(suffix)")
+        if locationName.isEmpty {
+            assumptions.append("No place was named. Location is blank; fill it in later in the event editor.")
         }
 
         let dates: [String]
@@ -260,9 +329,10 @@ public struct ToolRouter: Sendable {
                 kids: childNames.sorted(),
                 location: locationName,
                 kind: args.kind,
-                notes: "",
+                notes: args.context,
                 seriesId: seriesID,
-                revision: 1
+                revision: 1,
+                resolvedLocation: resolvedLocation
             )
         }
 

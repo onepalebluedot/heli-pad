@@ -91,9 +91,9 @@ public struct FamilyWorkloadCardView: View {
         }
         .padding(16)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
-            RoundedRectangle(cornerRadius: 18)
+            RoundedRectangle(cornerRadius: 14)
                 .stroke(HeliColors.sageRule, lineWidth: 0.8)
         )
         .padding(.horizontal, 16)

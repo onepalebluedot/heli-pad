@@ -313,31 +313,9 @@ public struct PlanCalendarReviewSheet: View {
         isWorkingGoogle = true
         Task { @MainActor in
             defer { isWorkingGoogle = false }
-            var calendar = Calendar(identifier: .gregorian)
-            calendar.timeZone = store.timeZone == "device"
-                ? .current
-                : (TimeZone(identifier: store.timeZone) ?? .current)
-            let start = calendar.startOfDay(for: store.currentDate)
-            let end = calendar.date(byAdding: .day, value: 31, to: start)!
             do {
-                let service = GoogleCalendarService.shared
-                let imported = try await service.fetchEvents(
-                    calendarIDs: selectedGoogleCalendarIDs,
-                    start: start,
-                    end: end,
-                    timeZone: calendar.timeZone,
-                    homeName: store.home()
-                )
-                let startString = PlanCore.currentDeviceDate(date: start, timeZone: calendar.timeZone)
-                let finalDay = calendar.date(byAdding: .day, value: -1, to: end)!
-                let endString = PlanCore.currentDeviceDate(date: finalDay, timeZone: calendar.timeZone)
-                store.mergeGoogleCalendarEvents(
-                    imported,
-                    calendarIDs: selectedGoogleCalendarIDs,
-                    from: startString,
-                    through: endString
-                )
-                statusMessage = "Imported \(imported.count) event\(imported.count == 1 ? "" : "s") from Google Calendar."
+                let count = try await store.syncGoogleCalendar(calendarIDs: selectedGoogleCalendarIDs)
+                statusMessage = "Imported \(count) event\(count == 1 ? "" : "s") from Google Calendar."
             } catch {
                 statusMessage = "Google Calendar import failed: \(error.localizedDescription)"
             }

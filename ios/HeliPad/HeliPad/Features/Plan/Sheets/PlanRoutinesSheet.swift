@@ -42,8 +42,8 @@ public struct PlanRoutinesSheet: View {
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(HeliColors.cardWarmWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(HeliColors.sageRule, lineWidth: 0.8))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
 
                     // Routines List
                     if routines.isEmpty {
@@ -109,7 +109,7 @@ public struct PlanRoutinesSheet: View {
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
                             .background(HeliColors.forestTint)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
                 }
             }
@@ -141,7 +141,7 @@ public struct PlanRoutinesSheet: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(HeliColors.canvasIvory.opacity(0.7))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
@@ -187,9 +187,9 @@ public struct PlanRoutinesSheet: View {
         }
         .padding(14)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 12)
                 .stroke(HeliColors.sageRule, lineWidth: 0.8)
         )
     }
@@ -207,8 +207,8 @@ public struct PlanRoutinesSheet: View {
         .padding(24)
         .frame(maxWidth: .infinity)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(HeliColors.sageRule, lineWidth: 0.8))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
     }
 
     private func weekdayLabel(_ day: Int) -> String {

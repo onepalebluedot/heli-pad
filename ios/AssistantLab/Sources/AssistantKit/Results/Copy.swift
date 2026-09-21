@@ -21,6 +21,7 @@ public enum AssistantCopy {
         case peopleListed = "people_listed"
         case placesListed = "places_listed"
         case helpShown = "help_shown"
+        case listsRead = "lists_read"
     }
 
     /// Slots are filled from tool output, not from anything the model wrote.
@@ -38,6 +39,8 @@ public enum AssistantCopy {
 
     public static func text(for template: ResultTemplate, slots: ResultSlots) -> String {
         switch template {
+        case .listsRead:
+            return "Here are the items saved in your household lists."
         case .foundEvents:
             let noun = slots.count == 1 ? "event" : "events"
             return "\(slots.count) \(noun) in \(slots.periodLabel)."
@@ -76,9 +79,9 @@ public enum AssistantCopy {
         switch kind {
         case .ambiguousPerson: return "Which person did you mean?"
         case .ambiguousDate: return "Which date did you mean?"
-        case .missingTime: return "What time should it start and end?"
+        case .missingTime: return "What time should it start?"
         case .missingSeriesBound: return "How long should this repeat?"
-        case .ambiguousPlace: return "Which saved place did you mean?"
+        case .ambiguousPlace: return "Which place did you mean? You can give a name or address, or leave it blank for now."
         case .ambiguousEvent: return "Which event did you mean?"
         }
     }
@@ -104,7 +107,7 @@ public enum AssistantCopy {
         let text: String
         switch reason {
         case .outOfScope:
-            text = "I only work inside HeliPad \u{2014} your household's schedule, people, saved places and planning."
+            text = "I only work inside HeliPad \u{2014} your household's schedule, lists, people, saved places and planning."
         case .generalKnowledge:
             text = "I can't look things up outside HeliPad. I only see this household's schedule."
         case .professionalAdvice:
@@ -116,6 +119,7 @@ public enum AssistantCopy {
     }
 
     public static let capabilities = [
+        "Read To-do and Grocery lists, or prepare items to add",
         "Find events in a date range",
         "Create a recurring activity for review",
         "Assign a caregiver to events for review",
@@ -166,6 +170,7 @@ public enum AssistantCopy {
         switch state {
         case .syncedToHousehold: return "Synced to your household"
         case .savedLocallySyncPending: return "Saved on this device \u{2014} sync pending"
+        case .savedOnDeviceOnly: return "Saved on this device · cloud sync is off"
         }
     }
 
@@ -209,7 +214,8 @@ public enum AssistantCopy {
         case .privacyAndData:
             return HelpCard(topic: topic, title: "What gets sent", body: [
                 "To answer a question I send the parts of your household's schedule that the question needs: event titles, dates, times, saved place names, and household first names.",
-                "Street addresses, coordinates and event notes are not sent.",
+                "For list questions, I send item text, quantities, section names and completion status from To-do or Grocery. I don't include list notes or steps in assistant requests unless you type them in chat.",
+                "Saved coordinates and event notes are not included in schedule queries. Anything you type in chat, including addresses and context, is sent to the assistant. Apple Maps lookups send the location text to Apple, and the matched destination appears in the review.",
                 "Requests are marked not to be stored by the provider for training or history. That is not the same as a guarantee of zero retention \u{2014} providers keep limited operational copies for abuse monitoring.",
                 "Your chat history stays on this device and is cleared when you sign out or switch household."
             ])

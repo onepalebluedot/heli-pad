@@ -141,7 +141,7 @@ public struct FamilyTemplateSheet: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(HeliColors.forestGreen)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     // MARK: - Fields
@@ -162,9 +162,9 @@ public struct FamilyTemplateSheet: View {
         .padding(.horizontal, 14)
         .frame(minHeight: 52)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(HeliColors.sageRule, lineWidth: 0.8)
         )
     }
@@ -232,9 +232,9 @@ public struct FamilyTemplateSheet: View {
         .padding(.horizontal, 14)
         .frame(minHeight: 52)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(HeliColors.sageRule, lineWidth: 0.8)
         )
     }
@@ -279,9 +279,9 @@ public struct FamilyTemplateSheet: View {
                             .padding(.vertical, 6)
                             .foregroundColor(isSelected ? HeliColors.cardWarmWhite : HeliColors.greenInk)
                             .background(isSelected ? HeliColors.forestGreen : HeliColors.cardWarmWhite)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 8)
+                                RoundedRectangle(cornerRadius: 6)
                                     .stroke(isSelected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: 0.8)
                             )
                         }
@@ -339,9 +339,9 @@ public struct FamilyTemplateSheet: View {
         }
         .padding(14)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(HeliColors.sageRule, lineWidth: 0.8)
         )
     }
@@ -398,9 +398,9 @@ public struct FamilyTemplateSheet: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(HeliColors.sageRule, lineWidth: 0.8)
         )
     }
@@ -416,7 +416,7 @@ public struct FamilyTemplateSheet: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
                 .background(canSave ? HeliColors.forestGreen : HeliColors.mutedGray.opacity(0.4))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .disabled(!canSave)
     }

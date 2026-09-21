@@ -49,10 +49,17 @@ public final class ChatTranscript: @unchecked Sendable {
     public init(storageDirectory: URL? = nil) {
         self.storageDirectory = storageDirectory
         if let storageDirectory {
+            // File protection is an iOS feature. Requesting it on macOS - where
+            // the tests and the CLI harness run - makes the write fail, which
+            // `try?` would then hide as "nothing was saved".
+            var attributes: [FileAttributeKey: Any] = [:]
+            #if os(iOS)
+            attributes[.protectionKey] = FileProtectionType.complete
+            #endif
             try? FileManager.default.createDirectory(
                 at: storageDirectory,
                 withIntermediateDirectories: true,
-                attributes: [.protectionKey: FileProtectionType.complete]
+                attributes: attributes
             )
         }
     }
@@ -78,6 +85,20 @@ public final class ChatTranscript: @unchecked Sendable {
             if messages.count > Self.maxStoredMessages {
                 messages.removeFirst(messages.count - Self.maxStoredMessages)
             }
+            storage[key] = messages
+            persist(key, messages)
+        }
+    }
+
+    /// Replaces one existing message after an app-owned card is edited. The
+    /// message id is stable, so this cannot append a duplicate chat turn.
+    public func replace(_ message: ChatMessage, for session: AssistantSession) {
+        lock.withLock {
+            let key = Self.key(for: session)
+            loadIfNeeded(key)
+            guard var messages = storage[key],
+                  let index = messages.firstIndex(where: { $0.id == message.id }) else { return }
+            messages[index] = message
             storage[key] = messages
             persist(key, messages)
         }
@@ -138,8 +159,23 @@ public final class ChatTranscript: @unchecked Sendable {
 
     private func persist(_ key: String, _ messages: [ChatMessage]) {
         guard let url = fileURL(key), let data = try? JSONEncoder().encode(messages) else { return }
-        try? data.write(to: url, options: [.atomic, .completeFileProtection])
+        #if os(iOS)
+        // Household schedule data: unreadable while the device is locked.
+        let options: Data.WritingOptions = [.atomic, .completeFileProtection]
+        #else
+        let options: Data.WritingOptions = [.atomic]
+        #endif
+        do {
+            try data.write(to: url, options: options)
+        } catch {
+            lastWriteError = error
+        }
     }
+
+    /// Set when a write failed. Nothing reads it in production - it exists so
+    /// a silent "history did not save" shows up in a test rather than looking
+    /// like an empty conversation.
+    public private(set) var lastWriteError: Error?
 
     private func removeFile(_ key: String) {
         guard let url = fileURL(key) else { return }

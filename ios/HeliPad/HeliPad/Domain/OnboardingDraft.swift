@@ -252,8 +252,9 @@ public struct OnboardingDraft: Codable, Hashable {
                 date: start,
                 time: activity.time,
                 endTime: PlanCore.addMinutes(time: activity.time, mins: activity.durationMinutes),
-                title: title
-            )
+                title: title,
+            origin: .onboarding
+        )
             do { _ = try PlanCore.occurrences(draft, recurrence: pattern, seriesId: "validation") }
             catch { return "\(title): \(error.localizedDescription)" }
         }

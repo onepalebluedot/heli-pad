@@ -82,8 +82,16 @@ public struct PlanScheduleView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
                 } else {
-                    let morning = evs.filter { $0.time < "12:00" }
-                    let afternoon = evs.filter { $0.time >= "12:00" }
+                    // All-day rows own the date, so they head the day instead
+                    // of sorting into the morning at midnight.
+                    let allDay = evs.filter { $0.allDay }
+                    let timed = evs.filter { !$0.allDay }
+                    let morning = timed.filter { $0.time < "12:00" }
+                    let afternoon = timed.filter { $0.time >= "12:00" }
+
+                    if !allDay.isEmpty {
+                        timelineSection(title: "ALL DAY", events: allDay)
+                    }
 
                     if !morning.isEmpty {
                         timelineSection(title: "MORNING", events: morning)
@@ -96,9 +104,9 @@ public struct PlanScheduleView: View {
             }
             .padding(16)
             .background(HeliColors.cardWarmWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(
-                RoundedRectangle(cornerRadius: 18)
+                RoundedRectangle(cornerRadius: 14)
                     .stroke(HeliColors.sageRule, lineWidth: 0.8)
             )
             .padding(.horizontal, 16)
@@ -134,9 +142,9 @@ public struct PlanScheduleView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
             .background(isSelected ? HeliColors.forestTint : HeliColors.cardWarmWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 8)
                     .stroke(isSelected ? HeliColors.forestGreen : HeliColors.sageRule, lineWidth: isSelected ? 1.5 : 0.8)
             )
         }
@@ -164,12 +172,18 @@ public struct PlanScheduleView: View {
             HStack(alignment: .center, spacing: 10) {
                 // Time
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(TimeFormat.formatTime(ev.time))
-                        .font(HeliTypography.monoTime(12))
-                        .foregroundColor(HeliColors.greenInk)
-                    Text(TimeFormat.formatTime(ev.endTime))
-                        .font(HeliTypography.caption(10))
-                        .foregroundColor(HeliColors.mutedGray)
+                    if ev.allDay {
+                        Text("All day")
+                            .font(HeliTypography.monoTime(12))
+                            .foregroundColor(HeliColors.greenInk)
+                    } else {
+                        Text(TimeFormat.formatTime(ev.time))
+                            .font(HeliTypography.monoTime(12))
+                            .foregroundColor(HeliColors.greenInk)
+                        Text(TimeFormat.formatTime(ev.endTime))
+                            .font(HeliTypography.caption(10))
+                            .foregroundColor(HeliColors.mutedGray)
+                    }
                 }
                 .frame(width: 60, alignment: .trailing)
 
@@ -222,7 +236,7 @@ public struct PlanScheduleView: View {
             }
             .padding(10)
             .background(HeliColors.canvasIvory.opacity(0.5))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(PlainButtonStyle())
     }

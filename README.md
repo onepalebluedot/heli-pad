@@ -1,154 +1,100 @@
-# Heli-Pad (Orbit Family Logistics)
+# Heli-Pad
 
-[![Vercel Deployment](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=flat&logo=vercel)](https://heli-pad.vercel.app)
-[![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20iOS%20PWA-indigo?style=flat)](#)
-[![No Build Step](https://img.shields.io/badge/Build%20step-None-emerald?style=flat)](#)
+Heli-Pad is a native iOS app for household schedules, driving handoffs, shared to-dos, and groceries. The SwiftUI app lives in [ios/HeliPad](ios/HeliPad). The root HTML application is an earlier design prototype, available at [heli-pad.vercel.app](https://heli-pad.vercel.app).
 
-A modern, iOS-inspired mobile web application designed for stress-free family handoffs, activity relays, and parental coordination.
+## In the app
 
-> **Architecture:** see [`SYSTEM.md`](./SYSTEM.md) for the system document (domain, integrations, evolution),
-> [`design.md`](./design.md) for the design language, and [`BUILD.md`](./BUILD.md) for the implementation spec
-> — stack, schemas, Google/weather/data integration, and a phased build plan.
-> This HTML app is the **UX / feature lab** — long-term production is not intended to remain HTML.
+The bottom navigation has five tabs. Settings stays in the header gear button.
 
+- Go shows the next departure, the day's stops, and caregiver driving time.
+- Plan manages schedules, recurring activities, assignments, and calendar review.
+- Assistant answers household questions and prepares changes for review before saving.
+- Family manages caregivers, children, places, activity shortcuts, and shortcut suggestions.
+- Lists holds household To-dos and Groceries, independent of dates and children.
 
-**Live Web App**: [https://heli-pad.vercel.app](https://heli-pad.vercel.app)
+### Shared lists
 
----
+Swipe between two large illustrated tiles to open To-dos or Groceries. Inside each list, collapsible sections keep longer lists manageable. Items support check-off, notes, grocery quantities, and to-do steps. Choose Reorder, then use the up and down arrows to move a section. Moves animate unless Reduce Motion is enabled.
 
-## Surface map
+Cleanup suggestions flag older items for review. Nothing is removed automatically.
 
-Heli-Pad ships four surfaces:
+Lists save locally and sync through the household's Neon connection. They use a separate cloud record from the calendar data, revision-checked writes, and merge logic for edits from different devices. Offline changes stay pending. The list screen shows sync status, explains failures, and offers Retry sync.
 
-- **Go** is the daily execution view: the next departure, today's timeline, and fast completion.
-- **Plan** is the weekly assignment desk: decide who handles recurring handoffs, review anything that needs a decision, and expand a day to see the same timeline used by Go.
-- **Map** is the saved-place and route context view.
-- **Family** manages caregivers, kids, locations, and reusable event templates.
+The current list archive format is version 2. Older custom lists migrate into sections under To-dos or Groceries while preserving their items and details. This addresses the earlier error, `expected exactly the To-dos and Groceries lists`. Update all household devices to the current app build before using the migrated lists together. Older builds cannot read the new format.
 
-Plan keeps the schedule collapsed until it is useful. Expanding a day reveals morning and afternoon sections, kid tags, Go-style rows, and the matching **Add an event** flow. Assigning a recurring routine applies the caregiver to every occurrence in the current week. Changes persist locally.
+### Assistant
 
-The former **Today** and **Next** tabs are not shipped navigation and are not loaded by the app; older references to them describe historical design experiments only.
+The assistant can read To-dos and Groceries and prepare list additions, including quantities and sections. Additions use the same local store and sync path as manual edits. A review card requires confirmation before anything is saved; the result distinguishes a local save from a completed sync.
 
-The Plan implementation is shared by both HTML entry points through `plan.css`, `plan.js`, and `plan-core.js`. Run `node --test tests/*.test.cjs` for the full planning, family, and shared-store checks.
+For events, a time without a date defaults to today in the household's time zone. Activity-based duration defaults reduce follow-up questions, including one hour for a lesson. Assumptions appear in the review and can be edited. The assistant still asks when an ambiguity would materially change the request.
 
-## Key Features
+The app calls an authenticated relay. Provider API keys belong on the relay, not in the iOS app or this repository. List queries send item text, quantities, sections, and completion state; item notes and steps are not included unless the user types them into chat.
 
-### Go Tab — At-a-Glance Departure View
+## Run the iOS app
 
-A focused daily execution view for a parent who is usually holding keys. Its
-premise: a parent reading this screen is usually holding keys, so it answers one
-question — *do I need to move, and when?* — and draws everything else as a mark
-rather than a sentence. Rebuilt in the warm family design language on
-2026-09-05; see [`design.md`](./design.md).
+1. Clone this repository and open `ios/HeliPad/HeliPad.xcodeproj` in Xcode.
+2. Select the `HeliPad` scheme and an iOS simulator, or configure signing for a physical device. The deployment target is iOS 17.0.
+3. Build and run. Xcode resolves the local `AssistantLab` Swift package used by the app.
+4. Use Settings to configure the household's integrations and personal cloud connection. Devices sharing lists must use the same household and cloud database.
+5. To enable live assistant responses, configure the assistant service URL and device token in Settings. See the [relay setup instructions](ios/AssistantLab/tools/relay-worker/README.md).
 
-- **Countdown Dial**: A live count on a forest / olive / clay tone card, drawn as a depleting SVG ring. Minutes inside the hour (`56 · min · to leave`), hours and minutes beyond it (`3h 21m`). Two channels, two facts: the card background says how urgent, the ring says how much run-up is left. It re-renders on the shared 5-second ticker.
-- **Piecewise Ring**: One linear window cannot serve both "four hours out" and "eleven minutes out", so the final 60 minutes own 60% of the circle and everything earlier shares the other 40%, measured across the real gap (previous stop's end, or 6 AM). 411 min reads 90%, 56 min reads 56%, 11 min reads 11% — the arc is always moving, and it moves fastest where the decision lives.
-- **Drawn as an Instrument**: A gradient whose axis is recomputed each render to point at the leading edge, so the arc always gains light toward the end that is moving; a glowing bead with a white centre riding that edge, breathing and easing to each new position; and twelve hour ticks inside the track. Reduced-motion stops the breathing and the easing, never the countdown.
-- **One Highlight**: `#ffd36b`, reserved for `now` and `started` — leave now, or already late. The ring goes full and pulses; the colour appears nowhere else on the screen.
-- **Defined State Matrix**: `later` · `ontrack` · `soon` · `now` · `started` · `nothing-left`, plus a no-travel variant that counts down to when everyone is together rather than to a departure that does not exist. Stops more than 20 minutes past their start roll off the dial and stay flagged on the rail, so a phone opened at 11 PM shows "Day is over · 3 never checked off" instead of a four-hundred-minute red alarm.
-- **Two Scopes**: The dial always shows *my next departure, today* — nothing in the scope row moves it. The day strip, caregiver picker and child filter are all list controls, so looking ahead at Thursday or checking whether Dad has the 4:48 covered never costs you your countdown. The panel title names whose day is listed; the masthead keeps naming today.
-- **Weather**: One ochre line icon in the masthead for today's sky — the only ambient fact on the screen. `goWeather()` is a lab stub over sample data; production reads a WeatherProvider port (WeatherKit on iOS). See `SYSTEM.md`.
-- **Week Strip as a Load Gauge**: Each day's dot carries weight, not a yes/no — four steps of depth and size, blending stops with minutes behind the wheel, graded against the busiest day of *that person's* own week. Switching from Mom to Nani repaints the whole strip, so you can see at a glance whose week is heavy and where the gaps are. The same buttons appear in the new-stop sheet, so you can see which day is already full before scheduling into it.
-- **Scope Swap**: One row stands in for a day strip, a crew strip, and a filter row. Each segment shows its current value as a mark plus a word and swaps the matching picker into a single drawer. It sits below the dial, so a filter never outranks leave-in.
-- **Panel Swap**: The rest-of-day rail and the wheel-time chart share one slot behind a two-icon toggle, instead of stacking as two permanent modules.
-- **Route Beside the Dial**: The two times and the count are one decision, so they are one glance — the ring on the left, a vertical route on the right. Hollow origin, dashed run, filled square destination, with a bead (the same mark that rides the ring) advancing as the run-up elapses. Lifting the route out from under the dial shortens the card by about a third, which brings the destination, the people and the actions above the fold.
-- **Line Work, Not Emoji**: One Lucide icon set for the whole screen — 1.6px line glyphs in the current text colour, covering transit, weather, activity presets, places, children and actions. Kid tags sit beside the event metadata so `Maya` and `Soni` stay scannable without inline brackets.
-- **A Status Dot Per Row**: Forest and gently flashing for the stop the dial is counting to, ochre when a driver is missing, sage once done — so *which one is happening now* survives a scan.
-- **Time Spine**: The day as a vertical rail of stops. The time column is the **arrival** — when the thing actually starts — and the derived departure rides inside the row as a `Leave 2:51 PM` line, so two different kinds of time never share one column. The title owns the whole flexible column, so activity names never truncate; only the venue may ellipsize. Children and the lead caregiver are named, not just badged — a pale disc carries the colour and the word beneath it carries the identity ("You" for your own stops, "Needs driver" when unassigned).
-- **One Sheet for Add and Edit**: A sheet built from the screen's own parts — a live tone-card preview, five field rows, and the scope row's swap for the pickers. Tapping an existing stop opens the same sheet, seeded: "Edit stop", "Save changes", and a quiet "Remove this stop". Nothing is a blank field: an activity preset supplies the venue, travel mode and duration; the day comes from the list you were looking at; the driver is you; the title composes itself ("Noah Practice").
-- **A Time Range, Not a Length**: The When drawer shows `2:30 PM → 2:50 PM` with the duration derived beneath it, so nobody does arithmetic to answer a question they already know ("it finishes at three"). Tapping either end aims the stepper, the hour chips and the exact input at it; moving the start carries the end along. Presets are whole hours from 7 AM to 9 PM, with ± 15 minutes for the fine adjustment.
-- **A ✎ Escape Hatch on Every Field**: A custom name, a custom place ("Somewhere else") and an exact time — each revealed by the same ✎ affordance. Those inputs are the only things on the screen that open a keyboard.
-- **No Leave-By While Composing**: The sheet shows when the stop starts and how long it runs, and says the leave-by is worked out from the rest of the day once saved. A departure needs to know where the caregiver is coming from, and at composition time the app does not — the rail is the only place that number is honest.
-- **Add to Google Calendar**: A second outcome rather than a second form — it saves the stop and flags it for the calendar, showing a 📅 on the row. Calendar is read-only in v1 (`SYSTEM.md`), so the lab records the intent instead of pretending to have written; the conflict is logged as an open decision.
-- **One-Tap Completion**: Tapping a stop's marker checks it off; tapping the row opens its details. Completing the dial's stop hands it back to the live one.
-- **Wheel Time**: The day's driving split as one named, chart-strength bar per caregiver, sorted longest first, instead of a table of minutes.
+Local list editing does not require a working cloud connection. Cross-device updates do. A failed connection or database permission check should remain visible as a sync error, not appear as a successful upload.
 
-### 1. Dynamic Next Departure Hero
-- **Real-Time Urgency Countdown**: Reads clock time and calculates dynamic departure alerts (`⏱ Leave in 18 min`, `⏱ Leave in 3 min` with pulse animation, and prominent `🚨 Past Departure` warnings).
-- **Multi-Child Badges**: Prominently highlights which children are participating in each event with dedicated tag pills.
-- **Arrive-By vs. Depart-By Grid**: Clear distinction between the activity arrival deadline and the required departure time based on travel duration from the caregiver's origin.
-- **Role-Aware Personalization**: Switch the active caregiver profile (Mom, Dad, Nani, Grandma, Family) to view that caregiver's specific next departure.
-- **Celebration All-Clear State**: Transforms into a cheerful completion card once all departures for the day are finished, previewing the next day's upcoming morning trip.
+## Repository layout
 
-### 2. iOS-Native Timeline & Progressive Disclosure
-- **Compact List Rows (~58px Resting Height)**: Replaces bloated cards with sleek iOS list rows displaying only the essentials at rest:
-  - Leading: Clean circular completion checkbox (Things 3 / Apple Reminders style).
-  - Primary Line: `Time Range` · `Activity Title`.
-  - Secondary Line: `Child Badge`, `Driver Avatar + Role`, `Transit Mode`, and alert badges (`⚠ Driver Needed` or `⚠ Conflict`).
-  - Trailing: Target departure time and animated disclosure chevron (`›`).
-- **Progressive Disclosure Accordion Drawer**: Tapping any row smoothly expands an inline drawer revealing:
-  - Route Journey Strip: `Origin ➔ Travel ETA ➔ Destination Venue`.
-  - Commute buffer and slack analysis (e.g. `15 min buffer after prior drop-off`).
-  - Contextual action drawer (`[✎ Edit Details]`, `[🗑 Delete]`, and `[⚡ Assign Driver]`).
+| Path | Purpose |
+| --- | --- |
+| [ios/HeliPad](ios/HeliPad) | Native app, Xcode project, assets, household domain, and integration services |
+| [ios/AssistantLab](ios/AssistantLab) | Integrated assistant package, command-line test tools, and relay implementations |
+| [ios/ListsLab](ios/ListsLab) | Earlier standalone list prototype and its separate test service |
+| [ios/Tests](ios/Tests) | Production domain and sync regression tests |
+| [ios/scripts](ios/scripts) | Regression runner and list artwork rendering script |
+| [ios/HeliPad/ArtworkSources](ios/HeliPad/ArtworkSources) | Source SVGs for the list tile graphics |
+| Root HTML, CSS, JavaScript, and [tests](tests) | Web prototype and its tests |
 
-### 3. iOS Swipe-to-Reveal Gestures
-- **Swipe-to-Reveal Actions**: Swiping a row left (touch swipe on mobile or click-drag on desktop) shifts the row to reveal native-style `[✎ Edit]` and `[🗑 Delete]` action buttons.
-- **Clean Resting State**: Destructive and secondary edit actions stay hidden at rest, keeping the timeline calm and focused on completion.
+The native app's list sync uses `HouseholdListsCloudService`, not the standalone ListsLab service. Deploying the assistant relay does not distribute a new iOS app build.
 
-### 4. Hero & Timeline De-Duplication
-- **Up Next Anchor Row**: The activity featured in the Next Departure Hero card is styled in the timeline as a streamlined anchor (`⚡ Up Next · Featured in Departure Card above`).
-- Eliminates redundant 180px duplicate cards back-to-back while maintaining the chronological sequence of the day's schedule.
+## Checks
 
-### 5. Two-Facet Segmented Filter (Caregiver & Child)
-- **Caregiver Facet**: `All` | `Mom` | `Dad` | `Nani` | `Grandma` (with color-coded avatar pills).
-- **Child Facet**: `All Kids` | `🎒 Soni` | `🎨 Maya` | `⚽ Noah`.
-- **Multi-Facet Cross-Filtering**: Enables queries like *"Show Mom's rides for Maya"* or *"Show all drivers for Noah"* without messy horizontal scrolling.
-
-### 6. Unified "Smart Dispatch" Suggestions Hub
-- Merges fragmented AI banners, card driver calls, and auto-balance triggers into a single intelligent suggestions center.
-- **Smart Dispatch Status**: Dynamically calculates unassigned drivers, route overlaps, and commute delays (`✦ Smart Dispatch · X Actions Available`).
-- **Proximity-Aware Candidate Recommendations**: Evaluates driver origins, travel times, and existing commitments to recommend the best caregiver with delay warnings and conflict flags.
-- **One-Tap Auto-Balance**: Rebalances lead drivers across the week based on proximity and equity.
-
-### 7. Tactile Add/Edit Activity Modal
-- **7-Day Date Selector**: Day pills with a `TODAY` indicator badge.
-- **Quick-Set Time Presets**: Single-tap shortcuts for routine family logistics (`7:35 AM Drop-off`, `3:15 PM Pickup`, `4:30 PM Sports`, `5:30 PM Lesson`, `6:30 PM Dinner`).
-- **Duration Stepper Chips**: `+30m`, `+45m`, `1 hr`, `1.5 hrs`, `2 hrs` duration chips that calculate and format end times automatically.
-- **Zero-Dropdown Caregiver Grid**: Tactile button push grid for `Mom`, `Dad`, `Nani`, `Grandma`, `Family`, and `Needs Driver (TBD)`.
-- **Transit Mode Pills**: `🚗 Drive`, `🚶 Walk`, `👥 Carpool`, `🚌 School Bus`, `⌂ Stay Home`.
-
-### 8. Sunday Reset Sprint & Workload Balancing
-- Weekly calibration checklist for external school calendars, sports portals, and buffer rules.
-- Behind-the-wheel driving minute distribution tracker between Mom and Dad.
-- Saved venue directory with parking ease ratings and loading buffers.
-
----
-
-## Architectural Notes for Native iOS Port
-
-When migrating this prototype to native Swift / SwiftUI:
-1. **MapKit & MKDirections**: The prototype's static `routeMatrix` lookup table will be replaced by `MKDirections.Request` with real-time traffic ETAs and Apple Maps turn-by-turn routing.
-2. **CoreLocation**: User and venue coordinates will be backed by `CLGeocoder` and live device GPS.
-3. **EventKit / Reminders**: Calendar synchronization will link directly into Apple Calendar and Reminders APIs.
-4. **Prototype Scaffolding**: The `.demo-sim-strip` (Live Clock and Day scrubber) is strictly marked as prototype test scaffolding and will not be carried into the native iOS shell.
-5. **Go Tab Mapping**: The countdown dial is a `TimelineView(.periodic)` driving a trimmed `Circle()` stroke; the time spine is a `List` with `.swipeActions`; the whole dial is the natural source for a Live Activity / Dynamic Island and a Watch complication, since it is already reduced to one number and one color.
-6. **Departure Clamping**: `calculateDayPlan` can return a negative `departBy` for an early event with a long ETA, which `minutesToTime` would wrap into a late-night time. The Go screen floors this at midnight (`goSafeDepart`); the native model should make departure a real date rather than minutes-since-midnight and drop the wrap entirely.
-
----
-
-## Getting Started
-
-### Local Development
-Open `index.html` directly in any modern browser, or use a local server while developing. There is no build step or bundler. Newsreader, Plus Jakarta Sans, and Lucide are loaded from CDNs, so the first load needs network access.
+Run these commands from the repository root on macOS with Xcode installed:
 
 ```bash
-# Clone the repository
-git clone https://github.com/onepalebluedot/heli-pad.git
+# Assistant behavior, tool boundaries, and household isolation
+swift test --package-path ios/AssistantLab
 
-# Navigate to project directory
-cd heli-pad
+# Native domain, persistence, migration, and sync regressions
+bash ios/scripts/test-production.sh
 
-# Open index.html in your browser or run a simple local server
-python3 -m http.server 8080
+# Relay authentication and tool allowlist
+node --test ios/AssistantLab/tools/relay-worker/relay.test.mjs
 
-# Optional: install the browser CLI used for smoke checks
-npm install -g agent-browser
-agent-browser install
+# Native app compile check without device signing
+xcodebuild -project ios/HeliPad/HeliPad.xcodeproj -scheme HeliPad \
+  -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 
-# Run the repository tests
+# Older web prototype
 node --test tests/*.test.cjs
 ```
 
-### Production Deployment
-The repository is deployed automatically to Vercel upon pushing to the `main` branch:
-- Production URL: [https://heli-pad.vercel.app](https://heli-pad.vercel.app)
+Automated tests cover legacy-list migration, recovery copies, pending edits, revision conflicts, assistant list operations, and confirmation boundaries. These checks do not replace a live two-device test. Before a release, verify that an item added on one device appears on the other, simultaneous edits survive, and offline changes upload after reconnecting. Check section movement and reduced-motion behavior on a device as well.
+
+Keep connection strings, provider keys, device tokens, local databases, and build caches out of commits. The relay has its own deployment instructions and tool allowlist, which must stay compatible with the app's assistant tools.
+
+## Web prototype
+
+The root web prototype has no bundler. To run it locally:
+
+```bash
+python3 -m http.server 8080
+```
+
+Open `http://localhost:8080`. The initial load needs internet access for CDN-hosted fonts and icons. Its navigation and integrations are separate from the native app and should not be used as a guide to current iOS behavior.
+
+## Design and implementation notes
+
+- [design.md](design.md) describes the visual language.
+- [SYSTEM.md](SYSTEM.md) and [BUILD.md](BUILD.md) contain the earlier architecture and build plans.
+- [ios/PREWALK_PLAN.md](ios/PREWALK_PLAN.md) tracks app review findings and implementation opportunities.
+- [ios/LISTS_IMPLEMENTATION_PLAN.md](ios/LISTS_IMPLEMENTATION_PLAN.md) records the Lists implementation plan.
+
+Planning documents include historical proposals. Check the current source and tests when a plan differs from the shipped implementation.
