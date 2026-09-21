@@ -1,4 +1,17 @@
+# Secrets and deploy
 .vercel
 .env*
+
+# macOS
+.DS_Store
+
+# Xcode / SwiftPM build output
 DerivedData/
+build/
+.build/
 *.xcuserstate
+xcuserdata/
+
+# Regenerable scratch output: the compiled production-tests binary and the
+# swiftc module cache. `./scripts/test-production.sh` rebuilds both.
+scratch/

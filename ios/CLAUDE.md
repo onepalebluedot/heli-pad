@@ -79,8 +79,9 @@ Build the app (scheme `HeliPad`, project `HeliPad/HeliPad.xcodeproj`):
 xcodebuild -project HeliPad/HeliPad.xcodeproj -scheme HeliPad -destination 'generic/platform=iOS Simulator' build
 ```
 
-Pass `-derivedDataPath` to a temp directory if you do not want build output in
-the working tree — `HeliPad/build/` is **not** gitignored, only `DerivedData/` is.
+Build output under `build/`, `.build/`, `DerivedData/` and `scratch/` is
+gitignored, so it will not show up in `git status`. Prefer a `-derivedDataPath`
+under your scratchpad anyway, to keep the working tree small.
 
 Domain and service regression tests compile a subset of sources directly with
 `swiftc` rather than running through Xcode:
