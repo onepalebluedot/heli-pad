@@ -432,10 +432,18 @@ struct ListDetailView: View {
         let rows = store.items(of: listID, inGroup: group.id).filter { !$0.isCompleted }
         let expanded = presentation.isExpanded(group.id)
         return VStack(alignment: .leading, spacing: 0) {
+            // The header carries the theme tint edge to edge, so a section reads
+            // as a labelled band rather than one more line of text above rows
+            // that look exactly like it.
             sectionHeader(group, rows: rows, expanded: expanded)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(HeliColors.forestTint)
             // Rearranging is about the sections themselves, so the rows step out
             // of the way while it is on.
             if expanded, sectionMode != .rearranging {
+                hairline
                 VStack(alignment: .leading, spacing: 0) {
                     if rows.isEmpty {
                         Text("Nothing here yet.")
@@ -450,11 +458,11 @@ struct ListDetailView: View {
                     }
                     addToSectionButton(group)
                 }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 4)
                 .scrollTargetLayout()
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
         .modifier(CardChrome())
         .id("group-\(group.id)")
     }
@@ -466,18 +474,18 @@ struct ListDetailView: View {
             HStack(spacing: 8) {
                 TextField("Section name", text: sectionNameBinding(group))
                     .font(.headline)
-                    .foregroundColor(HeliColors.greenInk)
+                    .foregroundColor(HeliColors.forestGreen)
                     .submitLabel(.done)
                     .onSubmit { commitSectionNames() }
                     .padding(.horizontal, 10)
                     .frame(minHeight: 44)
-                    .background(HeliColors.canvasIvory)
+                    // Warm white, not ivory: the field has to stay legible as a
+                    // field now that it sits on the tinted header band.
+                    .background(HeliColors.cardWarmWhite)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(HeliColors.sageRule, lineWidth: 1))
                     .accessibilityLabel("Name of the \(group.name) section")
-                Text("\(rows.count)")
-                    .font(.caption)
-                    .foregroundColor(HeliColors.mutedGray)
+                countBadge(rows.count)
                 Spacer(minLength: 0)
                 if !isGeneral(group) {
                     Button { store.deleteGroup(id: group.id) } label: {
@@ -496,10 +504,8 @@ struct ListDetailView: View {
             HStack(spacing: 8) {
                 Text(group.name)
                     .font(.headline)
-                    .foregroundColor(HeliColors.greenInk)
-                Text("\(rows.count)")
-                    .font(.caption)
-                    .foregroundColor(HeliColors.mutedGray)
+                    .foregroundColor(HeliColors.forestGreen)
+                countBadge(rows.count)
                 Spacer(minLength: 0)
                 moveSectionButton(group, offset: -1)
                 moveSectionButton(group, offset: 1)
@@ -510,14 +516,12 @@ struct ListDetailView: View {
                 HStack(spacing: 8) {
                     Image(systemName: expanded ? "chevron.down" : "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(HeliColors.mutedGray)
+                        .foregroundColor(HeliColors.forestGreen)
                         .frame(width: 14)
                     Text(group.name)
                         .font(.headline)
-                        .foregroundColor(HeliColors.greenInk)
-                    Text("\(rows.count)")
-                        .font(.caption)
-                        .foregroundColor(HeliColors.mutedGray)
+                        .foregroundColor(HeliColors.forestGreen)
+                    countBadge(rows.count)
                     Spacer(minLength: 0)
                 }
                 .frame(minHeight: 44)
@@ -528,6 +532,21 @@ struct ListDetailView: View {
             .accessibilityValue(rows.count == 1 ? "1 item" : "\(rows.count) items")
             .accessibilityHint(expanded ? "Hides this section" : "Shows this section")
         }
+    }
+
+    /// How many items a section holds. A pill rather than a loose numeral,
+    /// because a caption-sized number floating beside a headline disappeared
+    /// against the header band.
+    private func countBadge(_ count: Int) -> some View {
+        Text("\(count)")
+            .font(.caption.weight(.semibold))
+            .foregroundColor(HeliColors.forestGreen)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(HeliColors.cardWarmWhite)
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(HeliColors.sageRule, lineWidth: 0.8))
+            .accessibilityHidden(true)
     }
 
     /// Adding from a section header never creates a blank row: it points the
@@ -716,17 +735,19 @@ struct ListDetailView: View {
                     HStack(spacing: 8) {
                         Image(systemName: presentation.showsCompleted(listID) ? "chevron.down" : "chevron.right")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(HeliColors.mutedGray)
+                            .foregroundColor(HeliColors.forestGreen)
                             .frame(width: 14)
                         Text(kind.completedTitle)
                             .font(.headline)
-                            .foregroundColor(HeliColors.greenInk)
-                        Text("\(completed.count)")
-                            .font(.caption)
-                            .foregroundColor(HeliColors.mutedGray)
+                            .foregroundColor(HeliColors.forestGreen)
+                        countBadge(completed.count)
                         Spacer(minLength: 0)
                     }
                     .frame(minHeight: 44)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(HeliColors.forestTint)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -735,6 +756,7 @@ struct ListDetailView: View {
                 .accessibilityHint(presentation.showsCompleted(listID) ? "Hides these" : "Shows these")
 
                 if presentation.showsCompleted(listID) {
+                    hairline
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(completed) { item in
                             itemRow(item)
@@ -750,11 +772,11 @@ struct ListDetailView: View {
                         .buttonStyle(.plain)
                         .accessibilityLabel("Clear \(kind.completedTitle.lowercased())")
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 4)
                     .scrollTargetLayout()
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
             .modifier(CardChrome())
             .id("completed")
         }
@@ -789,7 +811,11 @@ struct ListDetailView: View {
 
             Spacer(minLength: 0)
 
-            if groups.count > 1 {
+            // Also shown while a mode is on, whatever the count is now. Deleting
+            // the second-to-last section used to drop this row to a bare "Add
+            // section" and strand the list in editing mode, with the only way
+            // out being to leave the screen.
+            if groups.count > 1 || sectionMode != .none {
                 sectionModeButton(
                     "pencil",
                     mode: .editing,
