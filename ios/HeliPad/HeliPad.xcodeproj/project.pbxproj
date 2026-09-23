@@ -79,7 +79,6 @@
 		DE43D3EEC4AB63CA712B7AFF /* FamilyCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90E98D57CDC5B26E9EB9E93D /* FamilyCore.swift */; };
 		DFB47FF0ED09ADD0BC599F23 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCC62876745C5E100D6E3C2F /* Persistence.swift */; };
 		E19236868FF7CF566F083A3B /* FamilyWorkloadCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FD40821326F4BDFF2AB611A /* FamilyWorkloadCardView.swift */; };
-		EA8EECE756FBE97D2C38692E /* PlanRebalanceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC990E62F2154EB25E2A8BE4 /* PlanRebalanceSheet.swift */; };
 		EDB7DD392A59A030590DDB7A /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C3D918C678F97E82504A92 /* TodayView.swift */; };
 		EEA4303B9E2501CDD3F9EB27 /* PlanReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49FA2CCBECEA7E76ADDB5C1 /* PlanReviewSheet.swift */; };
 		F556095E4C18FE988039927E /* PlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACEA537A19C8AB039BBF0105 /* PlanView.swift */; };
@@ -165,7 +164,6 @@
 		CDC043AA92AA43F1A5B7CE5A /* HeliPad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HeliPad.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D5C79DFB401C56B346AFC484 /* PlanRoutinesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanRoutinesView.swift; sourceTree = "<group>"; };
 		D67BB6377C7985382333C0CF /* HeliPadApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeliPadApp.swift; sourceTree = "<group>"; };
-		DC990E62F2154EB25E2A8BE4 /* PlanRebalanceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanRebalanceSheet.swift; sourceTree = "<group>"; };
 		DFCAF9E31ED3E1E2AE16DF6B /* OnboardingReviewStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingReviewStep.swift; sourceTree = "<group>"; };
 		EC93BA893235766AFF19A800 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		F21DC9D86EFC9C34117995F1 /* OnboardingDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingDraft.swift; sourceTree = "<group>"; };
@@ -334,7 +332,6 @@
 				4F253670F483AE90CEA2E44E,
 				25F82A5046AFF986652C86BD,
 				A56F9C4B36B12C1610647E3C,
-				DC990E62F2154EB25E2A8BE4,
 				F49FA2CCBECEA7E76ADDB5C1,
 				A44E22F226EF8373899E50C2,
 			);
@@ -617,7 +614,6 @@
 				AA7104D61AE126E32A1BF471 /* PlanAssignSheet.swift in Sources */,
 				895250FED09067FB7F435E08 /* PlanCalendarReviewSheet.swift in Sources */,
 				95AF3456B71747047225767F /* PlanPrioritiesSheet.swift in Sources */,
-				EA8EECE756FBE97D2C38692E /* PlanRebalanceSheet.swift in Sources */,
 				EEA4303B9E2501CDD3F9EB27 /* PlanReviewSheet.swift in Sources */,
 				229D4A45C26CE542782C1EBD /* PlanRoutinesSheet.swift in Sources */,
 				CDE52C7D6721CF258939F64A /* PlanCommandCardView.swift in Sources */,

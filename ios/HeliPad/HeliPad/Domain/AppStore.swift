@@ -49,6 +49,10 @@ public class AppStore: ObservableObject {
     @Published public var notifyDriverNeeded: Bool
     @Published public var notifyCrew: Bool
     @Published public var connections: [String: Bool]
+    /// The check-in for a stop left unfinished. A device preference rather than
+    /// a household setting: it is about what this phone buzzes for, and one
+    /// parent switching it off must not silence the other's phone.
+    @Published public private(set) var notifyOverdue: Bool = true
 
     // MARK: - Cloud & Integrations
     @Published public var googleMapsApiKey: String = ""
@@ -313,6 +317,12 @@ public class AppStore: ObservableObject {
             } else {
                 outside.append(record)
             }
+        }
+        // Go takes its hero as the first unfinished stop in the bucket, so the
+        // bucket has to be in time order. Most callers pass `records()`, which
+        // is, but onboarding, imports and replaceRecords do not.
+        for day in days.keys {
+            days[day]?.sort { PlanCore.mins($0.time) != PlanCore.mins($1.time) ? PlanCore.mins($0.time) < PlanCore.mins($1.time) : $0.id < $1.id }
         }
         if eventsByDay != days { eventsByDay = days }
         if plan.future != outside { plan.future = outside }
@@ -717,9 +727,10 @@ public class AppStore: ObservableObject {
         }
     }
 
-    /// Re-queues the leave-in-10 reminders from the current schedule. Drive
-    /// reminders use the device's GPS origin and Apple Maps traffic estimate;
-    /// the service debounces, so saves and location updates can both call this.
+    /// Re-queues the leave-in-10 reminders and the overdue check-ins from the
+    /// current schedule. Drive reminders use the device's GPS origin and Apple
+    /// Maps traffic estimate; the service debounces, so saves and location
+    /// updates can both call this.
     public func refreshDepartureReminders() {
         guard schedulesNotifications else { return }
         NotificationService.shared.scheduleReminders(
@@ -727,6 +738,9 @@ public class AppStore: ObservableObject {
             timeZoneId: timeZone,
             enabled: notifyLeaveBy,
             driverNeededEnabled: notifyDriverNeeded,
+            overdueEnabled: notifyOverdue,
+            owners: reminderOwners(),
+            overdueSnoozes: overdueSnoozes(),
             bufferMinutes: buffer,
             travelTimeProvider: { [weak self] event, appointmentDate in
                 guard let self else { return nil }
@@ -736,6 +750,83 @@ public class AppStore: ObservableObject {
                 self?.notificationScheduleError = message
             }
         )
+    }
+
+    private var lastReminderLocation: CLLocation?
+    private var lastReminderLocationRefresh: Date = .distantPast
+
+    /// Location fixes arrive every 50 m while driving. Each one used to rewrite
+    /// the whole reminder queue and re-ask Apple Maps about the day; a leave
+    /// time only moves meaningfully once the phone has moved a kilometre or
+    /// a quarter of an hour has passed.
+    public func refreshDepartureReminders(forLocation location: CLLocation) {
+        let now = nowProvider()
+        if let last = lastReminderLocation,
+           location.distance(from: last) < 1_000,
+           now.timeIntervalSince(lastReminderLocationRefresh) < 15 * 60 {
+            return
+        }
+        lastReminderLocation = location
+        lastReminderLocationRefresh = now
+        refreshDepartureReminders()
+    }
+
+    // MARK: - Overdue check-ins
+
+    static let notifyOverdueKey = "helipad.notifyOverdue"
+    private static let overdueSnoozesKey = "helipad.overdueSnoozes"
+
+    public func setNotifyOverdue(_ enabled: Bool) {
+        notifyOverdue = enabled
+        persistenceDefaults.set(enabled, forKey: Self.notifyOverdueKey)
+        refreshDepartureReminders()
+    }
+
+    /// Whose stops this phone reminds about: the profile selected on it, plus
+    /// stops the whole family shares. The profile is per phone (it is not
+    /// merged between devices), so each caregiver's phone carries their own
+    /// leave reminders and check-ins. "All" keeps every stop.
+    func reminderOwners() -> Set<String>? {
+        currentUser == "All" ? nil : [currentUser, "Family"]
+    }
+
+    /// Snoozes are per phone and short-lived, so they live beside the device
+    /// preferences rather than in the synced household.
+    private func overdueSnoozes() -> [String: Date] {
+        let raw = persistenceDefaults.dictionary(forKey: Self.overdueSnoozesKey) as? [String: Double] ?? [:]
+        let now = nowProvider()
+        return raw.compactMapValues { stamp in
+            let date = Date(timeIntervalSince1970: stamp)
+            return date > now ? date : nil
+        }
+    }
+
+    public func snoozeOverdue(eventId: String, minutes: Int = NotificationService.overdueSnoozeMinutes) {
+        var raw = overdueSnoozes().mapValues(\.timeIntervalSince1970)
+        raw[eventId] = nowProvider().addingTimeInterval(Double(minutes) * 60).timeIntervalSince1970
+        persistenceDefaults.set(raw, forKey: Self.overdueSnoozesKey)
+        refreshDepartureReminders()
+    }
+
+    /// What a notification button does. Returns once the change is saved and
+    /// the notification queue rewritten, so the caller can let iOS suspend
+    /// the app without losing either.
+    @MainActor
+    public func handleNotificationAction(_ action: NotificationResponder.Action) async {
+        switch action {
+        case .markDone(let eventId):
+            setEventDone(id: eventId, done: true)
+            await NotificationService.shared.waitForPendingWork()
+            // The other phone should hear about it without waiting for this
+            // one to be opened. Best effort: a failure stays pending and is
+            // retried on the next launch.
+            await resumePendingSync()
+        case .snooze(let eventId):
+            snoozeOverdue(eventId: eventId)
+            await NotificationService.shared.waitForPendingWork()
+        case .open:
+            break
+        }
     }
 
     // MARK: - Persistence
@@ -789,6 +880,7 @@ public class AppStore: ObservableObject {
     /// Loads the stored household, or opens setup if this phone has never had one.
     public func restore(from defaults: UserDefaults = .standard) {
         persistenceDefaults = defaults
+        notifyOverdue = defaults.object(forKey: Self.notifyOverdueKey) as? Bool ?? true
         var legacyGoogleKey: String?
         if let state = HeliPersistence.load(from: defaults) {
             apply(state)
@@ -1355,6 +1447,26 @@ public class AppStore: ObservableObject {
             return result.durationMinutes
         }
         return nil
+    }
+
+    private var lastLocationDriveTime: (eventId: String, origin: CLLocation, at: Date)?
+
+    /// The hero's drive time as the phone moves. A fix arrives every 50 m, and
+    /// each used to cost a Directions request — a billed Google call when a key
+    /// is set — for an answer that barely changes over a few hundred metres.
+    @MainActor
+    public func refreshDeviceDriveTime(forMovedEvent event: TaskRecord) async {
+        let coordinate = LocationService.shared.effectiveCoordinate
+        let here = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        let now = nowProvider()
+        if let last = lastLocationDriveTime,
+           last.eventId == event.id,
+           here.distance(from: last.origin) < 400,
+           now.timeIntervalSince(last.at) < 120 {
+            return
+        }
+        lastLocationDriveTime = (event.id, here, now)
+        _ = await calculateDeviceDriveTime(for: event)
     }
 
     /// Resolves the leave-by route used by notifications. This intentionally
@@ -2520,7 +2632,7 @@ public class AppStore: ObservableObject {
     }
 
     /// Applies a reviewed set of per-occurrence assignments in one save. This
-    /// is used by weekly rebalance as well as single assignment, so a recurring
+    /// is used by whole-routine as well as single assignment, so a recurring
     /// row never loses the override metadata that protects it during a later
     /// series edit or merge.
     public func assignEvents(
@@ -2557,9 +2669,17 @@ public class AppStore: ObservableObject {
     }
 
     public func toggleEventDone(id: String) {
+        guard let current = records().first(where: { $0.id == id }) else { return }
+        setEventDone(id: id, done: !current.done)
+    }
+
+    /// Explicit state, never a toggle: a notification action can arrive after
+    /// the other phone already finished the stop, and flipping it would
+    /// reopen it.
+    public func setEventDone(id: String, done: Bool) {
         var all = records()
-        guard let index = all.firstIndex(where: { $0.id == id }) else { return }
-        all[index].done.toggle()
+        guard let index = all.firstIndex(where: { $0.id == id }), all[index].done != done else { return }
+        all[index].done = done
         if let seriesId = all[index].seriesId {
             all[index].recurrenceOverride = OccurrenceOverride(
                 modified: true,

@@ -550,13 +550,27 @@ public struct SettingsView: View {
                     }
                 )
             )
-            Text("Nudges you \(NotificationService.leadMinutes) minutes before it is time to leave, based on Apple Maps travel time and your arrival buffer.")
+            Text("Nudges you \(NotificationService.leadMinutes) minutes before it is time to leave, based on Apple Maps travel time and your arrival buffer. Only for stops that belong to the profile selected on this phone, or to the whole family; choose All to hear about every stop.")
                 .font(HeliTypography.caption(11))
                 .foregroundColor(HeliColors.mutedGray)
             Toggle("Driver needed alert (12h prior)", isOn: Binding(
                 get: { store.notifyDriverNeeded },
                 set: { setAlert("notifyDriverNeeded", enabled: $0) }
             ))
+            Toggle("Check in on unfinished stops", isOn: Binding(
+                get: { store.notifyOverdue },
+                set: { wantsCheckIns in
+                    Task {
+                        if wantsCheckIns {
+                            await NotificationService.shared.requestAuthorization()
+                        }
+                        store.setNotifyOverdue(wantsCheckIns)
+                    }
+                }
+            ))
+            Text("If one of your stops is still open \(NotificationService.overdueGraceMinutes / 60) hours after it should have ended, asks whether it happened. Mark it done from the notification, or snooze it for an hour. This phone only.")
+                .font(HeliTypography.caption(11))
+                .foregroundColor(HeliColors.mutedGray)
             Toggle("Crew informed on reassignments", isOn: Binding(
                 get: { store.notifyCrew },
                 set: { setAlert("notifyCrew", enabled: $0) }

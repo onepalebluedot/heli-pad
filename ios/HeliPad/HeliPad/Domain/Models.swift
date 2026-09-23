@@ -588,44 +588,6 @@ public struct SummaryResult {
     }
 }
 
-public struct RebalanceProposal: Identifiable, Hashable, Codable {
-    public var id: String
-    public var date: String
-    public var title: String
-    public var time: String
-    public var from: String
-    public var to: String
-    public var eta: Int?
-    public var saving: Int
-    public var reason: String
-
-    public init(id: String, date: String, title: String, time: String, from: String, to: String, eta: Int?, saving: Int, reason: String) {
-        self.id = id
-        self.date = date
-        self.title = title
-        self.time = time
-        self.from = from
-        self.to = to
-        self.eta = eta
-        self.saving = saving
-        self.reason = reason
-    }
-}
-
-public struct ProposalsResult {
-    public var changes: [RebalanceProposal]
-    public var before: [String: Int]
-    public var after: [String: Int]
-    public var events: [TaskRecord]
-
-    public init(changes: [RebalanceProposal], before: [String: Int], after: [String: Int], events: [TaskRecord]) {
-        self.changes = changes
-        self.before = before
-        self.after = after
-        self.events = events
-    }
-}
-
 // MARK: - Week Priorities & Calendar Meta
 
 public struct WeekPriority: Codable, Hashable {

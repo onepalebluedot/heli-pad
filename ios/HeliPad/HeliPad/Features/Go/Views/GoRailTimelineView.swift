@@ -133,9 +133,16 @@ public struct GoRailTimelineView: View {
                                 .foregroundColor(.white)
                         }
                     }
+                    // 44pt to hit while the column stays 22pt wide: the
+                    // negative padding hands the overhang back to the layout.
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .padding(.horizontal, -11)
+                .padding(.vertical, -12)
                 .frame(width: 22)
+                .accessibilityLabel(e.done ? "Reopen \(e.title)" : "Mark \(e.title) done")
 
                 // Body Column
                 VStack(alignment: .leading, spacing: 3) {
@@ -206,10 +213,10 @@ public struct GoRailTimelineView: View {
         }
 
         let dotColor: Color = {
-            if done { return Color(hex: "#cbd3bd") }
+            if done { return HeliColors.railDotDone }
             if isTBD { return HeliColors.sunOchre }
             if status == "review" { return HeliColors.warningClay }
-            return Color(hex: "#c2cbb6") // Standard subtle sage dot for future scheduled stops
+            return HeliColors.railDotScheduled
         }()
 
         return AnyView(

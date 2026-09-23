@@ -304,6 +304,33 @@ final class MockListsHost: HouseholdListsHost {
                 == iso.date(from: "2026-09-13T22:00:00Z")!,
             "driver-needed warning fires 12 hours before the event"
         )
+        check(
+            NotificationService.overdueDate(for: reminderEvent, calendar: reminderCalendar)
+                == iso.date(from: "2026-09-14T19:00:00Z")!,
+            "overdue check-in fires two hours after the stop's end"
+        )
+        check(
+            NotificationService.overdueDate(
+                for: reminderEvent,
+                calendar: reminderCalendar,
+                snoozedUntil: iso.date(from: "2026-09-14T20:30:00Z")!
+            ) == iso.date(from: "2026-09-14T20:30:00Z")!,
+            "a snooze pushes the check-in back"
+        )
+        check(
+            NotificationService.overdueDate(
+                for: reminderEvent,
+                calendar: reminderCalendar,
+                snoozedUntil: iso.date(from: "2026-09-14T18:00:00Z")!
+            ) == iso.date(from: "2026-09-14T19:00:00Z")!,
+            "a snooze never brings the check-in forward"
+        )
+        let overnight = TaskRecord(id: "overnight", date: "2026-09-14", time: "22:00", endTime: "01:00", title: "Late shift", owner: "Mom")
+        check(
+            NotificationService.overdueDate(for: overnight, calendar: reminderCalendar)
+                == iso.date(from: "2026-09-15T03:00:00Z")!,
+            "an end past midnight lands on the next day"
+        )
 
         // Finite recurrence uses Monday-Sunday calendar buckets and stable slot IDs.
         let recurrenceDraft = TaskRecord(
@@ -697,8 +724,28 @@ final class MockListsHost: HouseholdListsHost {
             TaskRecord(id: "all-day", date: "2026-09-14", title: "Permission slip", owner: "Mom", location: "Home", mode: "Home", allDay: true)
         ])
         let overdueData = GoViewModel(store: overdueStore).computeView(store: overdueStore)
-        check(overdueData.live >= 0 && overdueData.mine[overdueData.live].event.id == "overdue", "overdue unfinished work remains actionable")
+        check(overdueData.live == -1, "an ended stop does not hold the hero")
+        check(overdueData.looseEndEvents.map(\.id) == ["overdue"], "ended unfinished work remains actionable as a loose end")
         check(overdueData.restingState == .outstanding(2), "timed and all-day unfinished work prevent an all-clear state")
+
+        // A stop nobody ticked off must not hide the one that is actually next.
+        overdueStore.replaceRecords([
+            TaskRecord(id: "next", date: "2026-09-14", time: "19:30", endTime: "20:00", title: "Pickup", owner: "Mom", location: "Home", mode: "Home"),
+            TaskRecord(id: "overdue", date: "2026-09-14", time: "15:00", endTime: "15:15", title: "Unfinished", owner: "Mom", location: "Home", mode: "Home")
+        ])
+        let movedOn = GoViewModel(store: overdueStore).computeView(store: overdueStore)
+        check(movedOn.live >= 0 && movedOn.mine[movedOn.live].event.id == "next", "hero moves on to the next stop")
+        check(movedOn.looseEndEvents.map(\.id) == ["overdue"], "the skipped stop is kept as a loose end")
+        check(overdueStore.eventsByDay[0]?.map(\.id) == ["overdue", "next"], "day buckets are kept in time order")
+
+        check(overdueStore.reminderOwners() == nil, "the All profile is reminded about every stop")
+        try? overdueStore.setActiveUser("Mom")
+        check(overdueStore.reminderOwners() == ["Mom", "Family"], "a caregiver's phone reminds about their own and family stops only")
+        try? overdueStore.setActiveUser("All")
+
+        overdueStore.setEventDone(id: "overdue", done: true)
+        overdueStore.setEventDone(id: "overdue", done: true)
+        check(overdueStore.records().first { $0.id == "overdue" }?.done == true, "marking done twice leaves it done")
 
         // An all-day event owns the date, not a slot in it: it must not collide
         // with the timed stops around it, and must not raise timing risks itself.
@@ -1591,6 +1638,15 @@ final class MockListsHost: HouseholdListsHost {
         check(lists.item(milk!)!.activityAt == activityBeforeMove,
               "reordering is not activity: the cleanup clock does not move")
         check(lists.item(milk!)!.stamps.placement != nil, "a move is still stamped so it can merge")
+        let stampsBeforeNote = lists.item(milk!)!.stamps
+        lists.updateItem(id: milk!, text: "Oat milk", quantity: "2 cartons", note: "Barista blend", groupID: generalID)
+        check(lists.item(milk!)!.stamps.placement == stampsBeforeNote.placement,
+              "a note edit leaves placement unstamped, so it cannot undo a move from the other phone")
+        check(lists.item(milk!)!.stamps.content != stampsBeforeNote.content, "a note edit stamps content")
+        let stampsBeforeNoOp = lists.item(milk!)!.stamps
+        lists.updateItem(id: milk!, text: "Oat milk", quantity: "2 cartons", note: "Barista blend", groupID: generalID)
+        check(lists.item(milk!)!.stamps.content == stampsBeforeNoOp.content,
+              "closing the editor without changes stamps nothing")
 
         // 4. Relaunch.
         let relaunched = HouseholdListsStore(cloud: MockListsCloud())

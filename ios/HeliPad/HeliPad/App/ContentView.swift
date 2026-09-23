@@ -176,13 +176,13 @@ public struct ContentView: View {
             }
         }
         .onReceive(LocationService.shared.$currentLocation) { location in
-            guard location != nil else { return }
-            store.refreshDepartureReminders()
+            guard let location else { return }
+            store.refreshDepartureReminders(forLocation: location)
         }
         .task {
             // Ask once, on the launch after the reminder is switched on, then
             // queue the upcoming departures.
-            if store.notifyLeaveBy || store.notifyDriverNeeded {
+            if store.notifyLeaveBy || store.notifyDriverNeeded || store.notifyOverdue {
                 await NotificationService.shared.requestAuthorization()
                 store.refreshDepartureReminders()
             }

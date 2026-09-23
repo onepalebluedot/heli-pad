@@ -54,6 +54,24 @@ public enum HeliColors {
     public static let toneOlive = Color(hex: "#55532e")
     public static let toneClay = Color(hex: "#814d3c")
 
+    // Go hero card. Drawn on the tone above, so each is tuned against a deep
+    // green or clay ground rather than the ivory canvas.
+    /// The card when the next stop is comfortably on track.
+    public static let heroOnTrack = Color(hex: "#234d3d")
+    /// The pill naming who the stop is for.
+    public static let heroBadge = Color(hex: "#1b4435")
+    /// The primary action (Directions, Done, Assign) and the arrive marker.
+    public static let heroCream = Color(hex: "#e8e4c9")
+    /// The secondary check-off button beside Directions.
+    public static let heroCheck = Color(hex: "#345f4e")
+    /// The "live GPS" marker: a mint that reads as live on every tone.
+    public static let heroLive = Color(hex: "#6ee7b7")
+
+    // Go rail status dots.
+    public static let railDotDone = Color(hex: "#cbd3bd")
+    /// A scheduled stop with nothing to flag.
+    public static let railDotScheduled = Color(hex: "#c2cbb6")
+
     // Ring Gradient Pairs [deep, bright]
     public static let ringLater = (deep: Color(hex: "#a3e635"), bright: Color(hex: "#ffd866"))
     public static let ringOntrack = (deep: Color(hex: "#a3e635"), bright: Color(hex: "#ffd866"))

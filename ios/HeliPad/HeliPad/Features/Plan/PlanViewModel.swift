@@ -48,7 +48,6 @@ public class PlanViewModel: ObservableObject {
     @Published public var reviewFilter: ReviewFilterMode = .all
     @Published public var showRoutinesSheet: Bool = false
     @Published public var showAssignSheet: Bool = false
-    @Published public var showRebalanceSheet: Bool = false
     @Published public var showPrioritiesSheet: Bool = false
     @Published public var showCalendarSheet: Bool = false
     @Published public var showEventSheet: Bool = false

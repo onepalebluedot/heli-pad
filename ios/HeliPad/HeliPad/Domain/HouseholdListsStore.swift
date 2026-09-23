@@ -473,11 +473,18 @@ public final class HouseholdListsStore: ObservableObject {
             archive.items[index].text = trimmed
             archive.items[index].quantity = ListText.trimmed(quantity)
             archive.items[index].note = ListText.trimmed(note)
-            if archive.groups(of: existing.listID).contains(where: { $0.id == groupID }) {
+            // Each stamp is taken only for the part that actually changed. The
+            // editor saves every field on close, so stamping both regardless
+            // let a note edit on one phone undo a section move made on the
+            // other — the untouched placement carried the newer stamp.
+            if movedPlacement, archive.groups(of: existing.listID).contains(where: { $0.id == groupID }) {
                 archive.items[index].groupID = groupID
+                archive.items[index].rank = archive.items(of: existing.listID, inGroup: groupID).count
+                archive.items[index].stamps.placement = placement
             }
-            archive.items[index].stamps.content = content
-            archive.items[index].stamps.placement = placement
+            if movedContent {
+                archive.items[index].stamps.content = content
+            }
             archive.items[index].updatedAt = Date()
             // Only wording, quantity, note or steps count as activity. Moving a
             // row between sections is tidying, not handling it, so it must not

@@ -30,7 +30,7 @@ struct ListDetailView: View {
     @State private var isAddingSection = false
     @State private var newSectionName = ""
     @State private var confirmingClear = false
-    /// Sections are managed in place from the two icon buttons under the list:
+    /// Sections are managed in place, from the menu beside the list's name:
     /// nothing about the list changes until a name is typed or a section is
     /// moved with an arrow.
     @State private var sectionMode: SectionMode = .none
@@ -39,9 +39,17 @@ struct ListDetailView: View {
     /// Steps opened inline, per item. Presentation state, so a tab switch
     /// collapses them — which is the same thing a re-entry should do anyway.
     @State private var expandedSteps: Set<String> = []
+    /// Rows just checked off, still standing in their section for a beat.
+    /// Without it a tap made the row vanish into a collapsed section at once,
+    /// so a mis-tap in the shop looked like the item had been lost.
+    @State private var settling: Set<String> = []
     @FocusState private var captureFocused: Bool
 
-    /// What the Sections row's icon buttons switch on.
+    /// Long enough to see the tick and take it back, short enough that
+    /// working down a list does not leave a trail of struck rows.
+    private static let settleDelay: UInt64 = 1_200_000_000
+
+    /// What the Sections menu switches on.
     private enum SectionMode: Equatable {
         case none
         /// Rename a section in place, and remove one that is not General.
@@ -65,8 +73,8 @@ struct ListDetailView: View {
                     undoBar
                     saveErrorBanner
                     advisoryEntry
+                    sectionModeBar
                     sections
-                    sectionsFooter
                     completedSection
                 } else {
                     missingList
@@ -241,6 +249,7 @@ struct ListDetailView: View {
                     .lineLimit(2)
                 Spacer(minLength: 8)
                 syncCapsule
+                sectionsMenu
             }
 
             Text("\(store.remainingCount(of: listID)) \(kind.remainingTitle)")
@@ -429,13 +438,15 @@ struct ListDetailView: View {
     }
 
     private func groupCard(_ group: HouseholdListGroup) -> some View {
-        let rows = store.items(of: listID, inGroup: group.id).filter { !$0.isCompleted }
+        let rows = store.items(of: listID, inGroup: group.id).filter { !$0.isCompleted || settling.contains($0.id) }
         let expanded = presentation.isExpanded(group.id)
         return VStack(alignment: .leading, spacing: 0) {
             // The header carries the theme tint edge to edge, so a section reads
             // as a labelled band rather than one more line of text above rows
             // that look exactly like it.
-            sectionHeader(group, rows: rows, expanded: expanded)
+            // Counted without the rows still settling, so the number drops the
+            // moment something is ticked, not a second later.
+            sectionHeader(group, rows: rows.filter { !$0.isCompleted }, expanded: expanded)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 4)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -449,14 +460,13 @@ struct ListDetailView: View {
                         Text("Nothing here yet.")
                             .font(.subheadline)
                             .foregroundColor(HeliColors.mutedGray)
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 10)
                     } else {
                         ForEach(rows) { item in
                             itemRow(item)
                             if item.id != rows.last?.id { hairline }
                         }
                     }
-                    addToSectionButton(group)
                 }
                 .padding(.horizontal, 12)
                 .padding(.bottom, 4)
@@ -531,6 +541,7 @@ struct ListDetailView: View {
             .accessibilityLabel("\(group.name) section")
             .accessibilityValue(rows.count == 1 ? "1 item" : "\(rows.count) items")
             .accessibilityHint(expanded ? "Hides this section" : "Shows this section")
+            .overlay(alignment: .trailing) { addToSectionButton(group) }
         }
     }
 
@@ -550,23 +561,20 @@ struct ListDetailView: View {
     }
 
     /// Adding from a section header never creates a blank row: it points the
-    /// capture bar at this section and puts the keyboard there.
+    /// capture bar at this section and puts the keyboard there. An icon in the
+    /// header rather than an "Add to …" row under every section, which cost a
+    /// full row of height per section whether or not anyone was adding.
     private func addToSectionButton(_ group: HouseholdListGroup) -> some View {
         Button {
             presentation.setTargetGroup(listID, group.id)
             presentation.setExpanded(group.id, true)
             captureFocused = true
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "plus.circle")
-                    .font(.system(size: 14, weight: .semibold))
-                Text("Add to \(group.name)")
-                    .font(.subheadline)
-                Spacer(minLength: 0)
-            }
-            .foregroundColor(HeliColors.forestGreen)
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
+            Image(systemName: "plus")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(HeliColors.forestGreen)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Add an item to \(group.name)")
@@ -575,59 +583,89 @@ struct ListDetailView: View {
 
     // MARK: - Rows
 
+    /// The whole row is the check-off target, not only the 20pt circle: in a
+    /// shop, with a basket in the other hand, the name is what the thumb
+    /// lands on. Editing, moving and removing stay on a long press.
     private func itemRow(_ item: HouseholdListItem) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                completeButton(item)
-                    // The circle's centre, nudged down, is treated as its
-                    // baseline, so it lines up with the item's name instead of
-                    // sitting below it.
-                    .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 3 }
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(item.text)
-                            .font(.body)
-                            .strikethrough(item.isCompleted)
-                            .foregroundColor(item.isCompleted ? HeliColors.mutedGray : HeliColors.greenInk)
-                            .fixedSize(horizontal: false, vertical: true)
-                        if let quantity = inlineQuantity(item) {
-                            Text(quantity)
-                                .font(.subheadline)
-                                .foregroundColor(HeliColors.mutedGray)
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                Button { toggleCompleted(item) } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 2) {
+                        checkCircle(item)
+                            // The circle's centre, nudged down, is treated as its
+                            // baseline, so it lines up with the item's name instead
+                            // of sitting below it.
+                            .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 3 }
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                Text(item.text)
+                                    .font(.body)
+                                    .strikethrough(item.isCompleted)
+                                    .foregroundColor(item.isCompleted ? HeliColors.mutedGray : HeliColors.greenInk)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                if let quantity = inlineQuantity(item) {
+                                    Text(quantity)
+                                        .font(.subheadline)
+                                        .foregroundColor(HeliColors.mutedGray)
+                                }
+                            }
+                            if let caption = caption(item) {
+                                Text(caption)
+                                    .font(.caption)
+                                    .foregroundColor(HeliColors.mutedGray)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
                         }
+                        .padding(.vertical, 11)
+                        Spacer(minLength: 0)
                     }
-                    if let caption = caption(item) {
-                        Text(caption)
-                            .font(.caption)
-                            .foregroundColor(HeliColors.mutedGray)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                 }
-                Spacer(minLength: 0)
+                .buttonStyle(.plain)
+                .accessibilityLabel(item.text)
+                .accessibilityValue(item.isCompleted ? "Checked" : "Unchecked")
+                .accessibilityHint(item.isCompleted ? "Double-tap to put it back on the list" : "Double-tap to check it off")
+                .accessibilityAddTraits(item.isCompleted ? [.isButton, .isSelected] : .isButton)
+                .accessibilityAction(named: "Edit") { editingItem = EditTarget(id: item.id) }
                 if showsSteps(item) { stepsDisclosure(item) }
             }
             if showsSteps(item), expandedSteps.contains(item.id) {
                 stepRows(item)
             }
         }
-        .padding(.vertical, 2)
         .contentShape(Rectangle())
         .contextMenu { itemMenu(item) }
         .id("item-\(item.id)")
     }
 
-    private func completeButton(_ item: HouseholdListItem) -> some View {
-        Button { store.setCompleted(id: item.id, to: !item.isCompleted) } label: {
-            Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 20, weight: item.isCompleted ? .semibold : .regular))
-                .foregroundColor(item.isCompleted ? HeliColors.forestGreen : HeliColors.mutedGray)
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
+    private func checkCircle(_ item: HouseholdListItem) -> some View {
+        Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
+            .font(.system(size: 22, weight: item.isCompleted ? .semibold : .regular))
+            .foregroundColor(item.isCompleted ? HeliColors.forestGreen : HeliColors.mutedGray)
+            .contentTransition(.symbolEffect(.replace))
+            .frame(width: 44, height: 44)
+    }
+
+    /// Checking off leaves the row where it is, struck through, for a moment
+    /// before it moves to the completed section; a second tap in that moment
+    /// takes it back. Both are written straight away, so a sync in between
+    /// carries the real state.
+    private func toggleCompleted(_ item: HouseholdListItem) {
+        let completing = !item.isCompleted
+        UIImpactFeedbackGenerator(style: completing ? .medium : .light).impactOccurred()
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
+            store.setCompleted(id: item.id, to: completing)
+            if completing { settling.insert(item.id) } else { settling.remove(item.id) }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Complete \(item.text)")
-        .accessibilityValue(item.isCompleted ? "Checked" : "Unchecked")
-        .accessibilityAddTraits(item.isCompleted ? [.isButton, .isSelected] : .isButton)
+        guard completing else { return }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: Self.settleDelay)
+            guard settling.contains(item.id) else { return }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
+                _ = settling.remove(item.id)
+            }
+        }
     }
 
     /// Groceries carry a quantity, and it reads as part of the row's own line.
@@ -728,7 +766,7 @@ struct ListDetailView: View {
 
     @ViewBuilder
     private var completedSection: some View {
-        let completed = store.completedItems(of: listID)
+        let completed = store.completedItems(of: listID).filter { !settling.contains($0.id) }
         if !completed.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
                 Button { presentation.setShowsCompleted(listID, !presentation.showsCompleted(listID)) } label: {
@@ -784,164 +822,154 @@ struct ListDetailView: View {
 
     // MARK: - Section management
     //
-    // One row under the sections: a button to add one, and two icon buttons that
-    // put the sections into a mode where they can be renamed, removed or moved
-    // into a new order. Nothing here is on the home screen, where a tile is for
-    // opening a list rather than restructuring it.
+    // Adding, renaming and reordering sections live in one menu beside the
+    // list's name. They used to fill a card of their own under the sections —
+    // a full row of chrome on every visit for something done a few times a
+    // year. Nothing here is on the home screen, where a tile is for opening a
+    // list rather than restructuring it.
 
-    private var sectionsFooter: some View {
-        HStack(spacing: 4) {
+    private var sectionsMenu: some View {
+        Menu {
             Button {
                 newSectionName = ""
                 isAddingSection = true
             } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "plus.circle")
-                        .font(.system(size: 15, weight: .semibold))
-                    Text("Add section")
-                        .font(.subheadline.weight(.medium))
+                Label("Add section", systemImage: "plus")
+            }
+            if groups.count > 1 {
+                Button { setSectionMode(.editing) } label: {
+                    Label("Rename or remove sections", systemImage: "pencil")
                 }
+                Button { setSectionMode(.rearranging) } label: {
+                    Label("Reorder sections", systemImage: "arrow.up.arrow.down")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.system(size: 19, weight: .regular))
                 .foregroundColor(HeliColors.forestGreen)
-                .frame(minHeight: 44)
-                .padding(.horizontal, 4)
+                .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Add a section")
-
-            Spacer(minLength: 0)
-
-            // Also shown while a mode is on, whatever the count is now. Deleting
-            // the second-to-last section used to drop this row to a bare "Add
-            // section" and strand the list in editing mode, with the only way
-            // out being to leave the screen.
-            if groups.count > 1 || sectionMode != .none {
-                sectionModeButton(
-                    "pencil",
-                    mode: .editing,
-                    label: "Edit section names",
-                    hint: "Rename a section, or remove one that is not General"
-                )
-                sectionModeButton(
-                    "arrow.up.arrow.down",
-                    mode: .rearranging,
-                    label: "Rearrange sections",
-                    hint: "Use the up and down arrows to change the order"
-                )
-            }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 2)
-        .modifier(CardChrome())
-        .id("sections-footer")
+        .accessibilityLabel("Sections")
+        .accessibilityHint("Add, rename, remove or reorder this list's sections")
     }
 
-    /// Icon only, and it says which mode is on rather than only what tapping
-    /// would do.
-    private func sectionModeButton(_ symbol: String, mode: SectionMode, label: String, hint: String) -> some View {
-        let active = sectionMode == mode
-        return Button {
-            setSectionMode(active ? .none : mode)
-        } label: {
-            Image(systemName: symbol)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(active ? .white : HeliColors.forestGreen)
-                .frame(width: 44, height: 44)
-                .background(active ? HeliColors.forestGreen : Color.clear)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .contentShape(Rectangle())
+    /// Says which mode is on and is the one way out of it. Shown whatever the
+    /// section count is now: deleting the second-to-last section must not
+    /// strand the list in editing mode with no Done in reach.
+    @ViewBuilder
+    private var sectionModeBar: some View {
+        if sectionMode != .none {
+            HStack(spacing: 8) {
+                Image(systemName: sectionMode == .editing ? "pencil" : "arrow.up.arrow.down")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(HeliColors.forestGreen)
+                    .accessibilityHidden(true)
+                Text(sectionMode == .editing ? "Renaming sections" : "Reordering sections")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(HeliColors.greenInk)
+                Spacer(minLength: 8)
+                Button { setSectionMode(.none) } label: {
+                    Text("Done")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .frame(minHeight: 36)
+                        .background(HeliColors.forestGreen)
+                        .clipShape(Capsule())
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Returns the sections to normal")
+            }
+            .padding(.horizontal, 12)
+            .background(HeliColors.forestTint)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .transition(.opacity.combined(with: .move(edge: .top)))
+            .id("section-mode")
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
-        .accessibilityHint(active ? "Returns the sections to normal" : hint)
-        .accessibilityAddTraits(active ? [.isButton, .isSelected] : .isButton)
     }
 
     // MARK: - Capture
 
+    /// One row: where it goes, what it is, add. The section used to sit on a
+    /// line of its own above the field, 44pt of height on the one strip that
+    /// is always on screen.
     private var captureBar: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            targetLabel
-            HStack(spacing: 8) {
-                TextField(kind.capturePrompt, text: draftBinding)
-                    .font(.body)
-                    .textInputAutocapitalization(.sentences)
-                    .submitLabel(.done)
-                    .onSubmit { submitCapture() }
-                    .focused($captureFocused)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 11)
-                    .background(HeliColors.cardWarmWhite)
+        HStack(spacing: 8) {
+            if groups.count > 1 { targetMenu }
+            TextField(kind.capturePrompt, text: draftBinding)
+                .font(.body)
+                .textInputAutocapitalization(.sentences)
+                // Return adds the item and keeps the keyboard up, so a whole
+                // shopping list goes in without tapping back into the field
+                // after every line.
+                .submitLabel(.return)
+                .onSubmit { submitCapture() }
+                .focused($captureFocused)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 11)
+                .background(HeliColors.cardWarmWhite)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
+                .accessibilityLabel(kind.capturePrompt)
+                .accessibilityHint("Adds to \(targetName)")
+            Button { submitCapture() } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+                    .background(HeliColors.forestGreen)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
-                    .accessibilityLabel(kind.capturePrompt)
-                Button { submitCapture() } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 44, height: 44)
-                        .background(HeliColors.forestGreen)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Add item")
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Add item")
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
-        .padding(.bottom, ContentView.bottomBarInset)
+        .padding(.bottom, captureFocused ? 8 : ContentView.bottomBarInset)
         .background(HeliColors.canvasIvory)
     }
 
-    /// The target section is never implied: it is always on screen, and with
-    /// more than one section it can be changed from here.
-    @ViewBuilder
-    private var targetLabel: some View {
-        if groups.count > 1 {
-            Menu {
-                ForEach(groups) { group in
-                    Button { presentation.setTargetGroup(listID, group.id) } label: {
-                        if group.id == presentation.targetGroup(listID, in: groups) {
-                            Label(group.name, systemImage: "checkmark")
-                        } else {
-                            Text(group.name)
-                        }
+    /// The target section is never implied: with more than one section it is
+    /// always on screen, and it is changed from here.
+    private var targetMenu: some View {
+        Menu {
+            ForEach(groups) { group in
+                Button { presentation.setTargetGroup(listID, group.id) } label: {
+                    if group.id == presentation.targetGroup(listID, in: groups) {
+                        Label(group.name, systemImage: "checkmark")
+                    } else {
+                        Text(group.name)
                     }
                 }
-            } label: {
-                targetLabelContent(changeable: true)
             }
-            .accessibilityLabel("Section new items are added to")
-            .accessibilityValue(targetName)
-        } else {
-            targetLabelContent(changeable: false)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("New items are added to \(targetName)")
+        } label: {
+            HStack(spacing: 4) {
+                Text(targetName)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(HeliColors.forestGreen)
+                    .lineLimit(1)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(HeliColors.mutedGray)
+            }
+            .padding(.horizontal, 10)
+            .frame(maxWidth: 110, minHeight: 44)
+            .background(HeliColors.forestTint)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .contentShape(Rectangle())
         }
+        .accessibilityLabel("Section new items are added to")
+        .accessibilityValue(targetName)
     }
 
     private var targetName: String {
         let target = presentation.targetGroup(listID, in: groups)
         return groups.first { $0.id == target }?.name ?? HouseholdListsDefaults.generalName
-    }
-
-    private func targetLabelContent(changeable: Bool) -> some View {
-        HStack(spacing: 5) {
-            Text("Adding to")
-                .font(.caption)
-                .foregroundColor(HeliColors.mutedGray)
-            Text(targetName)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(HeliColors.forestGreen)
-            if changeable {
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundColor(HeliColors.mutedGray)
-            }
-        }
-        .frame(minHeight: 44)
-        .contentShape(Rectangle())
     }
 
     // MARK: - Actions
@@ -992,6 +1020,9 @@ struct ListDetailView: View {
             // went into is open so the new row can be seen.
             presentation.clearDraft(listID)
             presentation.setExpanded(groupID, true)
+            // A single-line field gives up focus on Return; take it straight
+            // back so the next item can be typed.
+            captureFocused = true
         }
     }
 

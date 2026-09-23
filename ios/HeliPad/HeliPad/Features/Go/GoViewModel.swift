@@ -13,6 +13,9 @@ public struct GoViewData {
     public var hidden: Int
     public var live: Int
     public var looseEnds: Int
+    /// Today's stops in scope that have ended without being marked done,
+    /// oldest first. Go lists them under the hero instead of keeping one in it.
+    public var looseEndEvents: [TaskRecord]
     public var restingState: GoRestingState
 }
 
@@ -150,14 +153,18 @@ public class GoViewModel: ObservableObject {
         }
         let hidden = listAnalyzed.count - listed.count
 
-        // Unfinished work remains actionable even after its start or end time.
-        let liveIndex = mine.firstIndex { analyzed in
-            !analyzed.event.done
-        } ?? -1
-
-        let looseEnds = mine.filter { analyzed in
+        // The hero is what is happening now or next. It used to be the first
+        // unfinished stop of the day, so one stop nobody ticked off held the
+        // hero for the rest of the day — open the app at 8 pm and it was still
+        // counting up from a 3 pm pickup while the 7:30 went unshown.
+        // Ended-but-open stops stay actionable in `looseEndEvents` instead.
+        let loose = mine.filter { analyzed in
             !analyzed.event.done && now >= PlanCore.end(analyzed.event)
-        }.count
+        }
+        let liveIndex = mine.firstIndex { analyzed in
+            !analyzed.event.done && now < PlanCore.end(analyzed.event)
+        } ?? -1
+        let looseEnds = loose.count
 
         let unfinishedCount = scopedToday.filter { !$0.event.done }.count
         let restingState: GoRestingState
@@ -179,6 +186,7 @@ public class GoViewModel: ObservableObject {
             hidden: hidden,
             live: liveIndex,
             looseEnds: looseEnds,
+            looseEndEvents: loose.map(\.event),
             restingState: restingState
         )
     }

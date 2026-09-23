@@ -7,6 +7,9 @@ public struct GoDialCardView: View {
     public var liveDriveTime: Int?
     public var isDeviceLocationLive: Bool
     public var restingState: GoRestingState
+    /// True for the moment between tapping Done and the hand-off to the next
+    /// stop, while the card seals itself. Taps are ignored until it clears.
+    public var isCompleting: Bool
     public var onEdit: () -> Void
     public var onToggleDone: () -> Void
     public var onDirections: () -> Void
@@ -18,6 +21,7 @@ public struct GoDialCardView: View {
         liveDriveTime: Int? = nil,
         isDeviceLocationLive: Bool = false,
         restingState: GoRestingState = .empty,
+        isCompleting: Bool = false,
         onEdit: @escaping () -> Void,
         onToggleDone: @escaping () -> Void,
         onDirections: @escaping () -> Void
@@ -28,6 +32,7 @@ public struct GoDialCardView: View {
         self.liveDriveTime = liveDriveTime
         self.isDeviceLocationLive = isDeviceLocationLive
         self.restingState = restingState
+        self.isCompleting = isCompleting
         self.onEdit = onEdit
         self.onToggleDone = onToggleDone
         self.onDirections = onDirections
@@ -73,7 +78,7 @@ public struct GoDialCardView: View {
             switch tone {
             case .now, .started: return HeliColors.toneClay
             case .soon: return HeliColors.toneOlive
-            default: return Color(hex: "#234d3d")
+            default: return HeliColors.heroOnTrack
             }
         }()
 
@@ -87,13 +92,16 @@ public struct GoDialCardView: View {
                 // Top row: Dial Instrument + Route Spine
                 HStack(alignment: .center, spacing: 18) {
                     GoDialInstrument(
-                        fraction: fraction,
-                        tone: tone,
-                        centerTitle: title,
-                        centerUnit: unit,
+                        fraction: isCompleting ? 1 : fraction,
+                        tone: isCompleting ? .clear : tone,
+                        centerTitle: isCompleting ? "" : title,
+                        centerUnit: isCompleting ? "" : unit,
                         isWord: isWord,
                         isHours: isHours
                     )
+                    .overlay {
+                        if isCompleting { GoCompletionSeal() }
+                    }
 
                     // Route beside dial
                     routeColumn(
@@ -115,6 +123,9 @@ public struct GoDialCardView: View {
                             .foregroundColor(.white)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
+                            .overlay {
+                                if isCompleting { GoCompletionStrike() }
+                            }
 
                         VStack(spacing: 3) {
                             HStack(spacing: 6) {
@@ -163,7 +174,7 @@ public struct GoDialCardView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 7)
-                .background(Color(hex: "#1b4435"))
+                .background(HeliColors.heroBadge)
                 .clipShape(Capsule())
                 .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 0.8))
 
@@ -172,6 +183,7 @@ public struct GoDialCardView: View {
             }
             .padding(20)
             .frame(maxWidth: .infinity)
+            .allowsHitTesting(!isCompleting)
             .background(
                 ZStack {
                     cardBg
@@ -190,10 +202,26 @@ public struct GoDialCardView: View {
                         }
                         .position(x: cx, y: cy)
                     }
+
+                    // Green floods out from the button that was pressed, so the
+                    // card visibly turns into "done" from the thumb outward.
+                    if isCompleting {
+                        GeometryReader { geo in
+                            GoCompletionFlood(
+                                origin: CGPoint(
+                                    x: noTravel || e.owner == "TBD" ? geo.size.width / 2 : geo.size.width - 48,
+                                    y: geo.size.height - 45
+                                ),
+                                size: geo.size
+                            )
+                        }
+                    }
                 }
             )
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .shadow(color: cardBg.opacity(0.25), radius: 10, x: 0, y: 5)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(isCompleting ? "\(e.title), done" : e.title)
         )
     }
 
@@ -238,7 +266,9 @@ public struct GoDialCardView: View {
         case .empty: return "Nothing is scheduled in this view."
         case .complete: return "Every handoff is marked done for today."
         case .outstanding(let count):
-            return "\(count) all-day \(count == 1 ? "item is" : "items are") still unfinished."
+            // Not only all-day items any more: stops that ended without being
+            // ticked off leave the hero and land here too.
+            return "\(count) \(count == 1 ? "item is" : "items are") still unfinished."
         }
     }
 
@@ -313,11 +343,11 @@ public struct GoDialCardView: View {
                         if isLiveGPS && eta != nil {
                             HStack(spacing: 4) {
                                 Circle()
-                                    .fill(Color(hex: "#6ee7b7"))
+                                    .fill(HeliColors.heroLive)
                                     .frame(width: 5, height: 5)
                                 Text("LIVE GPS")
                                     .font(.system(size: 8.5, weight: .bold))
-                                    .foregroundColor(Color(hex: "#6ee7b7"))
+                                    .foregroundColor(HeliColors.heroLive)
                                     .tracking(0.8)
                             }
                         }
@@ -328,7 +358,7 @@ public struct GoDialCardView: View {
                 // Arrive node
                 HStack(spacing: 8) {
                     RoundedRectangle(cornerRadius: 1.5)
-                        .fill(Color(hex: "#e8e4c9"))
+                        .fill(HeliColors.heroCream)
                         .frame(width: 8, height: 8)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(TimeFormat.formatTime(start))
@@ -361,7 +391,7 @@ public struct GoDialCardView: View {
                         .font(HeliTypography.buttonLabel(15))
                         .foregroundColor(HeliColors.greenInk)
                         .frame(maxWidth: .infinity, minHeight: 50)
-                        .background(Color(hex: "#e8e4c9"))
+                        .background(HeliColors.heroCream)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
             } else if noTravel {
@@ -374,7 +404,7 @@ public struct GoDialCardView: View {
                     .font(HeliTypography.buttonLabel(15))
                     .foregroundColor(HeliColors.greenInk)
                     .frame(maxWidth: .infinity, minHeight: 50)
-                    .background(Color(hex: "#e8e4c9"))
+                    .background(HeliColors.heroCream)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
             } else {
@@ -388,7 +418,7 @@ public struct GoDialCardView: View {
                     }
                     .foregroundColor(HeliColors.greenInk)
                     .frame(maxWidth: .infinity, minHeight: 50)
-                    .background(Color(hex: "#e8e4c9"))
+                    .background(HeliColors.heroCream)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
 
@@ -397,9 +427,10 @@ public struct GoDialCardView: View {
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(.white)
                         .frame(width: 56, height: 50)
-                        .background(Color(hex: "#345f4e"))
+                        .background(HeliColors.heroCheck)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
+                .accessibilityLabel("Mark \(e.title) done")
             }
         }
     }
@@ -451,5 +482,120 @@ public struct TransitBeadView: View {
                 breathe = true
             }
         }
+    }
+}
+
+// MARK: - Completion sequence
+
+/// A check drawn into the centre of the dial, with one ring that breaks
+/// outward from it. Drawn rather than faded in, so it reads as the act of
+/// ticking the stop off.
+struct GoCompletionSeal: View {
+    @State private var drawn = false
+    @State private var ringOut = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(HeliColors.ringClear.bright, lineWidth: 3)
+                .frame(width: 150, height: 150)
+                .scaleEffect(ringOut ? 1.35 : 0.9)
+                .opacity(ringOut ? 0 : 0.9)
+            GoCheckmarkShape()
+                .trim(from: 0, to: drawn ? 1 : 0)
+                .stroke(Color.white, style: StrokeStyle(lineWidth: 9, lineCap: .round, lineJoin: .round))
+                .frame(width: 64, height: 64)
+                .shadow(color: HeliColors.greenInk.opacity(0.35), radius: 6, y: 2)
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.32).delay(0.12)) { drawn = true }
+            withAnimation(.easeOut(duration: 0.7).delay(0.18)) { ringOut = true }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+struct GoCheckmarkShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX + rect.width * 0.14, y: rect.minY + rect.height * 0.54))
+        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.40, y: rect.minY + rect.height * 0.78))
+        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.88, y: rect.minY + rect.height * 0.24))
+        return path
+    }
+}
+
+/// A line drawn through the stop's name, left to right.
+struct GoCompletionStrike: View {
+    @State private var drawn = false
+
+    var body: some View {
+        GeometryReader { geo in
+            Capsule()
+                .fill(Color.white.opacity(0.9))
+                .frame(width: geo.size.width * (drawn ? 1 : 0), height: 2.5)
+                .position(x: geo.size.width * (drawn ? 0.5 : 0), y: geo.size.height / 2)
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.3).delay(0.05)) { drawn = true }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// The card's own colour giving way to forest green, spreading from `origin`.
+struct GoCompletionFlood: View {
+    var origin: CGPoint
+    var size: CGSize
+    @State private var grown = false
+
+    var body: some View {
+        // Far enough to cover the corner furthest from the origin.
+        let reach = hypot(max(origin.x, size.width - origin.x), max(origin.y, size.height - origin.y))
+        Circle()
+            .fill(HeliColors.toneForest)
+            .frame(width: reach * 2, height: reach * 2)
+            .scaleEffect(grown ? 1 : 0.02)
+            .position(origin)
+            .onAppear {
+                withAnimation(.easeOut(duration: 0.5)) { grown = true }
+            }
+    }
+}
+
+/// How the hero hands over to the next stop. The finished card is filed away
+/// up and back, as if slid under the stack; the next one rises from beneath
+/// into its place.
+extension AnyTransition {
+    static var goHeroHandoff: AnyTransition {
+        .asymmetric(
+            insertion: .modifier(active: GoHeroArrive(progress: 0), identity: GoHeroArrive(progress: 1)),
+            removal: .modifier(active: GoHeroFileAway(progress: 1), identity: GoHeroFileAway(progress: 0))
+        )
+    }
+}
+
+struct GoHeroFileAway: ViewModifier {
+    var progress: Double
+
+    func body(content: Content) -> some View {
+        content
+            .rotation3DEffect(.degrees(18 * progress), axis: (x: 1, y: 0, z: 0), anchor: .top, perspective: 0.6)
+            .scaleEffect(1 - 0.14 * progress, anchor: .top)
+            .offset(y: -36 * progress)
+            // Gone by 60% of the way, so its text is never read through the
+            // card arriving under it.
+            .opacity(max(0, 1 - progress / 0.6))
+    }
+}
+
+struct GoHeroArrive: ViewModifier {
+    var progress: Double
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(0.9 + 0.1 * progress, anchor: .bottom)
+            .offset(y: 48 * (1 - progress))
+            .opacity(max(0, (progress - 0.35) / 0.65))
     }
 }

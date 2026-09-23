@@ -5,7 +5,6 @@ public struct PlanCommandCardView: View {
     public var reviewCount: Int
     public var routinesCount: Int
     public var onReview: () -> Void
-    public var onRebalance: () -> Void
     public var onPriorities: () -> Void
     public var onTapUnassigned: (() -> Void)?
     public var onTapReview: (() -> Void)?
@@ -16,7 +15,6 @@ public struct PlanCommandCardView: View {
         reviewCount: Int,
         routinesCount: Int,
         onReview: @escaping () -> Void,
-        onRebalance: @escaping () -> Void,
         onPriorities: @escaping () -> Void,
         onTapUnassigned: (() -> Void)? = nil,
         onTapReview: (() -> Void)? = nil,
@@ -26,7 +24,6 @@ public struct PlanCommandCardView: View {
         self.reviewCount = reviewCount
         self.routinesCount = routinesCount
         self.onReview = onReview
-        self.onRebalance = onRebalance
         self.onPriorities = onPriorities
         self.onTapUnassigned = onTapUnassigned
         self.onTapReview = onTapReview
@@ -103,36 +100,20 @@ public struct PlanCommandCardView: View {
                 .buttonStyle(StatBoxButtonStyle(highlight: false, tone: .sage))
             }
 
-            // Action row
-            HStack(spacing: 10) {
-                Button(action: onReview) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle")
-                            .font(.system(size: 13, weight: .semibold))
-                        Text("Review assignments")
-                            .font(HeliTypography.actionButton(13))
-                    }
-                    .foregroundColor(HeliColors.cardWarmWhite)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(HeliColors.forestGreen)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            // Review takes the full row. Rebalance used to share it and was
+            // removed: it never proposed anything for a real household, while
+            // Assign already ranks caregivers stop by stop (REBALANCE_PLAN.md).
+            Button(action: onReview) {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("Review assignments")
+                        .font(HeliTypography.actionButton(13))
                 }
-
-                Button(action: onRebalance) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 12))
-                        Text("Rebalance")
-                            .font(HeliTypography.actionButton(12))
-                    }
-                    .foregroundColor(HeliColors.greenInk)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(HeliColors.cardWarmWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(HeliColors.sageRule, lineWidth: 0.8))
-                }
+                .foregroundColor(HeliColors.cardWarmWhite)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(HeliColors.forestGreen)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
         }
         .padding(18)

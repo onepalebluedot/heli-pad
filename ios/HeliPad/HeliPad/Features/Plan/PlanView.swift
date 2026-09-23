@@ -39,7 +39,6 @@ public struct PlanView: View {
                         viewModel.reviewFilter = .all
                         viewModel.showReviewSheet = true
                     },
-                    onRebalance: { viewModel.showRebalanceSheet = true },
                     onPriorities: { viewModel.showPrioritiesSheet = true },
                     onTapUnassigned: {
                         viewModel.reviewFilter = .unassigned
@@ -192,9 +191,6 @@ public struct PlanView: View {
                 event: viewModel.activeEventForAssign,
                 routine: viewModel.activeRoutineForAssign
             )
-        }
-        .sheet(isPresented: $viewModel.showRebalanceSheet) {
-            PlanRebalanceSheet(store: store, currentWeek: viewModel.currentWeek)
         }
         .sheet(isPresented: $viewModel.showPrioritiesSheet) {
             PlanPrioritiesSheet(store: store, week: viewModel.currentWeek)
