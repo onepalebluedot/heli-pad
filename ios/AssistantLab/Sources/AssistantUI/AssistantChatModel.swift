@@ -21,12 +21,14 @@ public final class AssistantChatModel: ObservableObject {
     private var session: AssistantSession
     private var task: Task<Void, Never>?
     private let disclosureSeen: (Bool) -> Void
+    private let prompts: [String]
 
     public init(
         engine: AssistantEngine,
         transcript: ChatTranscript,
         session: AssistantSession,
         hasSeenDataDisclosure: Bool,
+        suggestedPrompts: [String] = AssistantCopy.suggestedPrompts,
         onDisclosureAcknowledged: @escaping (Bool) -> Void = { _ in }
     ) {
         self.engine = engine
@@ -34,10 +36,11 @@ public final class AssistantChatModel: ObservableObject {
         self.session = session
         self.showsDataDisclosure = !hasSeenDataDisclosure
         self.disclosureSeen = onDisclosureAcknowledged
+        self.prompts = suggestedPrompts
         self.messages = transcript.messages(for: session)
     }
 
-    public var suggestedPrompts: [String] { AssistantCopy.suggestedPrompts }
+    public var suggestedPrompts: [String] { prompts }
 
     /// Whether a message can be sent right now. The draft itself lives in the
     /// view, not here: publishing it from this object meant every keystroke

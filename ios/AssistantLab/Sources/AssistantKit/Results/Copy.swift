@@ -130,10 +130,37 @@ public enum AssistantCopy {
     /// assigning and comparing.
     public static let suggestedPrompts = [
         "What's on this week?",
-        "Schedule swimming every Tuesday at 4pm for 30 weeks",
-        "Assign next week's pickups to Alex",
+        "Create a recurring activity for review",
+        "Assign next week's pickups to a caregiver",
         "How does this month compare with last month?"
     ]
+
+    /// Suggestions for the empty chat state, grounded in this household's
+    /// actual schedule and people. Never invent a person or activity name.
+    public static func suggestedPrompts(events: [AssistantEvent], people: [AssistantPerson], today: String) -> [String] {
+        var prompts = ["What's on this week?"]
+        let upcomingEvents = events.filter { !$0.done && $0.date >= today }
+
+        if let event = upcomingEvents
+            .filter({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+            .sorted(by: { $0.date < $1.date })
+            .first {
+            prompts.append("Schedule \(event.title) every week for 30 weeks")
+        } else {
+            prompts.append("Create a recurring activity for review")
+        }
+
+        let caregivers = people.filter { $0.role == .caregiver }
+        let hasPickup = upcomingEvents.contains { $0.kind == .pickup }
+        if hasPickup, let caregiver = caregivers.first {
+            prompts.append("Assign next week's pickups to \(caregiver.name)")
+        } else if hasPickup {
+            prompts.append("Review next week's unassigned pickups")
+        }
+
+        prompts.append("How does this month compare with last month?")
+        return prompts
+    }
 
     // MARK: - Failures
 

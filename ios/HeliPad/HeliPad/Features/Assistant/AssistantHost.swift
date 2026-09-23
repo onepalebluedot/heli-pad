@@ -90,6 +90,19 @@ public final class AssistantHost: ObservableObject {
 
         let adapter = AssistantHouseholdAdapter(store: store)
         let configuration = AssistantConfiguration(relayBaseURL: relayURL)
+        let placeIDs = AssistantHouseholdAdapter.placeIDLookup(store.locations)
+        let householdEvents = store.records().map {
+            AssistantHouseholdAdapter.toAssistant($0, placeIDs: placeIDs)
+        }
+        let householdPeople = store.people.map { person in
+            AssistantPerson(
+                id: person.id,
+                name: person.name,
+                role: person.kind == "caregiver" ? .caregiver : .child,
+                relationship: person.relationship
+            )
+        }
+        let assistantSession = session()
         let engine = AssistantEngine(
             client: RelayLunaClient(configuration: configuration, tokens: StaticTokenProvider(token)),
             router: ToolRouter(query: adapter),
@@ -103,8 +116,13 @@ public final class AssistantHost: ObservableObject {
         chat = AssistantChatModel(
             engine: engine,
             transcript: transcript,
-            session: session(),
+            session: assistantSession,
             hasSeenDataDisclosure: store.assistantDisclosureAcknowledged,
+            suggestedPrompts: AssistantCopy.suggestedPrompts(
+                events: householdEvents,
+                people: householdPeople,
+                today: assistantSession.today
+            ),
             // Device-local, so no household save is involved.
             onDisclosureAcknowledged: { [weak store] seen in
                 store?.assistantDisclosureAcknowledged = seen
