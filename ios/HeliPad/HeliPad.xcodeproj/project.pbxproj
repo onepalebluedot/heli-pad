@@ -32,6 +32,7 @@
 		4DCB6A476014ED53A129AA10 /* FamilyKidsStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BF7F9CBF22065F01F4093B4 /* FamilyKidsStatsView.swift */; };
 		56D386FB9A91A0D40C023C09 /* GoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 509A9D3EA583FF2FE6C7F107 /* GoView.swift */; };
 		5D3B6D7846B8F4CF22D0F590 /* GoDialCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45BF80BE77ADC0FA18F8E3FC /* GoDialCardView.swift */; };
+		CC0000000000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000001 /* PrivacyInfo.xcprivacy */; };
 		622E17728F10649DB92166E3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 887E65758D3DDD9D236D8C6B /* Assets.xcassets */; };
 		67168628578A1413A74D2E5A /* TodayTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215FB78CF9148F854D5DC211 /* TodayTheme.swift */; };
 		6AD9272FE090CF8ED90CA900 /* GoViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E1562F6E0CD84378DA7BC2 /* GoViewModel.swift */; };
@@ -142,6 +143,7 @@
 		863501ABD0D2BF11BF475B27 /* PlanCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanCore.swift; sourceTree = "<group>"; };
 		8706FA2A7D58717A279526F4 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		877D3FBFA36E18650E53F099 /* HeliTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeliTypography.swift; sourceTree = "<group>"; };
+		CC0000000000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		887E65758D3DDD9D236D8C6B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8B19BD9072E3CD2397565DB4 /* OnboardingComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingComponents.swift; sourceTree = "<group>"; };
 		8FFB194883D45A7924935700 /* AvatarDisc.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarDisc.swift; sourceTree = "<group>"; };
@@ -385,6 +387,7 @@
 			children = (
 				D1D0524B025E57AFFF263442,
 				887E65758D3DDD9D236D8C6B,
+				CC0000000000000000000001,
 				35D315DEBBF45F223B169A61,
 				77774BDDEBE30160BE11502D,
 				984D844B917CCD4C29DE2A97,
@@ -551,6 +554,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				622E17728F10649DB92166E3 /* Assets.xcassets in Resources */,
+				CC0000000000000000000002 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
