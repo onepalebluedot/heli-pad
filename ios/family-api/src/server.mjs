@@ -91,7 +91,30 @@ async function verifyApple(identityToken, nonce, audience) {
   return payload;
 }
 
-export function createHandler(pool, { appleBundleID, verifyIdentity = verifyApple } = {}) {
+// Emails the owner about a new alpha sign-up through Resend's HTTP API. Unset
+// RESEND_API_KEY or SIGNUP_NOTIFY_TO turns it off, so local runs and tests
+// send nothing. Plain text only: the name is visitor input, and an HTML body
+// would need escaping to stay safe in a mail client.
+async function notifyByEmail({ name, email }) {
+  const { RESEND_API_KEY, SIGNUP_NOTIFY_TO, SIGNUP_NOTIFY_FROM } = process.env;
+  if (!RESEND_API_KEY || !SIGNUP_NOTIFY_TO) return;
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${RESEND_API_KEY}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      from: SIGNUP_NOTIFY_FROM || 'HeliPad <onboarding@resend.dev>',
+      to: SIGNUP_NOTIFY_TO.split(',').map(s => s.trim()).filter(Boolean),
+      subject: `New HeliPad alpha sign-up: ${name}`,
+      text: `${name} <${email}> asked to join the HeliPad alpha.\n\nSee everyone: SELECT name, email, created_at FROM helipad_alpha_signup ORDER BY created_at;`
+    }),
+    // Vercel freezes the function once it responds, so the send is awaited
+    // before replying; the timeout keeps a slow mail API from stalling the form.
+    signal: AbortSignal.timeout(5000)
+  });
+  if (!response.ok) throw new Error(`Resend answered ${response.status}`);
+}
+
+export function createHandler(pool, { appleBundleID, verifyIdentity = verifyApple, notifySignup = notifyByEmail } = {}) {
   if (!appleBundleID) throw new Error('APPLE_BUNDLE_ID is required');
   return async (request, response) => {
     try {
@@ -121,12 +144,22 @@ export function createHandler(pool, { appleBundleID, verifyIdentity = verifyAppl
         if (typeof body.website === 'string' && body.website.trim()) return send(response, 200, { ok: true });
         const name = typeof body.name === 'string' ? body.name.trim() : '';
         const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-        if (!name || name.length > 80) throw new ApiError(400, 'Enter your name.');
+        // Control characters would let a name break the notification's subject line.
+        if (!name || name.length > 80 || /[\u0000-\u001f\u007f]/.test(name)) throw new ApiError(400, 'Enter your name.');
         if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ApiError(400, 'Enter a valid email address.');
-        await pool.query(`
+        // xmax is 0 only on a freshly inserted row, so a repeat sign-up that
+        // just updates the name does not send a second email.
+        const { rows } = await pool.query(`
           INSERT INTO helipad_alpha_signup (email, name) VALUES ($1, $2)
           ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
+          RETURNING (xmax = 0) AS inserted
         `, [email, name]);
+        if (rows[0]?.inserted) {
+          // The row is saved either way; a mail outage must not tell the visitor
+          // their sign-up failed.
+          try { await notifySignup({ name, email }); }
+          catch (error) { console.error('Alpha sign-up notification failed', error); }
+        }
         return send(response, 200, { ok: true });
       }
 

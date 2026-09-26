@@ -15,6 +15,9 @@ tables defined in `src/schema.mjs`. Set these environment variables on an HTTPS 
 | `APPLE_BUNDLE_ID` | `com.onepalebluedot.helipad` |
 | `PORT` | Listener port; defaults to `8080` |
 | `TESTFLIGHT_URL` | Optional public `https://testflight.apple.com/join/...` link shown on invitation pages |
+| `RESEND_API_KEY` | Optional [Resend](https://resend.com) API key; with `SIGNUP_NOTIFY_TO`, emails each new alpha sign-up |
+| `SIGNUP_NOTIFY_TO` | Address (or comma-separated addresses) that receives alpha sign-up emails |
+| `SIGNUP_NOTIFY_FROM` | Optional sender; defaults to `HeliPad <onboarding@resend.dev>`, which Resend only delivers to the account owner's own address until a domain is verified |
 
 Run `npm ci && npm start` with server environment variables, or `npm run dev`
 to load the ignored local `.env.local` file. Startup applies the additive schema. `GET /health`

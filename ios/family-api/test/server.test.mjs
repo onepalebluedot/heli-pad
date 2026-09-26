@@ -121,8 +121,13 @@ test('a shared invitation opens without a session and does not expose a database
 
 test('alpha sign-up stores a normalised email, answers preflight, and drops honeypot posts', async () => {
   const stored = [];
+  const notified = [];
   await withServer(async (sql, params) => {
-    if (sql.includes('INSERT INTO helipad_alpha_signup')) { stored.push(params); return { rows: [] }; }
+    if (sql.includes('INSERT INTO helipad_alpha_signup')) {
+      const inserted = !stored.some(row => row[0] === params[0]);
+      stored.push(params);
+      return { rows: [{ inserted }] };
+    }
     throw new Error(`Unexpected query: ${sql}`);
   }, async base => {
     const preflight = await fetch(`${base}/v1/alpha-signup`, { method: 'OPTIONS' });
@@ -135,7 +140,20 @@ test('alpha sign-up stores a normalised email, answers preflight, and drops hone
     assert.deepEqual(stored, [['sam@example.com', 'Sam']]);
     assert.equal((await post({ name: 'Sam', email: 'not-an-email' })).status, 400);
     assert.equal((await post({ name: '', email: 'sam@example.com' })).status, 400);
+    assert.equal((await post({ name: 'Sam\r\nBcc: x', email: 'sam@example.com' })).status, 400);
     assert.equal((await post({ name: 'Bot', email: 'bot@example.com', website: 'spam.example' })).status, 200);
     assert.equal(stored.length, 1);
-  });
+    assert.equal((await post({ name: 'Samuel', email: 'sam@example.com' })).status, 200);
+    assert.deepEqual(notified, [{ name: 'Sam', email: 'sam@example.com' }], 'only the first sign-up for an email notifies');
+  }, { notifySignup: async signup => { notified.push(signup); } });
+});
+
+test('a failed sign-up notification still reports success', async () => {
+  await withServer(async () => ({ rows: [{ inserted: true }] }), async base => {
+    const response = await fetch(`${base}/v1/alpha-signup`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Ada', email: 'ada@example.com' })
+    });
+    assert.equal(response.status, 200);
+  }, { notifySignup: async () => { throw new Error('mail down'); } });
 });
