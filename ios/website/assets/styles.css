@@ -131,16 +131,18 @@ svg.lucide { width: 1em; height: 1em; stroke-width: 2; flex: none; }
 @media (max-width: 760px) { .nav-links { display: none; } }
 
 /* ---------- Intro reveal ---------- */
-.intro { position: relative; height: 280vh; background: var(--night); --p: 0; }
+.intro { position: relative; height: 240vh; background: var(--night); --p: 0; --side: 29%; }
+@media (max-width: 700px) { .intro { --side: 21%; } }
 .intro-sticky { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
-.tri {
-  position: absolute; inset: 0;
-  display: flex; gap: calc(6px * (1 - var(--p)));
-}
-.panel { position: relative; overflow: hidden; min-width: 0; background: #1a231f; }
-.panel-side { flex: 1 1 0; opacity: calc(1 - var(--p) * .6); }
-.panel-center { flex: 0 0 calc(42% + 58% * var(--p)); }
-@media (max-width: 700px) { .panel-center { flex-basis: calc(58% + 42% * var(--p)); } }
+/* The panels are fixed layers: scrolling only changes a clip and two
+   transforms, which the compositor handles. Resizing flex panels instead made
+   iPhone Safari re-lay out every frame, and the scroll stuttered. */
+.tri { position: absolute; inset: 0; }
+.panel { position: absolute; top: 0; bottom: 0; overflow: hidden; background: #1a231f; }
+.panel-side { width: calc(var(--side) - 6px); opacity: calc(1 - var(--p) * .6); will-change: transform; }
+.panel-side:first-child { left: 0; transform: translateX(calc(-100% * var(--p))); }
+.panel-side:last-child { right: 0; transform: translateX(calc(100% * var(--p))); }
+.panel-center { left: 0; right: 0; clip-path: inset(0 calc(var(--side) * (1 - var(--p))) 0 calc(var(--side) * (1 - var(--p)))); }
 .panel img {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
   opacity: 0; transform: scale(1.06);
@@ -174,13 +176,13 @@ svg.lucide { width: 1em; height: 1em; stroke-width: 2; flex: none; }
 .hero { padding: clamp(96px, 12vw, 140px) 0 40px; position: relative; }
 .hero-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: clamp(28px, 5vw, 64px); align-items: center; }
 .hero-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 22px; margin-top: 34px; }
-.hero-art { position: relative; height: clamp(560px, 52vw, 660px); }
+.hero-art { --pw: 300px; position: relative; height: calc(var(--pw) * 844 / 390 + 48px); }
 .art-block { position: absolute; border-radius: 6px; }
 .art-butter { left: 0; top: 16%; width: 38%; height: 70%; background: var(--butter); }
 .art-photo { position: absolute; overflow: hidden; border-radius: 6px; }
 .art-photo img { width: 100%; height: 100%; object-fit: cover; }
 .hero-art .art-photo { right: 0; top: 0; width: 72%; height: 88%; }
-.phone-hero { position: absolute; left: 18%; top: 5%; }
+.phone.phone-hero { --w: var(--pw); position: absolute; left: 18%; top: 36px; }
 .toast {
   position: absolute; left: 4%; top: 1%; z-index: 3; width: min(330px, 88%);
   display: flex; gap: 12px; align-items: flex-start;
@@ -424,8 +426,9 @@ svg.lucide { width: 1em; height: 1em; stroke-width: 2; flex: none; }
 .seg-lead { background: repeating-linear-gradient(90deg, rgba(255, 211, 107, .55) 0 6px, transparent 6px 11px); height: 3px; top: 70px; }
 .seg-drive { background: linear-gradient(90deg, var(--lime), #ffd866); box-shadow: 0 0 18px rgba(255, 216, 102, .35); }
 .seg-buffer { background: repeating-linear-gradient(135deg, rgba(232, 228, 201, .8) 0 4px, rgba(232, 228, 201, .25) 4px 8px); }
-.car { position: absolute; top: 50%; left: 0; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: #fff; color: var(--forest); display: grid; place-items: center; font-size: 18px; box-shadow: 0 6px 16px -4px rgba(0,0,0,.4); animation: drive 3.2s var(--ease) infinite; }
-@keyframes drive { 0% { left: 0; } 80%, 100% { left: 100%; } }
+.car-track { position: absolute; inset: 0; animation: drive 3.2s var(--ease) infinite; }
+.car { position: absolute; top: 50%; left: 0; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: #fff; color: var(--forest); display: grid; place-items: center; font-size: 18px; box-shadow: 0 6px 16px -4px rgba(0,0,0,.4); }
+@keyframes drive { 0% { transform: none; } 80%, 100% { transform: translateX(100%); } }
 .mark { position: absolute; left: var(--x); top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; transition: left .8s var(--ease); }
 .mark svg { width: 36px; height: 36px; padding: 9px; border-radius: 50%; background: rgba(255, 255, 255, .12); }
 .mark span { order: -1; white-space: nowrap; }
@@ -453,8 +456,8 @@ svg.lucide { width: 1em; height: 1em; stroke-width: 2; flex: none; }
 .tab-list button[aria-selected="true"] { background: var(--warm-white); border-color: var(--rule); box-shadow: 0 12px 30px -22px rgba(35, 61, 51, .5); }
 .tab-n { display: block; font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
 .tab-list b { display: block; font-family: var(--serif); font-weight: 500; font-size: 26px; letter-spacing: -.02em; margin: 4px 0 0; }
-.tab-d { display: block; overflow: hidden; max-height: 0; opacity: 0; font-size: 15px; color: #56685e; transition: max-height .5s var(--ease), opacity .4s, margin .4s; }
-.tab-list button[aria-selected="true"] .tab-d { max-height: 120px; opacity: 1; margin-top: 8px; }
+.tab-d { display: block; margin-top: 8px; font-size: 15px; color: #56685e; opacity: .55; transition: opacity .4s; }
+.tab-list button[aria-selected="true"] .tab-d { opacity: 1; }
 .tab-bar { position: absolute; left: 22px; right: 22px; bottom: 10px; height: 2px; background: var(--rule); border-radius: 2px; overflow: hidden; opacity: 0; }
 .tab-list button[aria-selected="true"] .tab-bar { opacity: 1; }
 .tab-bar span { display: block; height: 100%; width: 0; background: var(--forest); }
@@ -523,7 +526,7 @@ svg.lucide { width: 1em; height: 1em; stroke-width: 2; flex: none; }
 /* ---------- Responsive ---------- */
 @media (max-width: 980px) {
   .hero-grid, .split, .tabs, .drive-lab, .join-card { grid-template-columns: 1fr; }
-  .hero-art { height: 600px; max-width: 560px; width: 100%; margin: 0 auto; }
+  .hero-art { max-width: 560px; width: 100%; margin: 0 auto; }
   .split-art { order: -1; }
   .grid { grid-template-columns: 1fr 1fr; }
   .tab-stage { order: -1; }
@@ -531,13 +534,13 @@ svg.lucide { width: 1em; height: 1em; stroke-width: 2; flex: none; }
 }
 @media (max-width: 620px) {
   .hero { padding-top: 92px; }
-  .hero-art { height: 540px; }
+  .hero-art { --pw: 250px; }
   .hero-art .art-photo { width: 78%; }
-  .phone-hero { --w: 250px; left: 8%; top: 9%; }
+  .phone.phone-hero { left: 8%; }
   .toast { top: 0; left: 0; }
   .phone-lock, .phone-tabs { --w: 270px; }
   .feature-list, .grid { grid-template-columns: 1fr; }
-  .proof { flex-direction: column; margin-top: 36px; }
+  .proof { flex-direction: column; gap: 14px; margin-top: 32px; padding-top: 24px; }
   .seg label > span { min-height: 76px; font-size: 12.5px; }
   .seg-small label > span { min-height: 44px; }
   .track { height: 140px; }
@@ -551,6 +554,6 @@ svg.lucide { width: 1em; height: 1em; stroke-width: 2; flex: none; }
   html { scroll-behavior: auto; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .panel img, .band-media img { transition: opacity .01s; transform: none !important; }
-  .car, .scroll-cue span, .gps::before, .live-dot { animation: none; }
-  .car { left: 50%; }
+  .car-track, .scroll-cue span, .gps::before, .live-dot { animation: none; }
+  .car-track { transform: translateX(50%); }
 }

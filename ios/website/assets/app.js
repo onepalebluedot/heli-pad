@@ -29,13 +29,16 @@
    * ------------------------------------------------------------------ */
   const intro = $('#intro');
   const nav = $('#nav');
+  const sticky = $('.intro-sticky');
   let ticking = false;
 
   const onScroll = () => {
     ticking = false;
     const rect = intro.getBoundingClientRect();
-    const travel = intro.offsetHeight - window.innerHeight;
-    const raw = clamp(-rect.top / (travel * 0.8), 0, 1);
+    // Measured against the sticky frame (100svh), not innerHeight: Safari's
+    // toolbar collapsing mid-scroll changes innerHeight and made the reveal lurch.
+    const travel = intro.offsetHeight - sticky.offsetHeight;
+    const raw = clamp(-rect.top / (travel * 0.85), 0, 1);
     // Ease-in-out so the panel lingers at both ends instead of sliding linearly.
     const p = raw < 0.5 ? 2 * raw * raw : 1 - Math.pow(-2 * raw + 2, 2) / 2;
     intro.style.setProperty('--p', p.toFixed(4));
@@ -48,7 +51,7 @@
   window.addEventListener('scroll', () => {
     if (!ticking) { ticking = true; requestAnimationFrame(onScroll); }
   }, { passive: true });
-  window.addEventListener('resize', onScroll);
+  window.addEventListener('resize', () => requestAnimationFrame(onScroll));
   onScroll();
 
   /* ------------------------------------------------------------------
@@ -264,7 +267,7 @@
     const els = {
       leave: $('#leaveBy'), buzz: $('#buzzAt'), cap: $('#vizCaption'),
       lead: $('#segLead'), drive: $('#segDrive'), buffer: $('#segBuffer'),
-      bell: $('#markBell'), go: $('#markLeave'), car: $('#segDrive .car')
+      bell: $('#markBell'), go: $('#markLeave'), car: $('#segDrive .car-track')
     };
     const val = name => Number($(`input[name="${name}"]:checked`, lab).value);
     const update = () => {
