@@ -269,6 +269,39 @@ public extension HouseholdListsArchive {
 // MARK: - Validation
 
 public extension HouseholdListsArchive {
+    /// A newly created family starts with the same visible lists but a new
+    /// household identity. Re-key the two fixed lists and their General
+    /// groups, including every item reference, before saving the copy.
+    func copied(to householdID: String) throws -> HouseholdListsArchive {
+        _ = try validated()
+        var copy = self
+        let listIDs = Dictionary(uniqueKeysWithValues: lists.map {
+            ($0.id, HouseholdListsDefaults.listID(householdID: householdID, kind: $0.kind))
+        })
+        var groupIDs: [String: String] = [:]
+        for group in groups {
+            if group.id == HouseholdListsDefaults.groupID(listID: group.listID),
+               let newListID = listIDs[group.listID] {
+                groupIDs[group.id] = HouseholdListsDefaults.groupID(listID: newListID)
+            }
+        }
+        copy.householdID = householdID
+        copy.connectionFingerprint = ""
+        copy.remoteRevision = nil
+        copy.uploadedRevision = 0
+        copy.deletions = [] // A new family has no old remote records to delete.
+        for index in copy.lists.indices { copy.lists[index].id = listIDs[copy.lists[index].id]! }
+        for index in copy.groups.indices {
+            copy.groups[index].listID = listIDs[copy.groups[index].listID]!
+            copy.groups[index].id = groupIDs[copy.groups[index].id] ?? copy.groups[index].id
+        }
+        for index in copy.items.indices {
+            copy.items[index].listID = listIDs[copy.items[index].listID]!
+            copy.items[index].groupID = groupIDs[copy.items[index].groupID] ?? copy.items[index].groupID
+        }
+        return try copy.validated()
+    }
+
     /// Version 1 allowed additional lists. Version 2 keeps their sections and
     /// items under the matching primary list, with stable item/group identities.
     /// Both devices compute the same migration. Unknown future data is refused.

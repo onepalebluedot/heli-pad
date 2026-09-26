@@ -41,6 +41,8 @@
 		72FC76C5F9CB71FCCA9E7E26 /* OnboardingPlacesStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85D723F2D1D02C5EB5EAC177 /* OnboardingPlacesStep.swift */; };
 		73DB2321EA4D84F4449AC9A9 /* GoMastheadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A2F2C70CBE4DA298033654C /* GoMastheadView.swift */; };
 		7677AE166C68C7329477695F /* NeonDatabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A2D56146E5338169D0229E2 /* NeonDatabaseService.swift */; };
+		FA1000000000000000000001 /* FamilyAccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1000000000000000000002 /* FamilyAccountService.swift */; };
+		FA1000000000000000000003 /* FamilyAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1000000000000000000004 /* FamilyAccountView.swift */; };
 		7F124BE0F4E7CB5E2F269E48 /* OnboardingBuild.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BF0A215CB3BD5AFF96F4CB9 /* OnboardingBuild.swift */; };
 		8358A897059C10DEE655C16E /* IntegrationsGuideSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F96DD6F9B399B2B489C9F6A /* IntegrationsGuideSheet.swift */; };
 		895250FED09067FB7F435E08 /* PlanCalendarReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25F82A5046AFF986652C86BD /* PlanCalendarReviewSheet.swift */; };
@@ -114,6 +116,8 @@
 		329F663B6D39EA8A47A5A999 /* GoogleMapsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleMapsService.swift; sourceTree = "<group>"; };
 		329F663B6D39EA8A47A5B001 /* GoogleCalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleCalendarService.swift; sourceTree = "<group>"; };
 		3A2D56146E5338169D0229E2 /* NeonDatabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeonDatabaseService.swift; sourceTree = "<group>"; };
+		FA1000000000000000000002 /* FamilyAccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyAccountService.swift; sourceTree = "<group>"; };
+		FA1000000000000000000004 /* FamilyAccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyAccountView.swift; sourceTree = "<group>"; };
 		3A997D0A6D5F218A754FF804 /* FamilyViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyViewModel.swift; sourceTree = "<group>"; };
 		3BF0A215CB3BD5AFF96F4CB9 /* OnboardingBuild.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingBuild.swift; sourceTree = "<group>"; };
 		3F1ECD620ACD184F5685A63D /* FamilyLocationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyLocationSheet.swift; sourceTree = "<group>"; };
@@ -288,6 +292,7 @@
 				329F663B6D39EA8A47A5B001,
 				0712DA5983C3011B96A994E7,
 				3A2D56146E5338169D0229E2,
+				FA1000000000000000000002,
 				8706FA2A7D58717A279526F4,
 				820555E81E79C06084A4CAF6,
 				57BEC2F42254967DD9A9D881,
@@ -446,6 +451,7 @@
 			children = (
 				6D7FB2C3390FB08A4D458A0F,
 				6FD341B521B53260E070DA84,
+				FA1000000000000000000004,
 				D67BB6377C7985382333C0CF,
 			);
 			path = App;
@@ -571,6 +577,7 @@
 				BB000000000000000000000D /* AssistantSettings.swift in Sources */,
 				BFED4CFE76C92EEE432593F9 /* AppConfig.swift in Sources */,
 				A0D4A2C83FFB32DF299CC068 /* ContentView.swift in Sources */,
+				FA1000000000000000000003 /* FamilyAccountView.swift in Sources */,
 				04DC1DB2DDC35D4FE3406E01 /* HeliPadApp.swift in Sources */,
 				AC6F1B0D663494C37248E2FB /* AvatarDisc.swift in Sources */,
 				CBAF16CA5D35178E1B934EF3 /* GoDialInstrument.swift in Sources */,
@@ -637,6 +644,7 @@
 				057353B07A919E0EC3ECB001 /* GoogleCalendarService.swift in Sources */,
 				0AA36FB6E684938ED0668278 /* LocationService.swift in Sources */,
 				7677AE166C68C7329477695F /* NeonDatabaseService.swift in Sources */,
+				FA1000000000000000000001 /* FamilyAccountService.swift in Sources */,
 				A89C723B54C348C55C13D866 /* NotificationService.swift in Sources */,
 				38E3988D044E747E3675981C /* WeatherService.swift in Sources */,
 							B2460CE5029B0A4F92DABE5B /* HouseholdLists.swift in Sources */,
@@ -660,6 +668,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = HeliPad.entitlements;
+				FAMILY_API_URL = "https://heli-pad-family-api.vercel.app";
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 87Q24PLN3T;
@@ -713,6 +723,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = HeliPad.entitlements;
+				FAMILY_API_URL = "https://heli-pad-family-api.vercel.app";
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 87Q24PLN3T;

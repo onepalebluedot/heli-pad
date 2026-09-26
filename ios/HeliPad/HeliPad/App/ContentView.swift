@@ -32,6 +32,9 @@ public struct ContentView: View {
     @StateObject private var store = AppStore.shared
     @State private var selectedTab: MainTab = .go
     @State private var isKeyboardVisible = false
+    @State private var pendingInviteCode = ""
+    @State private var newCaregiverName = ""
+    @State private var profileError: String?
     /// One route, so two sheets can never race each other (N01). The previous
     /// pair of booleans could both be true at once.
     @State private var route: PresentedRoute?
@@ -66,8 +69,25 @@ public struct ContentView: View {
 
     public init() {}
 
+    private var needsFamilyAccount: Bool {
+        AppConfig.familyAPIURL != nil && !store.hasCompletedOnboarding && !store.isManagedFamily
+    }
+
     public var body: some View {
         ZStack(alignment: .bottom) {
+            if needsFamilyAccount {
+                FamilyAccountView(
+                    store: store,
+                    isFirstRun: true,
+                    initialInviteCode: pendingInviteCode,
+                    onFinished: {
+                        pendingInviteCode = ""
+                        if store.hasCompletedOnboarding && store.currentUser == "All" {
+                            route = .profilePicker
+                        }
+                    }
+                )
+            } else {
             // Main surface switch
             VStack(spacing: 0) {
                 topBar
@@ -96,6 +116,7 @@ public struct ContentView: View {
                 .offset(y: isKeyboardVisible ? 120 : 0)
                 .animation(.easeInOut(duration: 0.2), value: isKeyboardVisible)
                 .allowsHitTesting(!isKeyboardVisible)
+            }
         }
         .onChange(of: route) { previous, current in
             // Settings can change the service URL or token, so the engine is
@@ -189,8 +210,16 @@ public struct ContentView: View {
             // Fetch live weather once on app load to conserve battery & network
             await store.updateLiveWeather()
         }
-        .fullScreenCover(isPresented: $store.showOnboarding) {
+        .fullScreenCover(isPresented: Binding(
+            get: { store.showOnboarding && !needsFamilyAccount },
+            set: { store.showOnboarding = $0 }
+        )) {
             OnboardingView(store: store)
+        }
+        .onOpenURL { url in
+            guard url.scheme == "helipad", url.host == "invite",
+                  let code = url.pathComponents.dropFirst().first else { return }
+            pendingInviteCode = code
         }
         #if os(iOS)
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
@@ -441,6 +470,30 @@ public struct ContentView: View {
                     }
                 }
                 .padding(.horizontal, 16)
+
+                HStack(spacing: 10) {
+                    TextField("New caregiver name", text: $newCaregiverName)
+                        .textFieldStyle(.roundedBorder)
+                        .textContentType(.name)
+                    Button("Add") {
+                        do {
+                            try store.createCaregiverProfile(name: newCaregiverName)
+                            newCaregiverName = ""
+                            profileError = nil
+                            route = nil
+                        } catch {
+                            profileError = error.localizedDescription
+                        }
+                    }
+                    .disabled(newCaregiverName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                .padding(.horizontal, 20)
+                if let profileError {
+                    Text(profileError)
+                        .font(HeliTypography.caption(12))
+                        .foregroundColor(HeliColors.clayText)
+                        .padding(.horizontal, 20)
+                }
 
                 Spacer()
             }

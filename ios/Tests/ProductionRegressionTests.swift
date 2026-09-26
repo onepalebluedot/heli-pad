@@ -2020,6 +2020,34 @@ final class MockListsHost: HouseholdListsHost {
               "lists are written to their own document instead")
         check(app.lists.archive.householdID == appHousehold, "the lists document is keyed to the household")
 
+        app.hasCompletedOnboarding = true
+        app.save(syncToCloud: false)
+        let sharedFamilyID = UUID().uuidString
+        try app.useCreatedFamily(id: sharedFamilyID, uploadedState: true)
+        check(app.isManagedFamily && app.cloudHouseholdID == sharedFamilyID,
+              "sharing adopts the account family identity")
+        check(app.lists.archive.householdID == sharedFamilyID && app.lists.item(appItem)?.text == "Oat milk",
+              "sharing preserves local list items under the new family")
+        check(app.lists.defaultList(.groceries)?.id == HouseholdListsDefaults.listID(householdID: sharedFamilyID, kind: .groceries),
+              "sharing gives the new family its own canonical list identities")
+        check(appDefaults.data(forKey: HouseholdListsPersistence.storageKey(householdID: appHousehold)) != nil,
+              "the old local lists document remains available for recovery")
+
+        let invitedCloud = TestCloud()
+        await invitedCloud.setRemote(app.accountExportState())
+        let invitedSuite = "helipad.account.join.\(UUID().uuidString)"
+        let invitedDefaults = UserDefaults(suiteName: invitedSuite)!
+        defer { invitedDefaults.removePersistentDomain(forName: invitedSuite) }
+        let invited = AppStore(timeZone: "UTC", cloudService: invitedCloud,
+                               listsCloud: MockListsCloud(), secretStore: MemorySecrets(),
+                               schedulesNotifications: false, now: { now })
+        invited.restore(from: invitedDefaults)
+        try await invited.joinManagedFamily(id: sharedFamilyID)
+        check(invited.isManagedFamily && invited.hasCompletedOnboarding && invited.currentUser == "All",
+              "an invited phone downloads its family and asks for a caregiver profile")
+        check(invited.cloudHouseholdID == sharedFamilyID && invited.people.map(\.name) == app.people.map(\.name),
+              "an invited phone receives the family people under the new identity")
+
         print("Production regression checks passed: credentials, sync races/conflicts/retry, two-phone merge and convergence, live sync quiescence, rollover, clock, analysis caching, solo events, Google Calendar read/write/reconciliation/conflicts, stats tracking, event provenance/legacy decoding, and Lists identity/storage/commands/convergence/sync/recovery/isolation.")
     }
 }

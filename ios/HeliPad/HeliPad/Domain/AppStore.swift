@@ -184,8 +184,8 @@ public class AppStore: ObservableObject {
         connections: [String: Bool] = ["google": false, "apple": false],
         routes: [String: [String: Int]] = SeedData.routeMatrix,
         defaultLocations: [LocationItem]? = nil,
-        cloudService: HouseholdCloudService = NeonDatabaseService.shared,
-        listsCloud: HouseholdListsCloudService = NeonListsCloudService(),
+        cloudService: HouseholdCloudService = FamilyHouseholdCloudService(),
+        listsCloud: HouseholdListsCloudService = FamilyListsCloudService(),
         secretStore: IntegrationSecretStore = KeychainIntegrationSecrets(),
         googleCalendarService: GoogleCalendarProtocol = GoogleCalendarService.shared,
         schedulesNotifications: Bool = true,
@@ -725,6 +725,60 @@ public class AppStore: ObservableObject {
                 do { try await self.syncWithNeon() } catch { self.syncError = error.localizedDescription }
             }
         }
+    }
+
+    public var isManagedFamily: Bool {
+        neonConnectionString == FamilyAccountAPI.managedConnection
+    }
+
+    public func accountExportState() -> PersistedState {
+        snapshot().cloudPayload()
+    }
+
+    /// Moves a local family into the account service after the server has
+    /// created its membership. Keep a local lists copy under the new id before
+    /// changing the sync identity, so the old household remains recoverable.
+    public func useCreatedFamily(id: String, uploadedState: Bool) throws {
+        let previousLists = lists.archive
+        if hasCompletedOnboarding {
+            let copy = try previousLists.copied(to: id)
+            try HouseholdListsPersistence.save(copy, to: persistenceDefaults)
+        }
+        cloudHouseholdID = id
+        neonConnectionString = FamilyAccountAPI.managedConnection
+        neonSyncEnabled = true
+        prepareSyncIdentity()
+        syncMetadata.remoteRevision = uploadedState ? "1" : nil
+        syncMetadata.uploadedRevision = uploadedState ? syncMetadata.localRevision : 0
+        syncPending = !uploadedState
+        lists.reload()
+        persist()
+    }
+
+    /// An invitee's first phone has no family data to retain. Download the
+    /// invited family before changing the local identity, then save it at once.
+    @MainActor
+    public func joinManagedFamily(id: String) async throws {
+        guard !hasCompletedOnboarding else {
+            throw FamilyAccountError.rejected("This phone already has a family. Set up sharing for it before joining another one.")
+        }
+        let remote = try await cloudService.pullHousehold(
+            householdId: id, rawConnectionString: FamilyAccountAPI.managedConnection
+        )
+        guard let remote else { throw FamilyAccountError.rejected("This family has not finished setup yet.") }
+        cloudHouseholdID = id
+        neonConnectionString = FamilyAccountAPI.managedConnection
+        neonSyncEnabled = true
+        prepareSyncIdentity()
+        apply(remote.state)
+        currentUser = "All"
+        showOnboarding = false
+        syncMetadata.remoteRevision = remote.revision
+        syncMetadata.uploadedRevision = syncMetadata.localRevision
+        syncPending = false
+        lists.reload()
+        persist()
+        await lists.sync()
     }
 
     /// Re-queues the leave-in-10 reminders and the overdue check-ins from the
@@ -1669,6 +1723,23 @@ public class AppStore: ObservableObject {
         }
         save()
         return p
+    }
+
+    public func createCaregiverProfile(name rawName: String) throws {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, !Self.RESERVED_NAMES.contains(name.lowercased()),
+              !people.contains(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) else {
+            throw FamilyAccountError.rejected("Choose a unique caregiver name.")
+        }
+        let palette = OnboardingDraft.caregiverInks
+        let color = palette[people.filter { $0.kind == "caregiver" }.count % palette.count]
+        people.append(Person(
+            id: "person-\(UUID().uuidString)", name: name,
+            relationship: "Other", kind: "caregiver", color: color
+        ))
+        parentLocations[name] = home()
+        currentUser = name
+        save()
     }
 
     public func setSetting(key: String, value: Any) throws {

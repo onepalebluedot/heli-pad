@@ -5,6 +5,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+family_api_url="${FAMILY_API_URL:-https://heli-pad-family-api.vercel.app}"
+if [[ "$family_api_url" != https://* ]]; then
+  echo "Set FAMILY_API_URL to the deployed HTTPS family API before uploading this build." >&2
+  exit 1
+fi
+
 # Apple rejects an upload that reuses a build number, so each run stamps one
 # from the clock instead of relying on CURRENT_PROJECT_VERSION being bumped by
 # hand. YYYYMMDD.HHMM, with the leading zero stripped from HHMM so both parts
@@ -23,6 +29,7 @@ xcodebuild -project HeliPad/HeliPad.xcodeproj -scheme HeliPad \
   -configuration Release -destination 'generic/platform=iOS' \
   -archivePath "$work_dir/HeliPad.xcarchive" \
   -allowProvisioningUpdates -quiet \
+  FAMILY_API_URL="$family_api_url" \
   CURRENT_PROJECT_VERSION="$build_number" archive
 
 echo "Uploading to App Store Connect"

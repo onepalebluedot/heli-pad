@@ -27,6 +27,10 @@ public struct SettingsView: View {
     @State private var isTestingGoogle: Bool = false
     @State private var isTestingNeon: Bool = false
     @State private var showCloudDownloadConfirm = false
+    @State private var showFamilyAccount = false
+    @State private var showFamilyInvite = false
+    @State private var familyAccountName = ""
+    @State private var familyMembers: [FamilyMember] = []
     @State private var isSyncingNeon: Bool = false
     @State private var googleStatusText: String? = nil
     @State private var neonStatusText: String? = nil
@@ -101,6 +105,12 @@ public struct SettingsView: View {
             }
             .sheet(isPresented: $showCalendarReview) {
                 PlanCalendarReviewSheet(store: store)
+            }
+            .sheet(isPresented: $showFamilyAccount) {
+                FamilyAccountView(store: store, isFirstRun: false, onFinished: { showFamilyAccount = false })
+            }
+            .sheet(isPresented: $showFamilyInvite) {
+                FamilyInviteView(store: store)
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -632,6 +642,43 @@ public struct SettingsView: View {
 
     private var accountSectionContent: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if AppConfig.familyAPIURL != nil {
+                if store.isManagedFamily {
+                    Text("Family sharing is on. Only signed-in members can sync this household.")
+                        .font(HeliTypography.body(13))
+                        .foregroundColor(HeliColors.greenInk)
+                    if !familyAccountName.isEmpty {
+                        Text(familyAccountName)
+                            .font(HeliTypography.cardTitle(15))
+                            .foregroundColor(HeliColors.greenInk)
+                    }
+                    ForEach(familyMembers) { member in
+                        HStack {
+                            Text(member.displayName.isEmpty ? "Family member" : member.displayName)
+                            Spacer()
+                            Text(member.role.capitalized)
+                                .foregroundColor(HeliColors.mutedGray)
+                        }
+                        .font(HeliTypography.body(13))
+                    }
+                    Button("Invite family member") { showFamilyInvite = true }
+                        .font(HeliTypography.actionButton(14))
+                        .foregroundColor(HeliColors.forestGreen)
+                        .frame(minHeight: 44)
+                    Button("Reconnect family account") { showFamilyAccount = true }
+                        .font(HeliTypography.actionButton(13))
+                        .foregroundColor(HeliColors.mutedGray)
+                        .frame(minHeight: 44)
+                } else {
+                    Text("Create a family account to share this household without giving anyone a database password.")
+                        .font(HeliTypography.body(13))
+                        .foregroundColor(HeliColors.mutedGray)
+                    Button("Set up family sharing") { showFamilyAccount = true }
+                        .font(HeliTypography.actionButton(14))
+                        .foregroundColor(HeliColors.forestGreen)
+                        .frame(minHeight: 44)
+                }
+            }
             Text("Switch active caregiver profile:")
                 .font(HeliTypography.body(13))
                 .foregroundColor(HeliColors.mutedGray)
@@ -650,12 +697,26 @@ public struct SettingsView: View {
             }
             .pickerStyle(.segmented)
         }
+        .task(id: store.isManagedFamily ? store.cloudHouseholdID : "") {
+            guard store.isManagedFamily else { return }
+            do {
+                let api = FamilyAccountAPI.shared
+                let profile = try await api.profile()
+                familyAccountName = profile.families.first { $0.id == store.cloudHouseholdID }?.name ?? ""
+                familyMembers = try await api.members(familyID: store.cloudHouseholdID)
+            } catch { familyMembers = [] }
+        }
     }
 
     // MARK: - Section: Integrations & Cloud
 
     private var integrationsSectionContent: some View {
         VStack(alignment: .leading, spacing: 18) {
+            if store.isManagedFamily {
+                Text("Cloud sync is managed by your family account. Database credentials stay on the family service.")
+                    .font(HeliTypography.body(13))
+                    .foregroundColor(HeliColors.greenInk)
+            } else {
             // Setup Guide Action Banner
             Button(action: { showIntegrationsGuide = true }) {
                 HStack(spacing: 12) {
@@ -680,6 +741,7 @@ public struct SettingsView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .buttonStyle(.plain)
+            }
 
             // 1. Google Maps Platform
             VStack(alignment: .leading, spacing: 8) {
@@ -954,7 +1016,8 @@ public struct SettingsView: View {
             Divider().overlay(HeliColors.sageRule)
 
             // 4. Neon Serverless Postgres Database
-            VStack(alignment: .leading, spacing: 8) {
+            if !store.isManagedFamily {
+                VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Neon Serverless Database")
                         .font(HeliTypography.railTitle(14))
@@ -1084,6 +1147,7 @@ public struct SettingsView: View {
                     Text("Last synchronized: \(lastSync.formatted(date: .abbreviated, time: .shortened))")
                         .font(HeliTypography.caption(11))
                         .foregroundColor(HeliColors.mutedGray)
+                }
                 }
             }
         }

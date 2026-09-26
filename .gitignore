@@ -1,6 +1,7 @@
 # Secrets and deploy
 .vercel
 .env*
+node_modules/
 
 # macOS
 .DS_Store
