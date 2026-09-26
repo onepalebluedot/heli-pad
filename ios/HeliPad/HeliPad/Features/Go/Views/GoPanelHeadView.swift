@@ -18,7 +18,7 @@ public struct GoPanelHeadView: View {
                     .foregroundColor(HeliColors.greenInk)
 
                 // Completion Pips (only when on rail)
-                if store.goPanel == "rail" {
+                if store.goPanel == "rail" || !viewData.canCompareDriving {
                     HStack(spacing: 4) {
                         ForEach(viewData.plan, id: \.id) { analyzed in
                             Circle()
@@ -31,39 +31,42 @@ public struct GoPanelHeadView: View {
 
             Spacer()
 
-            // 2-Icon Panel Swap Toggle
-            HStack(spacing: 2) {
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        store.goPanel = "rail"
+            if viewData.canCompareDriving {
+                HStack(spacing: 2) {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            store.goPanel = "rail"
+                        }
+                    }) {
+                        HeliIcon("list", size: 14)
+                            .foregroundColor(store.goPanel == "rail" ? HeliColors.forestGreen : HeliColors.mutedGray)
+                            .frame(width: 44, height: 44)
+                            .background(store.goPanel == "rail" ? HeliColors.activeNavTab : Color.clear)
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                     }
-                }) {
-                    HeliIcon("list", size: 14)
-                        .foregroundColor(store.goPanel == "rail" ? HeliColors.forestGreen : HeliColors.mutedGray)
-                        .padding(6)
-                        .background(store.goPanel == "rail" ? HeliColors.activeNavTab : Color.clear)
-                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                }
+                    .accessibilityLabel("Show selected day's stops")
 
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        store.goPanel = "load"
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            store.goPanel = "load"
+                        }
+                    }) {
+                        HeliIcon("load", size: 14)
+                            .foregroundColor(store.goPanel == "load" ? HeliColors.forestGreen : HeliColors.mutedGray)
+                            .frame(width: 44, height: 44)
+                            .background(store.goPanel == "load" ? HeliColors.activeNavTab : Color.clear)
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                     }
-                }) {
-                    HeliIcon("load", size: 14)
-                        .foregroundColor(store.goPanel == "load" ? HeliColors.forestGreen : HeliColors.mutedGray)
-                        .padding(6)
-                        .background(store.goPanel == "load" ? HeliColors.activeNavTab : Color.clear)
-                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .accessibilityLabel("Compare estimated driving by caregiver")
                 }
+                .padding(2)
+                .background(HeliColors.cardWarmWhite)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(HeliColors.sageRule, lineWidth: 0.8)
+                )
             }
-            .padding(2)
-            .background(HeliColors.cardWarmWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(HeliColors.sageRule, lineWidth: 0.8)
-            )
         }
         .padding(.horizontal, 20)
         .padding(.top, 10)
@@ -71,8 +74,8 @@ public struct GoPanelHeadView: View {
     }
 
     private var titleText: String {
-        if store.goPanel == "load" {
-            return "Wheel time"
+        if store.goPanel == "load" && viewData.canCompareDriving {
+            return "Driving by caregiver"
         }
         let who = store.goCrewFilter ?? store.currentUser
         if who == "All" {

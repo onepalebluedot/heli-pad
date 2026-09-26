@@ -770,6 +770,14 @@ final class MockListsHost: HouseholdListsHost {
         let unknownRouteData = GoViewModel(store: unknownRouteStore).computeView(store: unknownRouteStore)
         check(unknownRouteData.drivers["Mom"]?.assignedStops == 1, "assigned drive remains visible when its route is unknown")
         check(unknownRouteData.drivers["Mom"]?.unknownRoutes == 1, "unknown route is not reported as zero driving")
+        check(!unknownRouteData.canCompareDriving, "driving comparison stays hidden without two route estimates")
+        var comparableDriving = unknownRouteData
+        var momLoad = DriverLoad()
+        momLoad.knownRoutes = 1
+        var dadLoad = DriverLoad()
+        dadLoad.knownRoutes = 1
+        comparableDriving.drivers = ["Mom": momLoad, "Dad": dadLoad]
+        check(comparableDriving.canCompareDriving, "driving comparison is available for two estimated caregivers")
 
         // Restore to a clean isolated suite and configure a user-owned connection.
         defaults.removePersistentDomain(forName: suite)

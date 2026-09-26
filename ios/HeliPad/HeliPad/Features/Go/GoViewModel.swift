@@ -17,6 +17,11 @@ public struct GoViewData {
     /// oldest first. Go lists them under the hero instead of keeping one in it.
     public var looseEndEvents: [TaskRecord]
     public var restingState: GoRestingState
+
+    /// A drive-time comparison needs estimates for at least two caregivers.
+    public var canCompareDriving: Bool {
+        drivers.values.filter { $0.knownRoutes > 0 }.count >= 2
+    }
 }
 
 public struct DriverLoad: Hashable {

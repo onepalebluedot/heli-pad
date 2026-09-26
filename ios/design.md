@@ -397,7 +397,7 @@ The lead is a pale disc with the name beneath it — "You" for the signed-in pro
 
 The rail ends with **Add a stop**, so creation sits beside the day it affects rather than on a floating button. It is a filled panel in the suggestion idiom Next uses — `#eeecd6` inside a `#dddcbc` hairline, with the plus in a pale disc — because the dashed outline it replaced was invisible against ivory. A create action should look like an invitation, not like a placeholder.
 
-Wheel time is whole-family by design: it is a load-balance read, not a filter. One row per caregiver who drove, sorted longest first, each a named disc and a chart-strength bar scaled against the busiest caregiver.
+Driving by caregiver is a whole-family load comparison for the selected day. Show the switch only when at least two caregivers have route estimates; otherwise the stop timeline stays visible. Each row shows estimated drive minutes, with a plus sign when some routes are still unknown, and the bar is scaled against the busiest caregiver. A route with no estimate has no filled bar.
 
 ### New stop, and editing one
 

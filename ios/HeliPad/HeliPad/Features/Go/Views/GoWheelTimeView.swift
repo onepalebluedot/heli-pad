@@ -18,6 +18,10 @@ public struct GoWheelTimeView: View {
         let maxMinutes = max(1, active.map(\.value.minutes).max() ?? 1)
 
         VStack(spacing: 12) {
+            Text("Estimated driving for the selected day")
+                .font(HeliTypography.caption(11))
+                .foregroundColor(HeliColors.mutedGray)
+                .frame(maxWidth: .infinity, alignment: .leading)
             if active.isEmpty {
                 Text("No driving assigned yet today.")
                     .font(HeliTypography.body(14))
@@ -42,16 +46,18 @@ public struct GoWheelTimeView: View {
                                     .fill(HeliColors.cardWarmWhite)
                                     .frame(height: 10)
 
-                                let fillWidth = geo.size.width * CGFloat(Double(load.minutes) / Double(maxMinutes))
-                                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                    .fill(col.ink)
-                                    .frame(width: max(8, fillWidth), height: 10)
+                                if load.knownRoutes > 0 {
+                                    let fillWidth = geo.size.width * CGFloat(Double(load.minutes) / Double(maxMinutes))
+                                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                        .fill(col.ink)
+                                        .frame(width: max(8, fillWidth), height: 10)
+                                }
                             }
                         }
                         .frame(height: 10)
 
                         VStack(alignment: .trailing, spacing: 1) {
-                            Text(load.knownRoutes == 0 ? "Route needed" : TimeFormat.formatDurationShort(load.minutes))
+                            Text(load.knownRoutes == 0 ? "Route needed" : "\(TimeFormat.formatDurationShort(load.minutes))\(load.unknownRoutes > 0 ? "+" : "")")
                                 .font(HeliTypography.railTime(12))
                             Text(load.unknownRoutes > 0 ? "partial · \(load.assignedStops) stops" : "\(load.assignedStops) stops")
                                 .font(HeliTypography.caption(9.5))

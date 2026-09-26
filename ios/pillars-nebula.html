@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nebula — Gas in Motion</title>
+  <style>
+    :root { color-scheme: dark; background: #030610; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      min-height: 100vh; display: grid; place-items: center; overflow: hidden;
+      background: radial-gradient(ellipse at 50% 48%, #10162b 0%, #080b18 56%, #03050b 100%);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .frame { width: min(15in, 92vw, 92vh); aspect-ratio: 1; position: relative; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .caption { position: absolute; inset: auto 0 -34px; text-align: center; color: #9ba0bd; font-size: 10px; letter-spacing: .27em; text-transform: uppercase; }
+    @media (prefers-reduced-motion: reduce) { .caption::after { content: " · STILL MODE"; } }
+  </style>
+</head>
+<body>
+  <main class="frame" aria-label="Animated nebula gas clouds in deep space">
+    <canvas id="space" role="img" aria-label="Slowly swirling and mixing rose, violet, gold, and teal gas clouds among stars"></canvas>
+    <div class="caption">Nebula · gas in motion</div>
+  </main>
+  <script>
+    const canvas = document.querySelector('#space');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const N = 260; // Small simulation grid, smoothly enlarged for a crisp, light animation.
+    const fieldCanvas = document.createElement('canvas');
+    fieldCanvas.width = fieldCanvas.height = N;
+    const fieldCtx = fieldCanvas.getContext('2d', { alpha: false });
+    const frame = fieldCtx.createImageData(N, N);
+    const pixels = frame.data;
+    const stars = [];
+    let w = 0, h = 0, last = 0;
+
+    function resize() {
+      const box = canvas.getBoundingClientRect();
+      const dpr = Math.min(devicePixelRatio || 1, 1.5);
+      w = canvas.width = Math.round(box.width * dpr);
+      h = canvas.height = Math.round(box.height * dpr);
+      ctx.imageSmoothingEnabled = true;
+      stars.length = 0;
+      for (let i = 0; i < 190; i++) {
+        const seed = i * 127.1 + 311.7;
+        const rand = n => { const v = Math.sin(seed + n * 78.233) * 43758.5453; return v - Math.floor(v); };
+        stars.push({ x: rand(1), y: rand(2), r: .35 + rand(3) * .9, phase: rand(4) * 6.28, bright: rand(5) > .94 });
+      }
+    }
+    new ResizeObserver(resize).observe(canvas);
+
+    const mix = (a, b, t) => a + (b - a) * t;
+    const fade = t => t * t * (3 - 2 * t);
+    function hash(x, y) {
+      const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+      return n - Math.floor(n);
+    }
+    function noise(x, y) {
+      const ix = Math.floor(x), iy = Math.floor(y), fx = fade(x - ix), fy = fade(y - iy);
+      const a = mix(hash(ix, iy), hash(ix + 1, iy), fx);
+      const b = mix(hash(ix, iy + 1), hash(ix + 1, iy + 1), fx);
+      return mix(a, b, fy);
+    }
+    function gas(x, y, t) {
+      // Advected, warped noise gives the clouds a continuous, eddying flow.
+      const warpX = noise(x * .72 + t * .13, y * .72 - t * .07) - .5;
+      const warpY = noise(x * .72 + 8 + t * .06, y * .72 + 4 - t * .11) - .5;
+      x += warpX * 1.55; y += warpY * 1.55;
+      let v = 0, a = .58, sum = 0, f = 1;
+      for (let k = 0; k < 3; k++) {
+        v += (noise(x * f + t * (.16 + k * .05), y * f - t * (.12 + k * .035)) - .5) * a;
+        sum += a; a *= .48; f *= 1.85;
+      }
+      return v / sum;
+    }
+    const palette = [
+      [-.45, [3, 7, 23]], [-.24, [8, 15, 45]], [-.08, [32, 31, 94]],
+      [.04, [111, 43, 139]], [.16, [205, 67, 145]], [.27, [248, 118, 133]],
+      [.37, [255, 193, 132]], [.47, [106, 211, 210]], [.57, [4, 103, 151]]
+    ];
+    function color(v) {
+      for (let i = 1; i < palette.length; i++) if (v < palette[i][0]) {
+        const [lo, c0] = palette[i - 1], [hi, c1] = palette[i];
+        const q = fade(Math.max(0, Math.min(1, (v - lo) / (hi - lo))));
+        return [mix(c0[0], c1[0], q), mix(c0[1], c1[1], q), mix(c0[2], c1[2], q)];
+      }
+      return palette[palette.length - 1][1];
+    }
+
+    function draw(ms) {
+      if (!reduceMotion && ms - last < 30) { requestAnimationFrame(draw); return; }
+      last = ms;
+      if (!w || !h) { requestAnimationFrame(draw); return; }
+      const t = reduceMotion ? 0 : ms * .00135;
+      for (let y = 0; y < N; y++) {
+        const Y = y / N * 5.2 - 2.6;
+        for (let x = 0; x < N; x++) {
+          const X = x / N * 5.2 - 2.6;
+          const v = gas(X, Y, t);
+          const [r, g, b] = color(v);
+          const edge = Math.max(.38, 1 - .25 * ((X * X + Y * Y) / 13.52));
+          const i = (y * N + x) * 4;
+          pixels[i] = r * edge; pixels[i + 1] = g * edge; pixels[i + 2] = b * edge; pixels[i + 3] = 255;
+        }
+      }
+      fieldCtx.putImageData(frame, 0, 0);
+      ctx.drawImage(fieldCanvas, 0, 0, w, h);
+
+      // Sparse pinprick stars stay still while the gas drifts underneath them.
+      for (const s of stars) {
+        const pulse = .55 + .45 * Math.sin(t * 2.2 + s.phase);
+        ctx.fillStyle = `rgba(${s.bright ? '232,233,255' : '171,194,238'},${(.25 + .62 * pulse) * (s.bright ? 1 : .58)})`;
+        ctx.beginPath(); ctx.arc(s.x * w, s.y * h, s.r * w / 800, 0, Math.PI * 2); ctx.fill();
+        if (s.bright) {
+          ctx.strokeStyle = `rgba(221,225,255,${.22 * pulse})`; ctx.lineWidth = .7;
+          ctx.beginPath(); ctx.moveTo(s.x*w - 5, s.y*h); ctx.lineTo(s.x*w + 5, s.y*h);
+          ctx.moveTo(s.x*w, s.y*h - 5); ctx.lineTo(s.x*w, s.y*h + 5); ctx.stroke();
+        }
+      }
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+  </script>
+</body>
+</html>

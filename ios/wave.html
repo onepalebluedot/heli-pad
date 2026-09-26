@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Blue Hour — Living Wave</title>
+  <style>
+    :root { color-scheme: dark; background: #06131d; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      min-height: 100vh; display: grid; place-items: center; overflow: hidden;
+      background: radial-gradient(ellipse at 50% 48%, #112937 0%, #091923 55%, #050d14 100%);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .frame { width: min(15in, 92vw, 92vh); aspect-ratio: 1; position: relative; }
+    canvas { display: block; width: 100%; height: 100%; border-radius: 2px; }
+    .caption { position: absolute; inset: auto 0 -34px; text-align: center; color: #8da9b7; font-size: 10px; letter-spacing: .24em; text-transform: uppercase; }
+    @media (prefers-reduced-motion: reduce) { .caption::after { content: " · STILL MODE"; } }
+  </style>
+</head>
+<body>
+  <main class="frame" aria-label="A slowly moving abstract blue wave">
+    <canvas id="wave" role="img" aria-label="Soft, flowing blue wave animation"></canvas>
+    <div class="caption">Blue hour · a little ocean for your screen</div>
+  </main>
+  <script>
+    const canvas = document.querySelector('#wave');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let width = 0, height = 0, dpr = 1;
+    function resize() {
+      const box = canvas.getBoundingClientRect();
+      dpr = Math.min(devicePixelRatio || 1, 1);
+      width = Math.round(box.width * dpr); height = Math.round(box.height * dpr);
+      canvas.width = width; canvas.height = height;
+    }
+    new ResizeObserver(resize).observe(canvas);
+    const lerp = (a,b,t) => a + (b-a)*t;
+    const smooth = (t) => t*t*(3-2*t);
+    function hash(x,y) {
+      const n = Math.sin(x*127.1 + y*311.7) * 43758.5453123;
+      return n - Math.floor(n);
+    }
+    function noise(x,y) {
+      const ix=Math.floor(x), iy=Math.floor(y), fx=smooth(x-ix), fy=smooth(y-iy);
+      return lerp(lerp(hash(ix,iy),hash(ix+1,iy),fx),lerp(hash(ix,iy+1),hash(ix+1,iy+1),fx),fy);
+    }
+    function field(x,y,t) {
+      const wx = noise(x*1.05+t*.20,y*1.05-t*.14)-.5;
+      const wy = noise(x*1.05+8-t*.14,y*1.05+5+t*.18)-.5;
+      x += wx*1.12; y += wy*1.12;
+      let value=0, amplitude=.52, total=0;
+      for(let octave=0;octave<4;octave++) {
+        const f=1.72**octave;
+        value += noise(x*f+t*(.34+octave*.09),y*f-t*(.23+octave*.07))*amplitude;
+        total += amplitude; amplitude *= .52;
+      }
+      return value/total;
+    }
+    function color(v) {
+      const stops=[[0,[2,14,34]],[.30,[4,30,57]],[.43,[4,45,66]],[.55,[0,100,119]],[.67,[0,170,175]],[.78,[38,205,193]],[.87,[155,225,151]],[.94,[244,246,174]],[1,[255,255,211]]];
+      for(let i=1;i<stops.length;i++) if(v<stops[i][0]) {
+        const [lo,a]=stops[i-1], [hi,b]=stops[i];
+        let q=Math.max(0,Math.min(1,(v-lo)/(hi-lo)));
+        q=q*q*(3-2*q);
+        return [lerp(a[0],b[0],q),lerp(a[1],b[1],q),lerp(a[2],b[2],q)];
+      }
+      return stops.at(-1)[1];
+    }
+    let lastFrame = 0;
+    function draw(ms) {
+      if (!reduceMotion && ms - lastFrame < 32) return requestAnimationFrame(draw);
+      lastFrame = ms;
+      const t = (reduceMotion ? 0 : ms * 0.00048);
+      const w = width, h = height;
+      if (!w || !h) return requestAnimationFrame(draw);
+      const img = ctx.createImageData(w, h), p = img.data;
+      const scale = 0.0063 * (w / 900);
+      for (let y=0; y<h; y++) {
+        const Y=y*scale;
+        for (let x=0; x<w; x++) {
+          const X=x*scale;
+          let v=field(X,Y,t*.65);
+          // Fine dark contour bands give the flow a softly topographic, liquid look.
+          const line=Math.pow(Math.max(0,1-Math.abs((v*13-Math.floor(v*13))-.5)*9),5);
+          v=Math.max(0,Math.min(1,v));
+          const [r,g,b]=color(v);
+          const shade=1-line*.035;
+          const vignette=Math.max(.56,1-.24*Math.pow(Math.abs(x/w-.5)*2,2)-.18*Math.pow(Math.abs(y/h-.5)*2,2));
+          const i=(y*w+x)*4;
+          p[i]   = r*shade*vignette;
+          p[i+1] = g*shade*vignette;
+          p[i+2] = b*shade*vignette;
+          p[i+3] = 255;
+        }
+      }
+      ctx.putImageData(img,0,0);
+      // Tiny suspended glints, like light catching bubbles in a dark current.
+      const size=Math.max(1.5,w/480);
+      for(let n=0;n<92;n++) {
+        const sx=hash(n,19)*w, sy=hash(n,37)*h;
+        const pulse=.45+.55*(.5+.5*Math.sin(t*4+n*2.4));
+        ctx.fillStyle=`rgba(152,255,250,${.23+.53*pulse})`;
+        ctx.fillRect(sx,sy,size,size);
+      }
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+  </script>
+</body>
+</html>

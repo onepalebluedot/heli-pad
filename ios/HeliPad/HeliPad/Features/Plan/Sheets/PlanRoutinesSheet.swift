@@ -2,19 +2,23 @@ import SwiftUI
 
 public struct PlanRoutinesSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var searchText = ""
     @ObservedObject public var store: AppStore
     public var routines: [RoutineGroup]
+    public var onEditSeries: (RoutineGroup) -> Void
     public var onAssignRoutine: (RoutineGroup) -> Void
     public var onSelectEvent: ((TaskRecord) -> Void)?
 
     public init(
         store: AppStore,
         routines: [RoutineGroup],
+        onEditSeries: @escaping (RoutineGroup) -> Void,
         onAssignRoutine: @escaping (RoutineGroup) -> Void,
         onSelectEvent: ((TaskRecord) -> Void)? = nil
     ) {
         self.store = store
         self.routines = routines
+        self.onEditSeries = onEditSeries
         self.onAssignRoutine = onAssignRoutine
         self.onSelectEvent = onSelectEvent
     }
@@ -48,9 +52,15 @@ public struct PlanRoutinesSheet: View {
                     // Routines List
                     if routines.isEmpty {
                         emptyState
+                    } else if filteredRoutines.isEmpty {
+                        Text("No recurring stops match your search.")
+                            .font(HeliTypography.body(13))
+                            .foregroundColor(HeliColors.mutedGray)
+                            .frame(maxWidth: .infinity)
+                            .padding(24)
                     } else {
                         VStack(spacing: 14) {
-                            ForEach(routines) { group in
+                            ForEach(filteredRoutines) { group in
                                 routineCard(group: group)
                             }
                         }
@@ -61,12 +71,22 @@ public struct PlanRoutinesSheet: View {
             .background(HeliColors.canvasIvory)
             .navigationTitle("Recurring Shortcuts")
             .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $searchText, prompt: "Find a recurring stop")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                         .foregroundColor(HeliColors.greenInk)
                 }
             }
+        }
+    }
+
+    private var filteredRoutines: [RoutineGroup] {
+        guard !searchText.isEmpty else { return routines }
+        return routines.filter { group in
+            [group.title, group.location, group.owner].contains {
+                $0.localizedCaseInsensitiveContains(searchText)
+            } || group.kids.contains { $0.localizedCaseInsensitiveContains(searchText) }
         }
     }
 
@@ -149,6 +169,19 @@ public struct PlanRoutinesSheet: View {
 
             Divider()
                 .background(HeliColors.sageRule)
+
+            Button {
+                dismiss()
+                onEditSeries(group)
+            } label: {
+                Label("Edit series", systemImage: "square.and.pencil")
+                    .font(HeliTypography.actionButton(12))
+                    .foregroundColor(HeliColors.forestGreen)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(HeliColors.forestTint)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
 
             // Footer: Current status + Bulk Assign Button
             HStack {

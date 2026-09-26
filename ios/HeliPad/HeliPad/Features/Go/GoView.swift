@@ -85,7 +85,7 @@ public struct GoView: View {
                 GoPanelHeadView(store: store, viewData: viewData)
 
                 // Panel Body (Rail Timeline or Wheel-Time Load Distribution)
-                if store.goPanel == "rail" {
+                if store.goPanel == "rail" || !viewData.canCompareDriving {
                     GoRailTimelineView(
                         events: viewData.listed,
                         heroId: heroEvent?.id,
@@ -113,6 +113,7 @@ public struct GoView: View {
         }
         .background(HeliColors.canvasIvory)
         .onAppear {
+            if !viewData.canCompareDriving { store.goPanel = "rail" }
             if scenePhase == .active { viewModel.startClock() }
             if let hero = heroEvent {
                 Task {
@@ -128,6 +129,9 @@ public struct GoView: View {
         }
         .onChange(of: store.timeZone) { _, _ in viewModel.updateClock() }
         .onChange(of: store.mockTime) { _, _ in viewModel.updateClock() }
+        .onChange(of: viewData.canCompareDriving) { _, canCompare in
+            if !canCompare { store.goPanel = "rail" }
+        }
         .onChange(of: heroEvent?.id) { _, _ in
             if let hero = heroEvent {
                 Task {

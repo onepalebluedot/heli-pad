@@ -2,15 +2,18 @@ import SwiftUI
 
 public struct PlanRoutinesView: View {
     public var routines: [RoutineGroup]
+    public var onShowAll: () -> Void
     public var onSetCaregiver: (RoutineGroup) -> Void
     public var onEditSeries: (RoutineGroup) -> Void
 
     public init(
         routines: [RoutineGroup],
+        onShowAll: @escaping () -> Void,
         onSetCaregiver: @escaping (RoutineGroup) -> Void,
         onEditSeries: @escaping (RoutineGroup) -> Void
     ) {
         self.routines = routines
+        self.onShowAll = onShowAll
         self.onSetCaregiver = onSetCaregiver
         self.onEditSeries = onEditSeries
     }
@@ -39,8 +42,25 @@ public struct PlanRoutinesView: View {
 
                 // Routine Cards
                 VStack(spacing: 10) {
-                    ForEach(routines) { group in
+                    ForEach(Array(routines.prefix(routines.count > 7 ? 3 : routines.count))) { group in
                         routineCard(group: group)
+                    }
+                    if routines.count > 7 {
+                        Button(action: onShowAll) {
+                            HStack {
+                                Text("View all \(routines.count) recurring stops")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                            }
+                            .font(HeliTypography.actionButton(13))
+                            .foregroundColor(HeliColors.forestGreen)
+                            .padding(.horizontal, 14)
+                            .frame(minHeight: 44)
+                            .background(HeliColors.forestTint)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens a searchable list of recurring stops")
                     }
                 }
                 .padding(.horizontal, 16)

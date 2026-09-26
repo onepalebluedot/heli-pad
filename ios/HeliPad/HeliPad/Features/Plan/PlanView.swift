@@ -17,7 +17,7 @@ public struct PlanView: View {
 
     public var body: some View {
         let summary = viewModel.summary(store: store)
-        let decisions = viewModel.decisionQueue(store: store)
+        let decisions = summary.list.filter { $0.status != "ready" }
         let routines = viewModel.routineGroups(store: store)
 
         ScrollViewReader { scrollProxy in
@@ -30,34 +30,36 @@ public struct PlanView: View {
                     onNext: { viewModel.changeWeek(delta: 1) }
                 )
 
-                // 2. Command Card with readiness counts
-                PlanCommandCardView(
-                    unassignedCount: summary.missing,
-                    reviewCount: summary.review,
-                    routinesCount: store.templates.count,
-                    onReview: {
-                        viewModel.reviewFilter = .all
-                        viewModel.showReviewSheet = true
-                    },
-                    onPriorities: { viewModel.showPrioritiesSheet = true },
-                    onTapUnassigned: {
-                        viewModel.reviewFilter = .unassigned
-                        viewModel.showReviewSheet = true
-                    },
-                    onTapReview: {
-                        viewModel.reviewFilter = .review
-                        viewModel.showReviewSheet = true
-                    },
-                    onTapRoutines: {
-                        if store.templates.isEmpty {
-                            showTemplateCreator = true
-                        } else {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                scrollProxy.scrollTo("plan-shortcuts", anchor: .center)
+                // The week needs a hero only when there is something to act on.
+                if !decisions.isEmpty {
+                    PlanCommandCardView(
+                        unassignedCount: summary.missing,
+                        reviewCount: summary.review,
+                        routinesCount: store.templates.count,
+                        onReview: {
+                            viewModel.reviewFilter = .all
+                            viewModel.showReviewSheet = true
+                        },
+                        onPriorities: { viewModel.showPrioritiesSheet = true },
+                        onTapUnassigned: {
+                            viewModel.reviewFilter = .unassigned
+                            viewModel.showReviewSheet = true
+                        },
+                        onTapReview: {
+                            viewModel.reviewFilter = .review
+                            viewModel.showReviewSheet = true
+                        },
+                        onTapRoutines: {
+                            if store.templates.isEmpty {
+                                showTemplateCreator = true
+                            } else {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    scrollProxy.scrollTo("plan-shortcuts", anchor: .center)
+                                }
                             }
                         }
-                    }
-                )
+                    )
+                }
 
                 // 3. Decision Queue ("Act First")
                 PlanDecisionListView(
@@ -82,6 +84,8 @@ public struct PlanView: View {
                 PlanScheduleView(
                     viewModel: viewModel,
                     store: store,
+                    showRules: decisions.isEmpty,
+                    onRules: { viewModel.showPrioritiesSheet = true },
                     onSelectEvent: { ev in
                         eventToEdit = ev
                         viewModel.showEventSheet = true
@@ -122,9 +126,10 @@ public struct PlanView: View {
                 )
                 .id("plan-shortcuts")
 
-                // 6. Recurring stops — one card per series, edited as a set
+                // A long series list keeps only a few cards on this page.
                 PlanRoutinesView(
                     routines: routines,
+                    onShowAll: { viewModel.showRoutinesSheet = true },
                     onSetCaregiver: { group in
                         viewModel.activeRoutineForAssign = group
                         viewModel.activeEventForAssign = nil
@@ -168,6 +173,15 @@ public struct PlanView: View {
             PlanRoutinesSheet(
                 store: store,
                 routines: routines,
+                onEditSeries: { group in
+                    viewModel.showRoutinesSheet = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        guard let first = group.weekEvents.min(by: { $0.date < $1.date }) else { return }
+                        seriesToEdit = group
+                        eventToEdit = first
+                        viewModel.showEventSheet = true
+                    }
+                },
                 onAssignRoutine: { group in
                     viewModel.showRoutinesSheet = false
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {

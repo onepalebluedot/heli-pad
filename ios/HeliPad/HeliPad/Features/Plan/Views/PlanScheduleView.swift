@@ -3,17 +3,23 @@ import SwiftUI
 public struct PlanScheduleView: View {
     @ObservedObject public var viewModel: PlanViewModel
     @ObservedObject public var store: AppStore
+    public var showRules: Bool
+    public var onRules: () -> Void
     public var onSelectEvent: (TaskRecord) -> Void
     public var onAddEvent: (String) -> Void
 
     public init(
         viewModel: PlanViewModel,
         store: AppStore,
+        showRules: Bool,
+        onRules: @escaping () -> Void,
         onSelectEvent: @escaping (TaskRecord) -> Void,
         onAddEvent: @escaping (String) -> Void
     ) {
         self.viewModel = viewModel
         self.store = store
+        self.showRules = showRules
+        self.onRules = onRules
         self.onSelectEvent = onSelectEvent
         self.onAddEvent = onAddEvent
     }
@@ -27,6 +33,16 @@ public struct PlanScheduleView: View {
                     .foregroundColor(HeliColors.mutedGray)
                     .tracking(1.4)
                 Spacer()
+                if showRules {
+                    Button(action: onRules) {
+                        Label("Rules", systemImage: "slider.horizontal.3")
+                            .font(HeliTypography.chipLabel(11))
+                            .foregroundColor(HeliColors.forestGreen)
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Planning rules")
+                }
             }
             .padding(.horizontal, 20)
 
