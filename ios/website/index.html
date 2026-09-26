@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>HeliPad — Know when to leave</title>
+  <meta name="description" content="HeliPad plans your family's week around the drive. It works out when to leave from live driving time and taps you on the shoulder ten minutes before. Now in closed alpha.">
+  <meta name="theme-color" content="#f6f4ed">
+  <meta property="og:title" content="HeliPad — Know when to leave">
+  <meta property="og:description" content="The family calendar that counts the drive. Leave-time alerts from live driving time, a shared weekly plan, and a relay everyone can follow.">
+  <meta property="og:image" content="assets/img/field.jpg">
+  <link rel="icon" type="image/png" href="assets/img/favicon.png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+  <link rel="preload" as="image" href="assets/img/field-sm.jpg">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav" id="nav">
+  <a class="brand" href="#top" aria-label="HeliPad home">
+    <img src="assets/img/app-icon.png" alt="" width="30" height="30">
+    <span>HeliPad</span>
+  </a>
+  <nav class="nav-links" aria-label="Sections">
+    <a href="#alerts">Leave alerts</a>
+    <a href="#drive">Drive time</a>
+    <a href="#week">Your week</a>
+  </nav>
+  <a class="btn btn-small" href="#join">Join the alpha</a>
+</header>
+
+<!-- Opening reveal: a triptych whose centre panel widens to fill the screen as you scroll. -->
+<section class="intro" id="intro" aria-label="Introducing HeliPad">
+  <div class="intro-sticky">
+    <div class="tri">
+      <div class="panel panel-side" data-cycle="swim,shore">
+        <img src="assets/img/swim-sm.jpg" alt="" class="is-on">
+        <img src="assets/img/shore-sm.jpg" alt="">
+      </div>
+      <div class="panel panel-center" data-cycle="field,motion,dinner">
+        <img src="assets/img/field.jpg" alt="" class="is-on">
+        <img src="assets/img/motion.jpg" alt="">
+        <img src="assets/img/dinner.jpg" alt="">
+        <div class="panel-shade"></div>
+        <div class="intro-copy intro-copy-a">
+          <p class="intro-kicker">Introducing</p>
+        </div>
+        <div class="intro-copy intro-copy-b">
+          <p class="eyebrow eyebrow-light">Closed alpha · iPhone</p>
+          <h1 class="intro-title">HeliPad</h1>
+          <p class="intro-tag">Know when to leave.</p>
+        </div>
+        <div class="scroll-cue" aria-hidden="true"><span></span>Scroll</div>
+      </div>
+      <div class="panel panel-side" data-cycle="drive,motion">
+        <img src="assets/img/drive-sm.jpg" alt="" class="is-on">
+        <img src="assets/img/motion-sm.jpg" alt="">
+      </div>
+    </div>
+  </div>
+</section>
+
+<main id="main">
+
+  <!-- Hero -->
+  <section class="hero" id="top">
+    <div class="wrap hero-grid">
+      <div class="hero-copy reveal">
+        <a class="pill" href="#drive"><span class="pill-tag">New</span> Alerts that watch the traffic <i data-lucide="arrow-right"></i></a>
+        <h2 class="display">The family calendar that counts the drive.</h2>
+        <p class="lede">HeliPad plans your week around the time it takes to get there. It works out when each of you needs to leave, and taps you on the shoulder ten minutes before.</p>
+        <div class="hero-cta">
+          <a class="btn" href="#join">Join the closed alpha <i data-lucide="arrow-down"></i></a>
+          <p class="fine"><i data-lucide="smartphone"></i> iPhone · invite only</p>
+        </div>
+      </div>
+
+      <div class="hero-art reveal" aria-hidden="true">
+        <div class="art-block art-butter"></div>
+        <div class="art-photo"><img src="assets/img/drive-sm.jpg" alt=""></div>
+        <div class="phone phone-hero">
+          <div class="phone-screen">
+            <div class="go-screen" data-go="hero"></div>
+          </div>
+        </div>
+        <div class="toast" id="heroToast">
+          <img src="assets/img/app-icon.png" alt="">
+          <div>
+            <p class="toast-top"><b>HeliPad</b><span>now</span></p>
+            <p class="toast-title">Leave in 10 minutes</p>
+            <p class="toast-body">Soccer practice at 4:00 PM · Riverside Fields</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ul class="wrap proof reveal" aria-label="What HeliPad does">
+      <li><i data-lucide="car-front"></i>Leave-by times from live driving time</li>
+      <li><i data-lucide="bell-ring"></i>A nudge ten minutes before you go</li>
+      <li><i data-lucide="users"></i>Everyone knows who's driving</li>
+    </ul>
+  </section>
+
+  <!-- Leave alerts -->
+  <section class="section" id="alerts">
+    <div class="wrap split">
+      <div class="split-copy reveal">
+        <p class="eyebrow">01 · Leave alerts</p>
+        <h2 class="h2">“Leave in 10 minutes.”<br><em>Not “practice at 4.”</em></h2>
+        <p class="body-lg">A calendar tells you when something starts. HeliPad tells you when to walk out the door — the start time, minus the drive, minus your buffer — and buzzes ten minutes before that.</p>
+        <ul class="feature-list">
+          <li>
+            <i data-lucide="timer"></i>
+            <div><h3>Timed from the drive</h3><p>Every reminder is set from the leave-by time, so a longer trip means an earlier nudge.</p></div>
+          </li>
+          <li>
+            <i data-lucide="wifi-off"></i>
+            <div><h3>Fires without signal</h3><p>Alerts are scheduled on the phone itself, so they still arrive in a car park with no bars.</p></div>
+          </li>
+          <li>
+            <i data-lucide="user-round-search"></i>
+            <div><h3>Driver needed</h3><p>A stop with nobody assigned flags itself 12 hours ahead, while there's still time to sort it.</p></div>
+          </li>
+          <li>
+            <i data-lucide="circle-check"></i>
+            <div><h3>Gentle check-ins</h3><p>If a stop wraps up and nobody ticked it off, you get one quiet question — mark it done, or ask again in an hour.</p></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="split-art reveal">
+        <div class="phone phone-lock">
+          <div class="phone-screen lock">
+            <div class="lock-status"><span id="lockClockSmall">3:22</span><span class="lock-icons"><i data-lucide="signal"></i><i data-lucide="battery-full"></i></span></div>
+            <p class="lock-date">Tuesday, October 6</p>
+            <p class="lock-time" id="lockClock">3:22</p>
+            <div class="lock-stack" id="lockStack" aria-live="off">
+              <article class="notif" data-at="0">
+                <img src="assets/img/app-icon.png" alt="">
+                <div>
+                  <p class="notif-top"><b>HeliPad</b><span>now</span></p>
+                  <p class="notif-title">Leave in 10 minutes</p>
+                  <p class="notif-body">Soccer practice at 4:00 PM · Riverside Fields</p>
+                </div>
+              </article>
+              <article class="notif" data-at="1">
+                <img src="assets/img/app-icon.png" alt="">
+                <div>
+                  <p class="notif-top"><b>HeliPad</b><span>8m ago</span></p>
+                  <p class="notif-title">Driver needed in 12 hours</p>
+                  <p class="notif-body">Swim meet at 7:30 AM still needs a caregiver.</p>
+                </div>
+              </article>
+              <article class="notif" data-at="2">
+                <img src="assets/img/app-icon.png" alt="">
+                <div>
+                  <p class="notif-top"><b>HeliPad</b><span>1h ago</span></p>
+                  <p class="notif-title">Still open: Library pickup</p>
+                  <p class="notif-body">It was due to wrap up at 2:30 PM. Mark it done, or hold the question for an hour.</p>
+                  <div class="notif-actions"><span>Mark done</span><span>In an hour</span></div>
+                </div>
+              </article>
+            </div>
+            <div class="lock-bar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Drive time explainer -->
+  <section class="section section-dark" id="drive">
+    <div class="orbit" aria-hidden="true"></div>
+    <div class="wrap">
+      <div class="drive-head reveal">
+        <p class="eyebrow eyebrow-light">02 · Drive time</p>
+        <h2 class="h2">Drive time <em>is</em> the schedule.</h2>
+        <p class="body-lg">Practice starts at four. Whether you leave at 3:37 or 3:18 depends on the road. HeliPad asks Maps for the drive, adds your buffer, and moves the alert with it. Try it:</p>
+      </div>
+
+      <div class="drive-lab reveal">
+        <div class="drive-controls">
+          <div class="event-chip">
+            <span class="disc disc-mom">M</span>
+            <div><b>Soccer practice</b><span>Riverside Fields · Maya · starts 4:00 PM</span></div>
+          </div>
+
+          <fieldset class="seg" id="roadSeg">
+            <legend>The road</legend>
+            <label><input type="radio" name="road" value="18"><span><i data-lucide="sun"></i>Clear<small>18 min</small></span></label>
+            <label><input type="radio" name="road" value="26" checked><span><i data-lucide="school"></i>School run<small>26 min</small></span></label>
+            <label><input type="radio" name="road" value="37"><span><i data-lucide="cloud-rain"></i>Rain + traffic<small>37 min</small></span></label>
+          </fieldset>
+
+          <fieldset class="seg seg-small" id="bufferSeg">
+            <legend>Your buffer</legend>
+            <label><input type="radio" name="buffer" value="0"><span>None</span></label>
+            <label><input type="radio" name="buffer" value="5" checked><span>5 min</span></label>
+            <label><input type="radio" name="buffer" value="10"><span>10 min</span></label>
+          </fieldset>
+
+          <p class="live-note"><span class="live-dot"></span> Live GPS · re-checked every 20 minutes on the day</p>
+        </div>
+
+        <div class="drive-viz">
+          <div class="readout">
+            <div>
+              <p class="readout-label">Leave by</p>
+              <p class="readout-big" id="leaveBy" aria-live="polite">3:29 PM</p>
+            </div>
+            <div>
+              <p class="readout-label">We'll buzz you at</p>
+              <p class="readout-mid" id="buzzAt">3:19 PM</p>
+            </div>
+          </div>
+
+          <div class="track" id="track" role="img" aria-label="Timeline from 3:00 to 4:00 PM showing alert, leave and arrive times">
+            <div class="track-rail"></div>
+            <div class="seg-lead" id="segLead"></div>
+            <div class="seg-drive" id="segDrive"><span class="car"><i data-lucide="car-front"></i></span></div>
+            <div class="seg-buffer" id="segBuffer"></div>
+            <div class="mark mark-bell" id="markBell"><i data-lucide="bell-ring"></i><span>Alert</span></div>
+            <div class="mark mark-leave" id="markLeave"><i data-lucide="log-out"></i><span>Leave</span></div>
+            <div class="mark mark-arrive" style="--x:100%"><i data-lucide="flag"></i><span>4:00</span></div>
+            <div class="ticks"><span>3:00</span><span>3:15</span><span>3:30</span><span>3:45</span><span>4:00</span></div>
+          </div>
+
+          <p class="viz-caption" id="vizCaption">26 min drive + 5 min buffer → leave at 3:29. The alert lands at 3:19.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Your week: tabs -->
+  <section class="section" id="week">
+    <div class="wrap">
+      <div class="center-head reveal">
+        <p class="eyebrow">03 · Your week</p>
+        <h2 class="h2">One plan for the whole relay.</h2>
+        <p class="body-lg">Practices, pickups, lessons and dinners — who's taking whom, and when each of you needs to be in the car.</p>
+      </div>
+
+      <div class="tabs reveal">
+        <div class="tab-list" role="tablist" aria-label="How HeliPad fits your week">
+          <button role="tab" id="tab-plan" aria-controls="pane-plan" aria-selected="true">
+            <span class="tab-n">Sunday night</span>
+            <b>Plan the week</b>
+            <span class="tab-d">See seven days at once. Anything without a driver rises to the top, so the gaps get filled before Monday.</span>
+            <span class="tab-bar"><span></span></span>
+          </button>
+          <button role="tab" id="tab-go" aria-controls="pane-go" aria-selected="false" tabindex="-1">
+            <span class="tab-n">On the day</span>
+            <b>Go when it's time</b>
+            <span class="tab-d">One card answers one question: do I need to move, and when? The ring drains as your leave time gets close.</span>
+            <span class="tab-bar"><span></span></span>
+          </button>
+          <button role="tab" id="tab-done" aria-controls="pane-done" aria-selected="false" tabindex="-1">
+            <span class="tab-n">After</span>
+            <b>Close the loop</b>
+            <span class="tab-d">Tick off each handoff as it happens. When the day is done, the card says so — and the family can see it too.</span>
+            <span class="tab-bar"><span></span></span>
+          </button>
+        </div>
+
+        <div class="tab-stage">
+          <div class="art-photo art-photo-tabs"><img src="assets/img/field-sm.jpg" alt=""></div>
+          <div class="phone phone-tabs">
+            <div class="phone-screen">
+              <div class="pane" role="tabpanel" id="pane-plan" aria-labelledby="tab-plan">
+                <div class="plan-screen">
+                  <div class="app-top"><span class="who"><span class="disc disc-me">A</span>All <i data-lucide="chevron-down"></i></span><span class="house">RIVERA · PAD</span><span class="gear"><i data-lucide="settings"></i></span></div>
+                  <p class="app-eyebrow">PLAN</p>
+                  <p class="app-date">7-day family plan</p>
+                  <div class="act-first">
+                    <p class="app-eyebrow clay">ACT FIRST <span class="count">1</span></p>
+                    <div class="act-row">
+                      <div><b>Swim meet</b><span>Sat 7:30 AM · Aquatic Center · Leo</span><span class="warn"><i data-lucide="user-round-x"></i>No driver assigned</span></div>
+                      <span class="mini-btn">Assign</span>
+                    </div>
+                  </div>
+                  <div class="week-strip">
+                    <span><small>M</small>5<i></i></span><span class="on"><small>T</small>6<i></i></span><span><small>W</small>7<i></i></span><span><small>T</small>8<i></i></span><span><small>F</small>9<i></i></span><span><small>S</small>10<i class="warn-dot"></i></span><span><small>S</small>11<i></i></span>
+                  </div>
+                  <p class="app-eyebrow">WEEKLY SCHEDULE</p>
+                  <div class="plan-list">
+                    <div class="plan-row"><span class="t">7:45 AM</span><span class="disc disc-dad">D</span><div><b>School drop-off</b><span>Maple Elementary · Maya, Leo</span></div></div>
+                    <div class="plan-row"><span class="t">4:00 PM</span><span class="disc disc-mom">M</span><div><b>Soccer practice</b><span>Riverside Fields · Maya</span></div></div>
+                    <div class="plan-row"><span class="t">5:15 PM</span><span class="disc disc-nani">N</span><div><b>Piano lesson</b><span>Oak St Music · Leo</span></div></div>
+                    <div class="plan-row"><span class="t">6:30 PM</span><span class="disc disc-fam">All</span><div><b>Family dinner</b><span>Home</span></div></div>
+                  </div>
+                  <div class="app-tabs"><span class="tab-ico"><i data-lucide="zap"></i></span><span class="tab-ico on"><i data-lucide="calendar-days"></i>Plan</span><span class="tab-ico"><i data-lucide="message-circle"></i></span><span class="tab-ico"><i data-lucide="users"></i></span><span class="tab-ico"><i data-lucide="list-checks"></i></span></div>
+                </div>
+              </div>
+              <div class="pane" role="tabpanel" id="pane-go" aria-labelledby="tab-go" hidden>
+                <div class="go-screen" data-go="tabs"></div>
+              </div>
+              <div class="pane" role="tabpanel" id="pane-done" aria-labelledby="tab-done" hidden>
+                <div class="go-screen" data-go="done"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Full-bleed switching band -->
+  <section class="band" aria-label="Built for family life">
+    <div class="band-media" data-cycle="swim,field,shore,dinner">
+      <img src="assets/img/swim.jpg" alt="" class="is-on" loading="lazy">
+      <img src="assets/img/field.jpg" alt="" loading="lazy">
+      <img src="assets/img/shore.jpg" alt="" loading="lazy">
+      <img src="assets/img/dinner.jpg" alt="" loading="lazy">
+    </div>
+    <div class="band-copy wrap">
+      <p class="band-line reveal">Swim meets, soccer, the long way round to Nani's —<br><em>with the drive already counted.</em></p>
+    </div>
+  </section>
+
+  <!-- Feature grid -->
+  <section class="section">
+    <div class="wrap">
+      <div class="center-head reveal">
+        <p class="eyebrow">Everything else</p>
+        <h2 class="h2">Helping busy families through busy weeks.</h2>
+      </div>
+      <div class="grid">
+        <article class="card reveal"><i data-lucide="navigation"></i><h3>Live drive times</h3><p>On the day of a trip HeliPad uses where your phone is now, not where you usually start.</p></article>
+        <article class="card reveal"><i data-lucide="user-round-check"></i><h3>Who's got what</h3><p>Every stop carries a driver and the kids it's for. Nobody has to ask “are you getting her?”</p></article>
+        <article class="card reveal"><i data-lucide="calendar-plus"></i><h3>Brings your calendar</h3><p>Pull events from Google Calendar and give each one a place, a driver and a drive.</p></article>
+        <article class="card reveal"><i data-lucide="house"></i><h3>Shared with the family</h3><p>Invite a partner or a grandparent. Everyone sees the same plan and the same ticks.</p></article>
+        <article class="card reveal"><i data-lucide="shopping-basket"></i><h3>Lists come along</h3><p>Groceries and to-dos live beside the schedule, so the stop at the shop is on the way.</p></article>
+        <article class="card reveal"><i data-lucide="sparkles"></i><h3>An assistant that knows your week</h3><p>Ask who's free Thursday, or have it draft next week's driving — you approve every change.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Join -->
+  <section class="section join" id="join">
+    <div class="wrap join-card reveal">
+      <div class="join-art">
+        <img src="assets/img/dinner-sm.jpg" alt="" loading="lazy">
+        <div class="join-art-copy">
+          <p class="eyebrow eyebrow-light">Closed alpha</p>
+          <p class="join-quote">Home in time<br>for dinner.</p>
+        </div>
+      </div>
+      <div class="join-form-wrap">
+        <h2 class="h2">Join the alpha.</h2>
+        <p class="body">We're letting a small group of families in at a time. Leave your name and email and we'll send an iPhone invite when there's room.</p>
+        <form class="join-form" id="joinForm" data-endpoint="https://heli-pad-family-api.vercel.app/v1/alpha-signup" novalidate>
+          <label class="field">
+            <span>Name</span>
+            <input type="text" name="name" autocomplete="name" maxlength="80" required placeholder="Alex Rivera">
+          </label>
+          <label class="field">
+            <span>Email</span>
+            <input type="email" name="email" autocomplete="email" maxlength="254" required placeholder="alex@example.com">
+          </label>
+          <label class="hp" aria-hidden="true">Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+          <button class="btn btn-block" type="submit"><span class="btn-label">Request an invite</span> <i data-lucide="arrow-right"></i></button>
+          <p class="form-status" id="formStatus" role="status" aria-live="polite"></p>
+          <p class="fine">We'll only email you about the alpha.</p>
+        </form>
+        <div class="join-done" id="joinDone" hidden tabindex="-1">
+          <span class="done-ring"><i data-lucide="check"></i></span>
+          <h3>You're on the list.</h3>
+          <p>Thanks, <span id="joinName">friend</span>. We'll be in touch when a spot opens.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-in">
+    <a class="brand" href="#top"><img src="assets/img/app-icon.png" alt="" width="26" height="26"><span>HeliPad</span></a>
+    <p>Made for families who'd rather not be late. © 2026</p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
