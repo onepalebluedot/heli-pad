@@ -15,6 +15,20 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/styles.css">
+  <script>
+    // One viewport height, fixed at load and refreshed only when the width
+    // changes (rotation). A toolbar sliding in or out must not resize the page.
+    (function () {
+      var w = 0;
+      function set() {
+        if (window.innerWidth === w) return;
+        w = window.innerWidth;
+        document.documentElement.style.setProperty('--vh', (window.innerHeight / 100) + 'px');
+      }
+      set();
+      window.addEventListener('resize', set);
+    })();
+  </script>
   <link rel="preload" as="image" href="assets/img/field-sm.jpg">
 </head>
 <body>

@@ -29,15 +29,16 @@
    * ------------------------------------------------------------------ */
   const intro = $('#intro');
   const nav = $('#nav');
-  const sticky = $('.intro-sticky');
   let ticking = false;
+  const readVh = () => parseFloat(document.documentElement.style.getPropertyValue('--vh')) || window.innerHeight / 100;
+  let stableVh = readVh();
 
   const onScroll = () => {
     ticking = false;
     const rect = intro.getBoundingClientRect();
-    // Measured against the sticky frame (100svh), not innerHeight: Safari's
-    // toolbar collapsing mid-scroll changes innerHeight and made the reveal lurch.
-    const travel = intro.offsetHeight - sticky.offsetHeight;
+    // Measured against the load-time height (--vh), not innerHeight: a toolbar
+    // collapsing mid-scroll changes innerHeight and made the reveal lurch.
+    const travel = intro.offsetHeight - stableVh * 100;
     const raw = clamp(-rect.top / (travel * 0.85), 0, 1);
     // Ease-in-out so the panel lingers at both ends instead of sliding linearly.
     const p = raw < 0.5 ? 2 * raw * raw : 1 - Math.pow(-2 * raw + 2, 2) / 2;
@@ -51,7 +52,7 @@
   window.addEventListener('scroll', () => {
     if (!ticking) { ticking = true; requestAnimationFrame(onScroll); }
   }, { passive: true });
-  window.addEventListener('resize', () => requestAnimationFrame(onScroll));
+  window.addEventListener('resize', () => requestAnimationFrame(() => { stableVh = readVh(); onScroll(); }));
   onScroll();
 
   /* ------------------------------------------------------------------
