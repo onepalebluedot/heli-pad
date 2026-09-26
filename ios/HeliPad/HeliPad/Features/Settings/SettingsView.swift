@@ -4,6 +4,7 @@ import CoreLocation
 public struct SettingsView: View {
     @ObservedObject var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    private let onFamilySignedOut: () -> Void
 
     @State private var expandedSection: String? = nil
     @State private var assistantProbing = false
@@ -29,6 +30,9 @@ public struct SettingsView: View {
     @State private var showCloudDownloadConfirm = false
     @State private var showFamilyAccount = false
     @State private var showFamilyInvite = false
+    @State private var showFirstTimePreview = false
+    @State private var showSignOutConfirm = false
+    @State private var isSigningOut = false
     @State private var familyAccountName = ""
     @State private var familyMembers: [FamilyMember] = []
     @State private var isSyncingNeon: Bool = false
@@ -45,8 +49,9 @@ public struct SettingsView: View {
     @State private var homePlaceId: String? = nil
     @State private var homeResolutionToken = UUID()
 
-    public init(store: AppStore) {
+    public init(store: AppStore, onFamilySignedOut: @escaping () -> Void = {}) {
         self.store = store
+        self.onFamilySignedOut = onFamilySignedOut
     }
 
     public var body: some View {
@@ -112,6 +117,10 @@ public struct SettingsView: View {
             .sheet(isPresented: $showFamilyInvite) {
                 FamilyInviteView(store: store)
             }
+            .sheet(isPresented: $showFirstTimePreview) {
+                FamilyAccountView(store: store, isFirstRun: true, previewOnly: true,
+                                  onFinished: { showFirstTimePreview = false })
+            }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -148,6 +157,12 @@ public struct SettingsView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Local edits will be replaced. Copy any changes you want to keep before continuing.")
+            }
+            .confirmationDialog("Sign out of your family account?", isPresented: $showSignOutConfirm, titleVisibility: .visible) {
+                Button("Sign out", role: .destructive) { signOutOfFamily() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This phone will return to Sign in with Apple. Your family's shared data stays in the family, and you can sign back in with the same Apple ID.")
             }
             .overlay(alignment: .bottom) {
                 if let msg = toastMessage {
@@ -669,6 +684,11 @@ public struct SettingsView: View {
                         .font(HeliTypography.actionButton(13))
                         .foregroundColor(HeliColors.mutedGray)
                         .frame(minHeight: 44)
+                    Button("Sign out of family account") { showSignOutConfirm = true }
+                        .font(HeliTypography.actionButton(13))
+                        .foregroundColor(HeliColors.clayText)
+                        .frame(minHeight: 44)
+                        .disabled(isSigningOut)
                 } else {
                     Text("Create a family account to share this household without giving anyone a database password.")
                         .font(HeliTypography.body(13))
@@ -678,6 +698,10 @@ public struct SettingsView: View {
                         .foregroundColor(HeliColors.forestGreen)
                         .frame(minHeight: 44)
                 }
+                Button("Preview first-time setup") { showFirstTimePreview = true }
+                    .font(HeliTypography.actionButton(13))
+                    .foregroundColor(HeliColors.mutedGray)
+                    .frame(minHeight: 44)
             }
             Text("Switch active caregiver profile:")
                 .font(HeliTypography.body(13))
@@ -705,6 +729,21 @@ public struct SettingsView: View {
                 familyAccountName = profile.families.first { $0.id == store.cloudHouseholdID }?.name ?? ""
                 familyMembers = try await api.members(familyID: store.cloudHouseholdID)
             } catch { familyMembers = [] }
+        }
+    }
+
+    private func signOutOfFamily() {
+        isSigningOut = true
+        Task { @MainActor in
+            do {
+                try await FamilyAccountAPI.shared.logout()
+                isSigningOut = false
+                dismiss()
+                onFamilySignedOut()
+            } catch {
+                isSigningOut = false
+                errorMessage = "Could not sign out on this phone: \(error.localizedDescription)"
+            }
         }
     }
 

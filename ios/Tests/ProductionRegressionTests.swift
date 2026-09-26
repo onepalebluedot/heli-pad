@@ -2032,6 +2032,18 @@ final class MockListsHost: HouseholdListsHost {
               "sharing gives the new family its own canonical list identities")
         check(appDefaults.data(forKey: HouseholdListsPersistence.storageKey(householdID: appHousehold)) != nil,
               "the old local lists document remains available for recovery")
+        check(FamilyAccountAccess.requiresSignIn(apiConfigured: true, hasCompletedOnboarding: true,
+                                                 isManagedFamily: true, hasSession: false),
+              "signing out locks a managed family even when setup was completed")
+        check(!FamilyAccountAccess.requiresSignIn(apiConfigured: true, hasCompletedOnboarding: true,
+                                                  isManagedFamily: true, hasSession: true),
+              "a managed family with a session remains accessible")
+        check(!FamilyAccountAccess.requiresSignIn(apiConfigured: true, hasCompletedOnboarding: true,
+                                                  isManagedFamily: false, hasSession: false),
+              "a legacy local family stays accessible without an account")
+        check(FamilyAccountAccess.requiresSignIn(apiConfigured: true, hasCompletedOnboarding: false,
+                                                 isManagedFamily: false, hasSession: false),
+              "a new installation starts with family sign-in")
 
         let invitedCloud = TestCloud()
         await invitedCloud.setRemote(app.accountExportState())

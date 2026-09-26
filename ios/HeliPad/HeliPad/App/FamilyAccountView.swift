@@ -7,6 +7,7 @@ struct FamilyAccountView: View {
     @ObservedObject var store: AppStore
     var isFirstRun: Bool
     var initialInviteCode: String = ""
+    var previewOnly: Bool = false
     var onFinished: () -> Void
 
     @State private var nonce: String?
@@ -16,6 +17,7 @@ struct FamilyAccountView: View {
     @State private var invitePreview: FamilyInvitePreview?
     @State private var busy = false
     @State private var errorMessage: String?
+    @State private var previewAfterSignIn = false
 
     private let api = FamilyAccountAPI.shared
 
@@ -32,7 +34,26 @@ struct FamilyAccountView: View {
                             .foregroundColor(HeliColors.mutedGray)
                     }
 
-                    if let profile {
+                    if previewOnly {
+                        Text("Preview only — your account and family data will not change.")
+                            .font(HeliTypography.caption(12))
+                            .foregroundColor(HeliColors.mutedGray)
+                        if previewAfterSignIn {
+                            signedInContent(FamilyProfile(
+                                account: FamilyAccount(id: "preview", displayName: "New tester", email: nil),
+                                families: []
+                            ))
+                            Button("Back to sign-in screen") { previewAfterSignIn = false }
+                                .font(HeliTypography.actionButton(13))
+                        } else {
+                            SignInWithAppleButton(.signIn, onRequest: { _ in }, onCompletion: { _ in })
+                                .signInWithAppleButtonStyle(.black)
+                                .frame(height: 50)
+                                .allowsHitTesting(false)
+                            Button("Preview after sign-in") { previewAfterSignIn = true }
+                                .font(HeliTypography.actionButton(13))
+                        }
+                    } else if let profile {
                         signedInContent(profile)
                     } else {
                         SignInWithAppleButton(.signIn, onRequest: { request in
@@ -73,22 +94,23 @@ struct FamilyAccountView: View {
             .navigationTitle("Family account")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                if !isFirstRun {
+                if !isFirstRun || previewOnly {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Done", action: onFinished)
                     }
                 }
             }
         }
-        .task { await loadAccount() }
+        .task { if !previewOnly { await loadAccount() } }
         .onAppear { inviteCode = initialInviteCode }
         .onChange(of: initialInviteCode) { _, code in inviteCode = code }
         .onChange(of: inviteCode) { _, _ in invitePreview = nil }
     }
 
     private func signedInContent(_ profile: FamilyProfile) -> some View {
+        let newUser = previewOnly || !store.hasCompletedOnboarding
         let availableFamilies = profile.families.filter {
-            !store.hasCompletedOnboarding || (store.isManagedFamily && $0.id == store.cloudHouseholdID)
+            newUser || (store.isManagedFamily && $0.id == store.cloudHouseholdID)
         }
         return VStack(alignment: .leading, spacing: 20) {
             Text("Signed in as \(profile.account.displayName.isEmpty ? profile.account.email ?? "Apple account" : profile.account.displayName)")
@@ -124,15 +146,24 @@ struct FamilyAccountView: View {
                 }
             }
 
-            if !store.isManagedFamily {
+            if store.isManagedFamily && !previewOnly && availableFamilies.isEmpty {
+                Text("This Apple ID is not a member of the family on this phone. Sign in with the original Apple ID to restore access.")
+                    .font(HeliTypography.body(13))
+                    .foregroundColor(HeliColors.clayText)
+                Button("Use another Apple ID") { Task { await switchAppleAccount() } }
+                    .font(HeliTypography.actionButton(13))
+                    .disabled(busy)
+            }
+
+            if !store.isManagedFamily || previewOnly {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(store.hasCompletedOnboarding ? "Share your current family" : "Create a family")
+                    Text(newUser ? "Create a family" : "Share your current family")
                         .font(HeliTypography.headline(17))
                         .foregroundColor(HeliColors.greenInk)
                     TextField("Family name", text: $familyName)
                         .textFieldStyle(.roundedBorder)
                         .textContentType(.organizationName)
-                    Button(store.hasCompletedOnboarding ? "Create and share this family" : "Create family") {
+                    Button(newUser ? "Create family" : "Create and share this family") {
                         Task { await createFamily() }
                     }
                     .font(HeliTypography.actionButton(14))
@@ -140,11 +171,11 @@ struct FamilyAccountView: View {
                     .frame(maxWidth: .infinity, minHeight: 48)
                     .background(HeliColors.forestGreen)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .disabled(busy || familyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(previewOnly || busy || familyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
 
-            if !store.hasCompletedOnboarding {
+            if newUser {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Join with an invitation")
                         .font(HeliTypography.headline(17))
@@ -166,7 +197,7 @@ struct FamilyAccountView: View {
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .background(HeliColors.forestTint)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .disabled(busy || inviteCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(previewOnly || busy || inviteCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
@@ -190,6 +221,17 @@ struct FamilyAccountView: View {
         errorMessage = nil
         do { nonce = try await api.challenge() }
         catch { errorMessage = error.localizedDescription }
+    }
+
+    private func switchAppleAccount() async {
+        busy = true
+        defer { busy = false }
+        do {
+            try await api.logout()
+            profile = nil
+            nonce = nil
+            await prepareChallenge()
+        } catch { errorMessage = error.localizedDescription }
     }
 
     private func handleAppleResult(_ result: Result<ASAuthorization, Error>) {

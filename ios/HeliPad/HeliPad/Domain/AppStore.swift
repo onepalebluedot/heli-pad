@@ -787,6 +787,10 @@ public class AppStore: ObservableObject {
     /// updates can both call this.
     public func refreshDepartureReminders() {
         guard schedulesNotifications else { return }
+        if isManagedFamily && !FamilyAccountAPI.shared.hasSession {
+            Task { await NotificationService.shared.cancelAll() }
+            return
+        }
         NotificationService.shared.scheduleReminders(
             records: records(),
             timeZoneId: timeZone,

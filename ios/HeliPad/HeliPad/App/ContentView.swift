@@ -35,6 +35,7 @@ public struct ContentView: View {
     @State private var pendingInviteCode = ""
     @State private var newCaregiverName = ""
     @State private var profileError: String?
+    @State private var hasFamilySession = FamilyAccountAPI.shared.hasSession
     /// One route, so two sheets can never race each other (N01). The previous
     /// pair of booleans could both be true at once.
     @State private var route: PresentedRoute?
@@ -70,7 +71,12 @@ public struct ContentView: View {
     public init() {}
 
     private var needsFamilyAccount: Bool {
-        AppConfig.familyAPIURL != nil && !store.hasCompletedOnboarding && !store.isManagedFamily
+        FamilyAccountAccess.requiresSignIn(
+            apiConfigured: AppConfig.familyAPIURL != nil,
+            hasCompletedOnboarding: store.hasCompletedOnboarding,
+            isManagedFamily: store.isManagedFamily,
+            hasSession: hasFamilySession
+        )
     }
 
     public var body: some View {
@@ -81,6 +87,7 @@ public struct ContentView: View {
                     isFirstRun: true,
                     initialInviteCode: pendingInviteCode,
                     onFinished: {
+                        hasFamilySession = FamilyAccountAPI.shared.hasSession
                         pendingInviteCode = ""
                         if store.hasCompletedOnboarding && store.currentUser == "All" {
                             route = .profilePicker
@@ -122,7 +129,7 @@ public struct ContentView: View {
             // Settings can change the service URL or token, so the engine is
             // rebuilt when that sheet closes rather than staying stale until
             // the next tab switch.
-            if previous == .settings, current == nil, selectedTab == .assistant {
+            if previous == .settings, current == nil, selectedTab == .assistant && !needsFamilyAccount {
                 assistant.reset()
                 assistant.prepare()
             }
@@ -130,7 +137,11 @@ public struct ContentView: View {
         .sheet(item: $route) { presented in
             switch presented {
             case .settings:
-                SettingsView(store: store)
+                SettingsView(store: store, onFamilySignedOut: {
+                    hasFamilySession = false
+                    route = nil
+                    assistant.reset()
+                })
             case .profilePicker:
                 profilePickerSheet
             case .assistantDraft(let edit):
@@ -154,11 +165,11 @@ public struct ContentView: View {
         }
         // Restart independently when visibility or cloud settings change,
         // including enabling sync from Settings while Lists is already open.
-        .task(id: "\(scenePhase == .active && (selectedTab == .lists || selectedTab == .assistant))|\(store.cloudHouseholdID)|\(store.neonSyncEnabled)|\(store.neonConnectionString.hashValue)") {
+        .task(id: "\(scenePhase == .active && !needsFamilyAccount && (selectedTab == .lists || selectedTab == .assistant))|\(store.cloudHouseholdID)|\(store.neonSyncEnabled)|\(store.neonConnectionString.hashValue)") {
             store.lists.stopVisibleSync()
             // Chat can now create list items too. Keep its pending changes
             // retrying while the assistant is visible, even if Lists is closed.
-            if scenePhase == .active && (selectedTab == .lists || selectedTab == .assistant) {
+            if scenePhase == .active && !needsFamilyAccount && (selectedTab == .lists || selectedTab == .assistant) {
                 listsPresentation.bind(householdID: store.lists.archive.householdID)
                 await store.lists.sync()
                 guard !Task.isCancelled else { return }
@@ -175,8 +186,8 @@ public struct ContentView: View {
             // and any pending review with it.
             assistant.reset()
         }
-        .task(id: scenePhase) {
-            if scenePhase == .active {
+        .task(id: "\(scenePhase)|\(needsFamilyAccount)") {
+            if scenePhase == .active && !needsFamilyAccount {
                 LocationService.shared.startUpdating()
                 store.syncWithDeviceDate()
                 await store.resumePendingSync()
@@ -194,13 +205,15 @@ public struct ContentView: View {
                 store.stopLiveSync()
                 // Polling stops with the app; nothing wakes up in the background.
                 store.lists.stopVisibleSync()
+                if needsFamilyAccount { await NotificationService.shared.cancelAll() }
             }
         }
         .onReceive(LocationService.shared.$currentLocation) { location in
-            guard let location else { return }
+            guard !needsFamilyAccount, let location else { return }
             store.refreshDepartureReminders(forLocation: location)
         }
-        .task {
+        .task(id: needsFamilyAccount) {
+            guard !needsFamilyAccount else { return }
             // Ask once, on the launch after the reminder is switched on, then
             // queue the upcoming departures.
             if store.notifyLeaveBy || store.notifyDriverNeeded || store.notifyOverdue {

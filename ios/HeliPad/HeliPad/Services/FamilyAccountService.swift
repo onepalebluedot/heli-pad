@@ -59,6 +59,17 @@ public enum FamilyAccountError: LocalizedError {
     }
 }
 
+public enum FamilyAccountAccess {
+    public static func requiresSignIn(
+        apiConfigured: Bool, hasCompletedOnboarding: Bool,
+        isManagedFamily: Bool, hasSession: Bool
+    ) -> Bool {
+        guard apiConfigured else { return false }
+        if isManagedFamily { return !hasSession }
+        return !hasCompletedOnboarding
+    }
+}
+
 /// The family API is the only client of the account token. The database URL
 /// stays on the service, while the session remains in this device's Keychain.
 public final class FamilyAccountAPI {
@@ -139,9 +150,16 @@ public final class FamilyAccountAPI {
         return response.familyId
     }
 
-    public func logout() async {
-        let _: [String: Bool]? = try? await request("v1/auth/logout", method: "POST")
-        try? clearSession()
+    public func logout() async throws {
+        let token = try secrets.get(tokenKey)
+        try clearSession()
+        guard let token, !token.isEmpty, let base = AppConfig.familyAPIURL,
+              let url = URL(string: "v1/auth/logout", relativeTo: base)?.absoluteURL else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 5
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        _ = try? await session.data(for: request)
     }
 
     public func pullDocument<T: Decodable>(familyID: String, kind: String, revisionOnly: Bool = false) async throws -> (T?, String?) {
