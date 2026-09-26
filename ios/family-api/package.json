@@ -1,0 +1,19 @@
+{
+  "name": "helipad-family-api",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "dev": "node --env-file=.env.local src/server.mjs",
+    "check:config": "node --env-file=.env.local src/check-config.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "jose": "^6.1.0",
+    "pg": "^8.16.0"
+  }
+}
