@@ -288,13 +288,18 @@ struct GoLooseEndsView: View {
                 }
                 .foregroundColor(HeliColors.forestGreen)
                 .padding(.horizontal, 12)
-                .frame(minHeight: 44)
+                .frame(height: 30)
                 .background(HeliColors.forestTint)
                 .clipShape(Capsule())
+                // The pill is drawn at 30pt so it sits inside the row; the tap
+                // target stays 44pt. A 44pt pill filled the row edge to edge
+                // and ran into the dividers.
+                .frame(minHeight: 44)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Mark \(stop.title) done")
         }
+        .padding(.vertical, 4)
     }
 }
