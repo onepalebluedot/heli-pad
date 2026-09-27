@@ -15,6 +15,11 @@ app's own `HeliColors` values, so they stay sharp at any size and can animate.
 The `ChatGPT Image …png` files are the full-size originals; the page only loads
 the resized copies in `assets/img/`.
 
+`assets/img/helipad-logo-v2.png` is the master logo. `app-icon.png`,
+`apple-touch-icon.png`, `favicon.png`, `helipad-wordmark.png` and the iOS
+`AppIcon.png` are cut from it: the round mark on the app's ivory (`#f6f4ed`),
+opaque because iOS rejects app icons with transparency.
+
 ## Alpha sign-up
 
 The form posts `{ name, email }` as JSON to the URL in the form's

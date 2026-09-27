@@ -276,7 +276,7 @@ public extension OnboardingDraft {
     /// Rebuilds a draft from a household that is already set up, so a second run
     /// of setup starts from the real answers instead of a blank form.
     static func from(store: AppStore) -> OnboardingDraft {
-        var draft = OnboardingDraft()
+        var draft = OnboardingDraft(familyName: store.familyName)
         let crew = store.caregiverPeople()
         let active = crew.first(where: { $0.name == store.currentUser }) ?? crew.first
 

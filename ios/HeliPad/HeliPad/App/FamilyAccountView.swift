@@ -262,7 +262,7 @@ struct FamilyAccountView: View {
                             .font(HeliTypography.caption(12))
                             .foregroundColor(HeliColors.mutedGray)
                     }
-                    TextField("Family name, e.g. The Vincents", text: $familyName)
+                    TextField("Family name, e.g. Vincent", text: $familyName)
                         .textFieldStyle(.roundedBorder)
                         .textContentType(.organizationName)
                     Button(newUser ? "Create family" : "Create family and share") {
@@ -395,6 +395,9 @@ struct FamilyAccountView: View {
                 state: existing ? store.accountExportState() : nil
             )
             try store.useCreatedFamily(id: family.id, uploadedState: existing)
+            // The name just typed is the obvious header title; setup and
+            // Settings can still change it.
+            if store.familyName.isEmpty { store.setFamilyName(family.name) }
             if existing { await store.lists.sync() }
             if !existing { store.showOnboarding = true }
             onFinished()

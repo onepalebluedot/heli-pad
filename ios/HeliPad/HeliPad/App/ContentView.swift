@@ -222,6 +222,14 @@ public struct ContentView: View {
             }
             // Fetch live weather once on app load to conserve battery & network
             await store.updateLiveWeather()
+            // Households shared before the header was customisable have no
+            // family name yet, but their account family does; borrow it once
+            // rather than flipping their header to plain HELIPAD.
+            if store.isManagedFamily && store.familyName.isEmpty,
+               let profile = try? await FamilyAccountAPI.shared.profile(),
+               let family = profile.families.first(where: { $0.id == store.cloudHouseholdID }) {
+                store.setFamilyName(family.name)
+            }
         }
         .fullScreenCover(isPresented: Binding(
             get: { store.showOnboarding && !needsFamilyAccount },
@@ -268,10 +276,12 @@ public struct ContentView: View {
             Spacer()
 
             // App Brand
-            Text("VINCENT - PAD")
+            Text(store.padTitle)
                 .font(HeliTypography.eyebrow(11))
                 .foregroundColor(HeliColors.forestGreen)
                 .tracking(2.0)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
             Spacer()
 

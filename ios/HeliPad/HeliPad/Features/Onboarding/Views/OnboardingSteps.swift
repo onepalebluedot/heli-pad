@@ -85,6 +85,18 @@ struct OnboardingYouStep: View {
 
             OnboardingField(label: "Your name", placeholder: "e.g. Sarah", text: $draft.yourName)
 
+            VStack(alignment: .leading, spacing: 6) {
+                OnboardingField(label: "Family name", placeholder: "e.g. Vincent", text: Binding(
+                    get: { draft.familyName ?? "" },
+                    set: { draft.familyName = String($0.prefix(AppStore.familyNameLimit)) }
+                ))
+                Text(draft.trimmedFamilyName.isEmpty
+                     ? "Optional. It becomes the name at the top of the app."
+                     : "The top of the app will read \(AppStore.padTitle(familyName: draft.trimmedFamilyName)).")
+                    .font(HeliTypography.caption(11.5))
+                    .foregroundColor(HeliColors.mutedGray)
+            }
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("Your role")
                     .font(HeliTypography.railTitle(11.5))

@@ -108,6 +108,8 @@ public struct OnboardingDraft: Codable, Hashable {
 
     // MARK: Answers
 
+    /// Optional so a draft saved before this question existed still decodes.
+    public var familyName: String?
     public var yourName: String
     public var yourRelationship: String
     public var homePlaceName: String
@@ -123,6 +125,7 @@ public struct OnboardingDraft: Codable, Hashable {
     public var activities: [DraftActivity]
 
     public init(
+        familyName: String? = nil,
         yourName: String = "",
         yourRelationship: String = "Mother",
         homePlaceName: String = "Home",
@@ -137,6 +140,7 @@ public struct OnboardingDraft: Codable, Hashable {
         places: [DraftPlace] = [],
         activities: [DraftActivity] = []
     ) {
+        self.familyName = familyName
         self.yourName = yourName
         self.yourRelationship = yourRelationship
         self.homePlaceName = homePlaceName
@@ -169,6 +173,10 @@ public struct OnboardingDraft: Codable, Hashable {
     public static let childInks = ["#a8672b", "#5a6ea8", "#8a6d3b", "#55532e"]
 
     // MARK: Normalized answers
+
+    public var trimmedFamilyName: String {
+        String((familyName ?? "").trimmingCharacters(in: .whitespacesAndNewlines).prefix(AppStore.familyNameLimit))
+    }
 
     public var trimmedYourName: String {
         yourName.trimmingCharacters(in: .whitespaces)

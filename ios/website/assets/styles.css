@@ -124,6 +124,8 @@ svg.lucide { width: 1em; height: 1em; stroke-width: 2; flex: none; }
 .nav.is-solid { background: rgba(246, 244, 237, .97); box-shadow: 0 1px 0 var(--rule); color: var(--ink); }
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 800; font-size: 18px; letter-spacing: -.02em; }
 .brand img { border-radius: 8px; }
+/* The wordmark is transparent artwork, not a tile, so it keeps square corners. */
+.brand-wordmark img { border-radius: 0; height: 32px; width: auto; }
 .nav-links { display: flex; gap: 6px; }
 .nav-links a { text-decoration: none; font-size: 14px; font-weight: 600; padding: 10px 12px; border-radius: 999px; opacity: .85; }
 .nav-links a:hover { opacity: 1; background: rgba(35, 61, 51, .07); }

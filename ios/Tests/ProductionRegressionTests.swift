@@ -921,6 +921,24 @@ final class MockListsHost: HouseholdListsHost {
         check(!phoneB.records().contains { $0.id == "ev-soccer" }, "a delete propagates instead of being undone")
         check(phoneB.records().count == 2, "the other two stops are untouched")
 
+        // The family name is a household setting: it reaches the other phone,
+        // and a copy from a build that predates it must not blank it.
+        check(phoneA.padTitle == "HELIPAD", "an unnamed family gets the plain title")
+        phoneA.setFamilyName("  Vincent ")
+        check(phoneA.padTitle == "VINCENT - PAD", "the header reads the family name")
+        try await phoneA.syncWithNeon()
+        try await phoneB.syncWithNeon()
+        check(phoneB.familyName == "Vincent", "a family name reaches the other phone")
+        var olderBuild = await shared.lastUpload()!
+        olderBuild.familyName = nil
+        olderBuild.buffer = 18
+        olderBuild.settingsStamp = RecordStamp(counter: 90_000, deviceID: "older-build")
+        await shared.setRemote(olderBuild)
+        try await phoneB.syncWithNeon()
+        check(phoneB.buffer == 18, "the older build's newer settings still win")
+        check(phoneB.familyName == "Vincent", "an older build's settings do not blank the family name")
+        check(OnboardingDraft.from(store: phoneB).familyName == "Vincent", "setup rerun starts from the current family name")
+
         // Editing the same stop on both phones: the later stamp wins, and both agree.
         func retitle(_ store: AppStore, _ title: String) {
             var list = store.records()

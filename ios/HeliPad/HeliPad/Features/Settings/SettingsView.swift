@@ -17,6 +17,7 @@ public struct SettingsView: View {
     @State private var assistantFieldsLoaded = false
     @State private var editingName: [String: String] = [:]
     @State private var homeAddressInput: String = ""
+    @State private var familyNameInput: String? = nil
     @State private var errorMessage: String? = nil
     @State private var showResetConfirm: Bool = false
     @State private var toastMessage: String? = nil
@@ -58,7 +59,7 @@ public struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 12) {
-                    accordionSection(id: "home", title: "Home address", icon: "house") {
+                    accordionSection(id: "home", title: "Household", icon: "house") {
                         homeSectionContent
                     }
 
@@ -230,10 +231,49 @@ public struct SettingsView: View {
         }
     }
 
-    // MARK: - Section 1: Home Address
+    // MARK: - Section 1: Household
+
+    private var familyNameField: some View {
+        let editing = familyNameInput != nil && familyNameInput != store.familyName
+        let preview = AppStore.padTitle(familyName: familyNameInput ?? store.familyName)
+        return VStack(alignment: .leading, spacing: 6) {
+            Text("Family name")
+                .font(HeliTypography.body(13))
+                .foregroundColor(HeliColors.greenInk)
+            HStack(spacing: 8) {
+                TextField("e.g. Vincent", text: Binding(
+                    get: { familyNameInput ?? store.familyName },
+                    set: { familyNameInput = String($0.prefix(AppStore.familyNameLimit)) }
+                ))
+                .textFieldStyle(.roundedBorder)
+                .textInputAutocapitalization(.words)
+                .submitLabel(.done)
+                .onSubmit(saveFamilyName)
+                .accessibilityHint("Shown at the top of the app")
+                if editing {
+                    Button("Save", action: saveFamilyName)
+                        .font(HeliTypography.actionButton(13))
+                        .foregroundColor(HeliColors.forestGreen)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+            }
+            Text("Shown at the top of the app as \(preview), on every phone in the family.")
+                .font(HeliTypography.caption(11))
+                .foregroundColor(HeliColors.mutedGray)
+        }
+    }
+
+    private func saveFamilyName() {
+        guard let input = familyNameInput else { return }
+        store.setFamilyName(input)
+        familyNameInput = nil
+    }
 
     private var homeSectionContent: some View {
         VStack(alignment: .leading, spacing: 10) {
+            familyNameField
+            Rectangle().fill(HeliColors.sageRule).frame(height: 1).padding(.vertical, 4)
             Text("Home location name: \(store.home())")
                 .font(HeliTypography.body(13))
                 .foregroundColor(HeliColors.mutedGray)

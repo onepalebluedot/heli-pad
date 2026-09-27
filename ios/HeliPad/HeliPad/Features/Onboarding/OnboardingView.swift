@@ -44,10 +44,11 @@ public struct OnboardingView: View {
     private var topBar: some View {
         VStack(spacing: 10) {
             HStack {
-                Text("VINCENT - PAD")
+                Text(AppStore.padTitle(familyName: draft.trimmedFamilyName))
                     .font(HeliTypography.eyebrow(11))
                     .foregroundColor(HeliColors.forestGreen)
                     .tracking(2.0)
+                    .lineLimit(1)
                 Spacer()
                 if isRerun {
                     Button("Cancel") { store.showOnboarding = false }

@@ -34,6 +34,9 @@ public class AppStore: ObservableObject {
     @Published public var parentLocations: [String: String]
     @Published public var homeAddress: String
     @Published public var homePlaceName: String
+    /// The household's surname, shown in the header as "VINCENT - PAD".
+    /// Shared across phones with the other household settings.
+    @Published public var familyName: String = ""
     @Published public var buffer: Int
     @Published public var synced: Bool
     @Published public var trafficMode: Bool
@@ -496,6 +499,7 @@ public class AppStore: ObservableObject {
         var routes: [String: [String: Int]]
         var homeAddress: String
         var homePlaceName: String
+        var familyName: String
         var buffer: Int
         var trafficMode: Bool
         var dinnerProtection: Bool
@@ -512,6 +516,7 @@ public class AppStore: ObservableObject {
             routes: routes,
             homeAddress: homeAddress,
             homePlaceName: homePlaceName,
+            familyName: familyName,
             buffer: buffer,
             trafficMode: trafficMode,
             dinnerProtection: dinnerProtection,
@@ -549,6 +554,7 @@ public class AppStore: ObservableObject {
             var routes: [String: [String: Int]]
             var homeAddress: String
             var homePlaceName: String
+            var familyName: String?
             var buffer: Int
             var trafficMode: Bool
             var dinnerProtection: Bool
@@ -574,6 +580,7 @@ public class AppStore: ObservableObject {
             routes: state.routes,
             homeAddress: state.homeAddress,
             homePlaceName: state.homePlaceName,
+            familyName: state.familyName,
             buffer: state.buffer,
             trafficMode: state.trafficMode,
             dinnerProtection: state.dinnerProtection,
@@ -919,7 +926,8 @@ public class AppStore: ObservableObject {
             dismissedEventIds: Array(dismissedEventIds),
             weekStart: weekStart,
             syncMetadata: syncMetadata,
-            settingsStamp: settingsStamp
+            settingsStamp: settingsStamp,
+            familyName: familyName
         )
     }
 
@@ -993,6 +1001,7 @@ public class AppStore: ObservableObject {
         routes = state.routes
         homeAddress = state.homeAddress
         homePlaceName = state.homePlaceName
+        familyName = state.familyName ?? ""
         buffer = state.buffer
         trafficMode = state.trafficMode
         dinnerProtection = state.dinnerProtection
@@ -1098,6 +1107,9 @@ public class AppStore: ObservableObject {
             routes = remote.routes
             homeAddress = remote.homeAddress
             homePlaceName = remote.homePlaceName
+            // A phone on a build from before family names sends none; keep ours
+            // rather than letting its newer settings stamp blank the header.
+            familyName = remote.familyName ?? familyName
             buffer = remote.buffer
             trafficMode = remote.trafficMode
             dinnerProtection = remote.dinnerProtection
@@ -1584,6 +1596,7 @@ public class AppStore: ObservableObject {
         partitionRecords(result.records)
         homePlaceName = result.homePlaceName
         homeAddress = result.homeAddress
+        familyName = draft.trimmedFamilyName
         currentUser = result.currentUser
 
         goKidFilter = "all"
@@ -1607,7 +1620,26 @@ public class AppStore: ObservableObject {
     public func onboardingStartingPoint() -> OnboardingDraft {
         if hasCompletedOnboarding { return OnboardingDraft.from(store: self) }
         if let saved = savedOnboardingDraft { return saved }
-        return OnboardingDraft()
+        // A new family may already have a name from the account screen.
+        return OnboardingDraft(familyName: familyName)
+    }
+
+    /// The header title: "VINCENT - PAD", or plain "HELIPAD" before a family
+    /// has named itself.
+    public var padTitle: String { Self.padTitle(familyName: familyName) }
+
+    public static func padTitle(familyName: String) -> String {
+        let name = familyName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? "HELIPAD" : "\(name.uppercased()) - PAD"
+    }
+
+    public static let familyNameLimit = 24
+
+    public func setFamilyName(_ value: String) {
+        let name = String(value.trimmingCharacters(in: .whitespacesAndNewlines).prefix(Self.familyNameLimit))
+        guard name != familyName else { return }
+        familyName = name
+        save()
     }
 
     // MARK: - Mutations & Operations
