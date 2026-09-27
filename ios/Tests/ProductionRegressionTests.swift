@@ -1330,6 +1330,125 @@ final class MockListsHost: HouseholdListsHost {
         check(cancelStore.plan.calendar.exports["ev-doomed"] == nil,
               "and its stale export bookkeeping is dropped")
 
+        // 5d. An event made here and written to Google must come back from
+        // Google as that same event. When an import read it back before the
+        // household knew the Google id - the export still in flight, or the
+        // other phone importing ahead of the sync carrying the link - it was
+        // added as a second copy with no coordinates, which the Go tab then
+        // flagged as an unverified route.
+        func googleEcho(of task: TaskRecord, eventId: String, title: String? = nil) -> TaskRecord {
+            GoogleCalendarService.parseGoogleEvent(
+                GoogleCalendarEventItem(
+                    id: eventId,
+                    summary: title ?? task.title,
+                    location: task.formattedAddress ?? task.location,
+                    start: GoogleEventDateTime(dateTime: "\(task.date)T\(task.time):00-04:00"),
+                    end: GoogleEventDateTime(dateTime: "\(task.date)T\(task.endTime):00-04:00")
+                ),
+                calendarId: "primary",
+                timeZone: nyTz,
+                homeName: "Home"
+            )!
+        }
+        func echoStore(_ google: MockGoogleCalendarService = MockGoogleCalendarService()) -> AppStore {
+            AppStore(
+                eventsByDay: [:],
+                timeZone: "America/New_York",
+                cloudService: TestCloud(),
+                secretStore: MemorySecrets(),
+                googleCalendarService: google,
+                schedulesNotifications: false,
+                now: { now }
+            )
+        }
+        let pinned = TaskRecord(
+            id: "ev-soccer", date: "2026-09-16", time: "16:00", endTime: "17:00",
+            title: "Soccer", owner: "Mom", kids: ["Maya"], location: "Soccer Field",
+            mode: "Drive", kind: .drive,
+            latitude: 40.7128, longitude: -74.0060, formattedAddress: "100 Main St, Springfield"
+        )
+
+        // Same phone: the import lands while the export is still in flight.
+        let racePhone = echoStore()
+        racePhone.replaceRecords([pinned])
+        racePhone.mergeGoogleCalendarEvents(
+            [googleEcho(of: pinned, eventId: "g-race")],
+            calendarIDs: ["primary"], from: "2026-09-13", through: "2026-09-20"
+        )
+        var raceLinked = pinned
+        raceLinked.gcal = true
+        raceLinked.calendarId = "google|primary|g-race"
+        racePhone.applyExportedRecordsForTesting([raceLinked])
+        let raceCopies = racePhone.records().filter { $0.calendarId == "google|primary|g-race" }
+        check(raceCopies.count == 1, "an import racing its own export leaves one event, not two")
+        check(raceCopies.first?.id == "ev-soccer", "the event made here is the one kept")
+        check(raceCopies.first.map { PlanCore.placeIsVerified($0, racePhone.planningOptions()) } == true,
+              "the kept event still has its verified coordinates")
+
+        // Two phones: B imports from Google before A's link reaches it by sync.
+        let googlePhoneA = echoStore()
+        googlePhoneA.replaceRecords([raceLinked])
+        let googlePhoneB = echoStore()
+        googlePhoneB.mergeGoogleCalendarEvents(
+            [googleEcho(of: pinned, eventId: "g-race")],
+            calendarIDs: ["primary"], from: "2026-09-13", through: "2026-09-20"
+        )
+        let publishedA = googlePhoneA.accountExportState()
+        let publishedB = googlePhoneB.accountExportState()
+        googlePhoneA.merge(publishedB)
+        googlePhoneB.merge(publishedA)
+        for (label, phone) in [("A", googlePhoneA), ("B", googlePhoneB)] {
+            let copies = phone.records().filter { $0.calendarId == "google|primary|g-race" }
+            check(copies.count == 1, "phone \(label) holds one copy of an event both phones saw")
+            check(copies.first?.id == "ev-soccer", "phone \(label) keeps the event made here, not the import")
+            check(copies.first?.latitude == 40.7128, "phone \(label) keeps the event's coordinates")
+        }
+        // A phone that has not merged yet must be told to drop its copy, or it
+        // publishes it straight back.
+        check(googlePhoneA.tombstones.contains { $0.kind == .event && $0.id == "google|primary|g-race" },
+              "dropping the imported copy leaves a grave the other phone will honour")
+        let stale = echoStore()
+        stale.mergeGoogleCalendarEvents(
+            [googleEcho(of: pinned, eventId: "g-race")],
+            calendarIDs: ["primary"], from: "2026-09-13", through: "2026-09-20"
+        )
+        googlePhoneA.merge(stale.accountExportState())
+        check(googlePhoneA.records().filter { $0.calendarId == "google|primary|g-race" }.count == 1,
+              "a phone still publishing the copy cannot bring it back")
+
+        // Google repeating our own write is not upstream news. The export
+        // recorded the place name, Google echoes the street address and an
+        // import always reads kind `.other` and no series, so the first
+        // import after every export overwrote all of them.
+        let exportGoogle = MockGoogleCalendarService()
+        let exportPhone = echoStore(exportGoogle)
+        exportPhone.googleClientId = "test-client-id.apps.googleusercontent.com"
+        try await exportPhone.connectGoogleAccount()
+        var seriesStop = pinned
+        seriesStop.id = "ev-swim"
+        seriesStop.seriesId = "series-swim"
+        seriesStop.originalOccurrenceDate = seriesStop.date
+        exportPhone.replaceRecords([seriesStop])
+        let written = try await exportPhone.exportEventToGoogleCalendar(seriesStop)
+        let writtenId = String(written.calendarId!.split(separator: "|")[2])
+        exportPhone.mergeGoogleCalendarEvents(
+            [googleEcho(of: seriesStop, eventId: writtenId)],
+            calendarIDs: ["primary"], from: "2026-09-13", through: "2026-09-20"
+        )
+        let afterEcho = exportPhone.records().first { $0.id == "ev-swim" }!
+        check(afterEcho.location == "Soccer Field", "our own write read back keeps the saved place name")
+        check(afterEcho.kind == .drive, "our own write read back keeps the event's kind")
+        check(afterEcho.seriesId == "series-swim", "our own write read back keeps the event in its series")
+        check(exportPhone.records().count == 1, "and adds no second copy")
+
+        // A real rename on Google still comes through.
+        exportPhone.mergeGoogleCalendarEvents(
+            [googleEcho(of: seriesStop, eventId: writtenId, title: "Swim Meet")],
+            calendarIDs: ["primary"], from: "2026-09-13", through: "2026-09-20"
+        )
+        check(exportPhone.records().first { $0.id == "ev-swim" }?.title == "Swim Meet",
+              "a genuine upstream rename is still applied")
+
         // 6. Google Calendar Export / Live Write
         let newLocalStop = TaskRecord(
             id: "local-stop-1",

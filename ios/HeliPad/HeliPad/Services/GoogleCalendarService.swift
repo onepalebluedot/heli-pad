@@ -595,7 +595,7 @@ public final class GoogleCalendarService: GoogleCalendarProtocol {
             return nil
         }()
 
-        let destination = (event.location ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let place = importedPlace(event.location, homeName: homeName)
 
         return TaskRecord(
             id: providerKey,
@@ -604,9 +604,9 @@ public final class GoogleCalendarService: GoogleCalendarProtocol {
             endTime: endTime,
             title: event.summary ?? "Calendar event",
             owner: "TBD",
-            location: destination.isEmpty ? homeName : destination,
-            mode: destination.isEmpty ? "Home" : "Drive",
-            kind: destination.isEmpty ? .home : .other,
+            location: place.location,
+            mode: place.mode,
+            kind: place.kind,
             gcal: true,
             notes: event.description ?? "",
             allDay: isAllDay,
@@ -711,13 +711,44 @@ public final class GoogleCalendarService: GoogleCalendarProtocol {
         }
     }
 
+    /// What an event's location becomes on Google: the street address when we
+    /// have one, so Google Maps can route to it.
+    static func writtenLocation(_ task: TaskRecord) -> String? {
+        task.location.isEmpty ? nil : (task.formattedAddress ?? task.location)
+    }
+
+    /// How an import reads a Google location into the app's place fields.
+    static func importedPlace(_ location: String?, homeName: String) -> (location: String, mode: String, kind: TaskKind) {
+        let destination = (location ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return destination.isEmpty
+            ? (homeName, "Home", .home)
+            : (destination, "Drive", .other)
+    }
+
+    /// The task as the next import will read it back, once
+    /// `taskToEventPayload` has written it. The export has to remember this,
+    /// not the task itself: Google holds the street address rather than the
+    /// place name, an import cannot recover the event's kind, and the payload
+    /// carries no recurrence. Remembering the task made the first import after
+    /// every export look like an upstream edit, which overwrote all three.
+    static func importedEcho(of task: TaskRecord, homeName: String) -> TaskRecord {
+        var echo = task
+        let place = importedPlace(writtenLocation(task), homeName: homeName)
+        echo.location = place.location
+        echo.mode = place.mode
+        echo.kind = place.kind
+        echo.seriesId = nil
+        echo.originalOccurrenceDate = nil
+        return echo
+    }
+
     public static func taskToEventPayload(task: TaskRecord, timeZone: TimeZone) -> [String: Any] {
         var payload: [String: Any] = [
             "summary": task.title,
             "description": task.notes.isEmpty ? "Exported from HeliPad" : task.notes
         ]
-        if !task.location.isEmpty {
-            payload["location"] = task.formattedAddress ?? task.location
+        if let location = writtenLocation(task) {
+            payload["location"] = location
         }
 
         if task.allDay {

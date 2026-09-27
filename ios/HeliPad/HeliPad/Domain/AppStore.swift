@@ -1061,7 +1061,20 @@ public class AppStore: ObservableObject {
             }
         }
 
-        let mergedEvents = combine(records(), remote.eventsByDay.values.flatMap { $0 } + remote.plan.future, .event)
+        let (mergedEvents, googleCopies) = Self.collapsingGoogleCopies(
+            combine(records(), remote.eventsByDay.values.flatMap { $0 } + remote.plan.future, .event)
+        )
+        if !googleCopies.isEmpty {
+            // Collapsing here is not enough on its own: a phone that has not
+            // merged yet would publish its copy straight back. A grave newer
+            // than the copy makes that phone drop it too, whatever build it
+            // runs. Observe the remote clock first so the grave outranks it.
+            observeStamps(in: remote)
+            for id in googleCopies {
+                let grave = Tombstone(id: id, kind: .event, stamp: nextStamp(), deletedAt: nowProvider())
+                graves[grave.key] = grave
+            }
+        }
         let mergedPeople = combine(people, remote.people, .person)
         let mergedTemplates = combine(templates, remote.templates, .template)
         let mergedLocations = combine(locations, remote.locations, .location)
@@ -2036,18 +2049,14 @@ public class AppStore: ObservableObject {
         from startDate: String,
         through endDate: String
     ) {
-        func googleKey(_ key: String?) -> String? {
-            guard let key, key.hasPrefix("google|") else { return nil }
-            let fields = key.split(separator: "|", omittingEmptySubsequences: false)
-            guard fields.count >= 3 else { return key }
-            return "google|\(fields[1])|\(fields[2])"
-        }
-
+        let googleKey = Self.googleIdentity
         let incomingKeys = Set(imported.compactMap(\.calendarId))
         let incomingIdentities = Set(imported.compactMap { googleKey($0.calendarId) })
         var signatures = plan.calendar.importSignatures ?? [:]
 
-        var all = records().filter { existing in
+        // Collapse before matching: with two copies present, the loop below
+        // would update whichever came first and leave the other stale.
+        var all = Self.collapsingGoogleCopies(records()).kept.filter { existing in
             guard let key = existing.calendarId, key.hasPrefix("google|") else { return true }
             let fields = key.split(separator: "|", omittingEmptySubsequences: false)
             guard fields.count >= 2, calendarIDs.contains(String(fields[1])) else { return true }
@@ -2116,6 +2125,49 @@ public class AppStore: ObservableObject {
             record.allDay ? "1" : "0",
             record.seriesId ?? "", record.originalOccurrenceDate ?? ""
         ].joined(separator: "\u{1F}")
+    }
+
+    /// The Google event a key points at, ignoring anything after the event id.
+    static func googleIdentity(_ key: String?) -> String? {
+        guard let key, key.hasPrefix("google|") else { return nil }
+        let fields = key.split(separator: "|", omittingEmptySubsequences: false)
+        guard fields.count >= 3 else { return key }
+        return "google|\(fields[1])|\(fields[2])"
+    }
+
+    /// Keeps one record per Google event.
+    ///
+    /// A second copy appears whenever an import reads an event back before
+    /// this household has recorded the Google id it was given: the export still
+    /// in flight on this phone, or the other phone importing before the sync
+    /// carrying the link arrives. The import is keyed by the Google id and the
+    /// original by its own, so nothing matched them and both lived on. The
+    /// imported copy has no coordinates, caregiver or children, so the record
+    /// made here is the one kept. The choice depends only on the records, so
+    /// both phones drop the same one.
+    static func collapsingGoogleCopies(_ records: [TaskRecord]) -> (kept: [TaskRecord], dropped: [String]) {
+        let isImport = { (record: TaskRecord) in record.id.hasPrefix("google|") }
+        var keeper: [String: TaskRecord] = [:]
+        for record in records {
+            guard let identity = googleIdentity(record.calendarId) else { continue }
+            guard let current = keeper[identity] else { keeper[identity] = record; continue }
+            let preferred = isImport(record) == isImport(current)
+                ? record.id < current.id
+                : isImport(current)
+            if preferred {
+                keeper[identity] = record
+            }
+        }
+        var kept: [TaskRecord] = []
+        var dropped: [String] = []
+        for record in records {
+            if let identity = googleIdentity(record.calendarId), keeper[identity]?.id != record.id {
+                dropped.append(record.id)
+            } else {
+                kept.append(record)
+            }
+        }
+        return (kept, dropped)
     }
 
     /// Seam for the regression suite: exercises the late-export path without
@@ -2255,10 +2307,12 @@ public class AppStore: ObservableObject {
         var signatures = plan.calendar.importSignatures ?? [:]
         let buried = Set(tombstones.filter { $0.kind == .event }.map(\.id))
         for task in exported {
+            // What the provider now holds, as an import will read it back.
+            // Recording it keeps the next import from taking our own write
+            // for news.
+            let echo = Self.providerSignature(GoogleCalendarService.importedEcho(of: task, homeName: home()))
             if let idx = all.firstIndex(where: { $0.id == task.id }) {
-                // The provider now holds exactly this. Recording it here keeps
-                // the next import from reading our own write back as news.
-                signatures[task.id] = Self.providerSignature(task)
+                signatures[task.id] = echo
                 all[idx] = task
             } else if buried.contains(task.id) {
                 // Cancelled here while its export was still in flight. Adding
@@ -2272,10 +2326,13 @@ public class AppStore: ObservableObject {
                     try? await self.deleteEventFromGoogleCalendar(task)
                 }
             } else {
-                signatures[task.id] = Self.providerSignature(task)
+                signatures[task.id] = echo
                 all.append(task)
             }
         }
+        // An import that ran while this export was in flight could not know
+        // the Google id yet, and added the event a second time.
+        all = Self.collapsingGoogleCopies(all).kept
         partitionRecords(all)
         pruneImportSignatures(signatures, against: all)
     }
