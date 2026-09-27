@@ -47,10 +47,15 @@ is enabled.
 
 ## Account flow
 
-1. The app requests a one-time five-minute nonce.
-2. Sign in with Apple returns an identity token bound to that nonce. The API
-   checks Apple's signature, issuer, audience, expiry, and nonce, then consumes
-   the nonce and issues a 30-day opaque session stored hashed in Postgres.
+1. A person either signs in with Apple or uses a username and password.
+2. Apple: the app requests a one-time five-minute nonce, and Sign in with
+   Apple returns an identity token bound to it. The API checks Apple's
+   signature, issuer, audience, expiry, and nonce, then consumes the nonce.
+   Username: `POST /v1/auth/register` or `/v1/auth/login`. Usernames are
+   case-insensitive; passwords are stored only as salted scrypt hashes. Ten
+   wrong passwords lock the account for 15 minutes, and an unknown username
+   answers exactly like a wrong password.
+   Either way the API issues a 30-day opaque session stored hashed in Postgres.
 3. A signed-in account creates a family or accepts a one-use seven-day invite.
    The owner shares an HTTPS invitation page that opens the app and, when
    configured, provides the public TestFlight installation link.

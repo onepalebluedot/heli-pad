@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { createHandler, safeKind, sha256, uuid } from '../src/server.mjs';
+import { createHandler, hashPassword, passwordMatches, safeKind, sha256, uuid } from '../src/server.mjs';
 
 const familyID = '7e7fb77a-2c23-4cce-b1e1-b04023abe825';
 
@@ -64,6 +64,101 @@ test('Apple sign-in consumes its challenge and creates a usable session', async 
     assert.equal(audience, 'com.onepalebluedot.helipad');
     return { sub: 'apple-subject' };
   } });
+});
+
+test('passwords are salted and only the original password matches', async () => {
+  const first = await hashPassword('correct horse');
+  const second = await hashPassword('correct horse');
+  assert.notEqual(first, second);
+  assert.equal(await passwordMatches('correct horse', first), true);
+  assert.equal(await passwordMatches('Correct horse', first), false);
+  assert.equal(await passwordMatches('correct horse', 'not-a-hash'), false);
+});
+
+// An in-memory stand-in for the account and session tables, enough for the
+// username routes to register, sign in, fail, lock and read a profile.
+function usernameDatabase() {
+  const accounts = new Map();
+  const sessions = new Map();
+  const query = async (sql, params) => {
+    if (sql.includes('INSERT INTO helipad_account (id, username')) {
+      const [id, username, password_hash, display_name] = params;
+      if ([...accounts.values()].some(a => a.username === username)) return { rows: [] };
+      accounts.set(id, { id, username, password_hash, display_name, email: null, failed_logins: 0, locked_until: null });
+      return { rows: [{ id, display_name, email: null, username }] };
+    }
+    if (sql.includes('FROM helipad_account WHERE username')) {
+      const a = [...accounts.values()].find(a => a.username === params[0]);
+      return { rows: a ? [{ ...a, locked: a.locked_until != null && a.locked_until > Date.now() }] : [] };
+    }
+    if (sql.includes('failed_logins = CASE')) {
+      const a = accounts.get(params[0]);
+      if (a.failed_logins + 1 >= params[1]) { a.failed_logins = 0; a.locked_until = Date.now() + 15 * 60_000; }
+      else a.failed_logins++;
+      return { rows: [] };
+    }
+    if (sql.includes('failed_logins = 0')) { Object.assign(accounts.get(params[0]), { failed_logins: 0, locked_until: null }); return { rows: [] }; }
+    if (sql.includes('INSERT INTO helipad_session')) { sessions.set(params[0], params[1]); return { rows: [] }; }
+    if (sql.includes('FROM helipad_session')) {
+      const a = accounts.get(sessions.get(params[0]));
+      return { rows: a ? [{ id: a.id, display_name: a.display_name, email: null, username: a.username }] : [] };
+    }
+    if (sql.includes('FROM helipad_family f')) return { rows: [] };
+    throw new Error(`Unexpected query: ${sql}`);
+  };
+  return { query, accounts };
+}
+
+const postJSON = (url, body) => fetch(url, {
+  method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body)
+});
+
+test('a username account registers, signs in case-insensitively, and never stores the password', async () => {
+  const db = usernameDatabase();
+  await withServer(db.query, async base => {
+    const created = await postJSON(`${base}/v1/auth/register`, { username: ' Kellie.V ', password: 'school-run-8', displayName: 'Kellie' });
+    assert.equal(created.status, 201);
+    const { token, account } = await created.json();
+    assert.equal(account.username, 'kellie.v');
+    const stored = [...db.accounts.values()][0];
+    assert.ok(!stored.password_hash.includes('school-run-8'));
+
+    const profile = await fetch(`${base}/v1/me`, { headers: { authorization: `Bearer ${token}` } });
+    assert.deepEqual((await profile.json()).account, { id: stored.id, display_name: 'Kellie', email: null, username: 'kellie.v' });
+
+    const again = await postJSON(`${base}/v1/auth/register`, { username: 'kellie.v', password: 'another-pass' });
+    assert.equal(again.status, 400, 'a taken username is refused');
+
+    const login = await postJSON(`${base}/v1/auth/login`, { username: 'KELLIE.V', password: 'school-run-8' });
+    assert.equal(login.status, 200);
+    assert.ok((await login.json()).token);
+  });
+});
+
+test('registration rejects short passwords and unusable usernames', async () => {
+  const db = usernameDatabase();
+  await withServer(db.query, async base => {
+    assert.equal((await postJSON(`${base}/v1/auth/register`, { username: 'sam', password: 'short' })).status, 400);
+    assert.equal((await postJSON(`${base}/v1/auth/register`, { username: 'a b', password: 'long enough' })).status, 400);
+    assert.equal((await postJSON(`${base}/v1/auth/register`, { username: 'x', password: 'long enough' })).status, 400);
+    assert.equal(db.accounts.size, 0);
+  });
+});
+
+test('a wrong password and an unknown username get the same answer, and repeated failures lock the account', async () => {
+  const db = usernameDatabase();
+  await withServer(db.query, async base => {
+    await postJSON(`${base}/v1/auth/register`, { username: 'sam', password: 'right-password' });
+    const wrong = await postJSON(`${base}/v1/auth/login`, { username: 'sam', password: 'wrong-password' });
+    const unknown = await postJSON(`${base}/v1/auth/login`, { username: 'nobody', password: 'wrong-password' });
+    assert.equal(wrong.status, 401);
+    assert.equal(unknown.status, 401);
+    assert.deepEqual(await wrong.json(), await unknown.json());
+
+    for (let i = 1; i < 10; i++) await postJSON(`${base}/v1/auth/login`, { username: 'sam', password: 'wrong-password' });
+    const locked = await postJSON(`${base}/v1/auth/login`, { username: 'sam', password: 'right-password' });
+    assert.equal(locked.status, 429, 'even the right password waits out the lock');
+  });
 });
 
 test('a document request without a session is rejected before reading family data', async () => {

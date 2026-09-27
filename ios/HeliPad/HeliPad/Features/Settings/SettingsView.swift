@@ -30,11 +30,11 @@ public struct SettingsView: View {
     @State private var showCloudDownloadConfirm = false
     @State private var showFamilyAccount = false
     @State private var showFamilyInvite = false
-    @State private var showFirstTimePreview = false
     @State private var showSignOutConfirm = false
     @State private var isSigningOut = false
-    @State private var familyAccountName = ""
+    @State private var familyProfile: FamilyProfile?
     @State private var familyMembers: [FamilyMember] = []
+    @State private var familySessionExpired = false
     @State private var isSyncingNeon: Bool = false
     @State private var googleStatusText: String? = nil
     @State private var neonStatusText: String? = nil
@@ -117,10 +117,6 @@ public struct SettingsView: View {
             .sheet(isPresented: $showFamilyInvite) {
                 FamilyInviteView(store: store)
             }
-            .sheet(isPresented: $showFirstTimePreview) {
-                FamilyAccountView(store: store, isFirstRun: true, previewOnly: true,
-                                  onFinished: { showFirstTimePreview = false })
-            }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -162,7 +158,7 @@ public struct SettingsView: View {
                 Button("Sign out", role: .destructive) { signOutOfFamily() }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This phone will return to Sign in with Apple. Your family's shared data stays in the family, and you can sign back in with the same Apple ID.")
+                Text("This phone will return to the sign-in screen. Your family's shared data stays in the family, and you can sign back in with the same account.")
             }
             .overlay(alignment: .bottom) {
                 if let msg = toastMessage {
@@ -449,6 +445,29 @@ public struct SettingsView: View {
             }
             .font(HeliTypography.buttonLabel(14))
             .foregroundColor(HeliColors.forestGreen)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("This phone belongs to")
+                    .font(HeliTypography.body(13))
+                    .foregroundColor(HeliColors.greenInk)
+                Picker("This phone belongs to", selection: Binding(
+                    get: { store.currentUser },
+                    set: { newValue in
+                        do { try store.setActiveUser(newValue) }
+                        catch { errorMessage = error.localizedDescription }
+                    }
+                )) {
+                    Text("All").tag("All")
+                    ForEach(store.caregivers(), id: \.self) { name in
+                        Text(name).tag(name)
+                    }
+                }
+                .pickerStyle(.segmented)
+                Text("Whose stops come first on Go and which reminders this phone sends.")
+                    .font(HeliTypography.caption(11))
+                    .foregroundColor(HeliColors.mutedGray)
+            }
+            .padding(.top, 6)
         }
     }
 
@@ -656,80 +675,134 @@ public struct SettingsView: View {
     // MARK: - Section 7: Account
 
     private var accountSectionContent: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if AppConfig.familyAPIURL != nil {
-                if store.isManagedFamily {
-                    Text("Family sharing is on. Only signed-in members can sync this household.")
-                        .font(HeliTypography.body(13))
-                        .foregroundColor(HeliColors.greenInk)
-                    if !familyAccountName.isEmpty {
-                        Text(familyAccountName)
-                            .font(HeliTypography.cardTitle(15))
-                            .foregroundColor(HeliColors.greenInk)
-                    }
-                    ForEach(familyMembers) { member in
-                        HStack {
-                            Text(member.displayName.isEmpty ? "Family member" : member.displayName)
-                            Spacer()
-                            Text(member.role.capitalized)
-                                .foregroundColor(HeliColors.mutedGray)
-                        }
-                        .font(HeliTypography.body(13))
-                    }
-                    Button("Invite family member") { showFamilyInvite = true }
-                        .font(HeliTypography.actionButton(14))
-                        .foregroundColor(HeliColors.forestGreen)
-                        .frame(minHeight: 44)
-                    Button("Reconnect family account") { showFamilyAccount = true }
-                        .font(HeliTypography.actionButton(13))
-                        .foregroundColor(HeliColors.mutedGray)
-                        .frame(minHeight: 44)
-                    Button("Sign out of family account") { showSignOutConfirm = true }
-                        .font(HeliTypography.actionButton(13))
-                        .foregroundColor(HeliColors.clayText)
-                        .frame(minHeight: 44)
-                        .disabled(isSigningOut)
-                } else {
-                    Text("Create a family account to share this household without giving anyone a database password.")
-                        .font(HeliTypography.body(13))
-                        .foregroundColor(HeliColors.mutedGray)
-                    Button("Set up family sharing") { showFamilyAccount = true }
-                        .font(HeliTypography.actionButton(14))
-                        .foregroundColor(HeliColors.forestGreen)
-                        .frame(minHeight: 44)
-                }
-                Button("Preview first-time setup") { showFirstTimePreview = true }
-                    .font(HeliTypography.actionButton(13))
+        VStack(alignment: .leading, spacing: 14) {
+            if AppConfig.familyAPIURL == nil {
+                Text("Family accounts are not available in this build. This household stays on this phone.")
+                    .font(HeliTypography.body(13))
                     .foregroundColor(HeliColors.mutedGray)
-                    .frame(minHeight: 44)
-            }
-            Text("Switch active caregiver profile:")
-                .font(HeliTypography.body(13))
-                .foregroundColor(HeliColors.mutedGray)
-
-            Picker("Active Caregiver", selection: Binding(
-                get: { store.currentUser },
-                set: { newValue in
-                    do { try store.setActiveUser(newValue) }
-                    catch { errorMessage = error.localizedDescription }
-                }
-            )) {
-                Text("All (Family)").tag("All")
-                ForEach(store.caregivers(), id: \.self) { name in
-                    Text(name).tag(name)
+            } else if store.isManagedFamily {
+                familyAccountContent
+            } else {
+                Text("Create an account or sign in with Apple to share this household with your family. Until then, everything stays on this phone.")
+                    .font(HeliTypography.body(13))
+                    .foregroundColor(HeliColors.mutedGray)
+                accountPrimaryButton(FamilyAccountAPI.shared.hasSession ? "Share this household" : "Create account or sign in") {
+                    showFamilyAccount = true
                 }
             }
-            .pickerStyle(.segmented)
         }
-        .task(id: store.isManagedFamily ? store.cloudHouseholdID : "") {
-            guard store.isManagedFamily else { return }
+        .task(id: "\(store.isManagedFamily ? store.cloudHouseholdID : "")|\(showFamilyAccount)") {
+            // Keyed on the sheet too, so signing in again from it refreshes
+            // this section when it closes instead of still reading as expired.
+            guard store.isManagedFamily, !showFamilyAccount else { return }
             do {
                 let api = FamilyAccountAPI.shared
-                let profile = try await api.profile()
-                familyAccountName = profile.families.first { $0.id == store.cloudHouseholdID }?.name ?? ""
+                familyProfile = try await api.profile()
                 familyMembers = try await api.members(familyID: store.cloudHouseholdID)
+                familySessionExpired = false
+            } catch FamilyAccountError.notSignedIn {
+                familySessionExpired = true
             } catch { familyMembers = [] }
         }
+    }
+
+    @ViewBuilder
+    private var familyAccountContent: some View {
+        let family = familyProfile?.families.first { $0.id == store.cloudHouseholdID }
+
+        if familySessionExpired {
+            Label("Your sign-in expired on this phone, so family changes are not syncing.", systemImage: "exclamationmark.triangle")
+                .font(HeliTypography.body(13))
+                .foregroundColor(HeliColors.warningClay)
+            accountPrimaryButton("Sign in again") { showFamilyAccount = true }
+        } else if let account = familyProfile?.account {
+            HStack(spacing: 12) {
+                AvatarDisc(name: account.shownName, size: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(account.shownName)
+                        .font(HeliTypography.cardTitle(15))
+                        .foregroundColor(HeliColors.greenInk)
+                    Text(account.signInMethod)
+                        .font(HeliTypography.caption(12))
+                        .foregroundColor(HeliColors.mutedGray)
+                }
+            }
+            .accessibilityElement(children: .combine)
+        } else {
+            ProgressView().frame(maxWidth: .infinity, alignment: .leading)
+        }
+
+        Rectangle().fill(HeliColors.sageRule).frame(height: 1)
+
+        VStack(alignment: .leading, spacing: 8) {
+            Text(family.map { "FAMILY · \($0.name.uppercased())" } ?? "FAMILY")
+                .font(HeliTypography.eyebrow(11))
+                .foregroundColor(HeliColors.mutedGray)
+            ForEach(familyMembers) { member in
+                let isYou = member.id == familyProfile?.account.id
+                let name = member.displayName.isEmpty ? "Family member" : member.displayName
+                HStack(spacing: 10) {
+                    AvatarDisc(name: name, size: 28)
+                    Text(isYou ? "\(name) (you)" : name)
+                        .font(HeliTypography.body(14))
+                        .foregroundColor(HeliColors.greenInk)
+                    Spacer()
+                    Text(member.role.capitalized)
+                        .font(HeliTypography.caption(12))
+                        .foregroundColor(HeliColors.mutedGray)
+                }
+                .frame(minHeight: 36)
+                .accessibilityElement(children: .combine)
+            }
+            familySyncStatus
+        }
+
+        if family?.role == "owner" {
+            accountPrimaryButton("Invite family member") { showFamilyInvite = true }
+        } else if family != nil {
+            Text("Only the family owner can invite people.")
+                .font(HeliTypography.caption(12))
+                .foregroundColor(HeliColors.mutedGray)
+        }
+
+        Button("Sign out") { showSignOutConfirm = true }
+            .font(HeliTypography.actionButton(14))
+            .foregroundColor(HeliColors.clayText)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+            .disabled(isSigningOut)
+            .accessibilityHint("Signs this phone out of the family account")
+    }
+
+    /// Sync runs on its own once a family is shared; this line only says
+    /// whether it is keeping up, so nobody needs the Neon controls to check.
+    @ViewBuilder
+    private var familySyncStatus: some View {
+        if store.syncError != nil {
+            Label("Not syncing right now. Changes are kept on this phone.", systemImage: "exclamationmark.icloud")
+                .foregroundColor(HeliColors.warningClay)
+                .font(HeliTypography.caption(12))
+        } else if store.syncPending {
+            Label("Changes waiting to sync", systemImage: "arrow.triangle.2.circlepath")
+                .foregroundColor(HeliColors.mutedGray)
+                .font(HeliTypography.caption(12))
+        } else if let lastSync = store.lastNeonSyncDate {
+            Label("Synced with your family \(lastSync.formatted(.relative(presentation: .named)))", systemImage: "checkmark.icloud")
+                .foregroundColor(HeliColors.forestGreen)
+                .font(HeliTypography.caption(12))
+        }
+    }
+
+    private func accountPrimaryButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(HeliTypography.actionButton(14))
+                .foregroundColor(HeliColors.cardWarmWhite)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(HeliColors.forestGreen)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
     }
 
     private func signOutOfFamily() {

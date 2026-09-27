@@ -1,4 +1,5 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
+import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { Pool } from 'pg';
@@ -18,7 +19,34 @@ const randomCode = () => randomBytes(32).toString('base64url');
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const safeKind = value => value === 'household' || value === 'lists';
 
-export { sha256, uuid, safeKind };
+const scryptAsync = promisify(scrypt);
+
+// scrypt from node:crypto rather than a bcrypt/argon2 package, so the service
+// keeps its three dependencies. The parameters travel with each hash, so they
+// can be raised later without invalidating existing passwords.
+async function hashPassword(password) {
+  const salt = randomBytes(16);
+  const key = await scryptAsync(password, salt, 64, { N: 16384, r: 8, p: 1 });
+  return `scrypt$16384$8$1$${salt.toString('base64url')}$${key.toString('base64url')}`;
+}
+
+async function passwordMatches(password, stored) {
+  const [scheme, N, r, p, salt, expected] = (stored || '').split('$');
+  if (scheme !== 'scrypt' || !salt || !expected) return false;
+  const want = Buffer.from(expected, 'base64url');
+  const key = await scryptAsync(password, Buffer.from(salt, 'base64url'), want.length, { N: Number(N), r: Number(r), p: Number(p) });
+  return timingSafeEqual(key, want);
+}
+
+// An unknown username is checked against this hash too, so a miss takes as
+// long as a wrong password and response time does not reveal which usernames exist.
+const decoyHash = hashPassword(randomCode());
+
+const normalUsername = value => typeof value === 'string' ? value.trim().toLowerCase() : '';
+const validUsername = value => /^[a-z0-9][a-z0-9._-]{2,31}$/.test(value);
+const maxFailedLogins = 10;
+
+export { sha256, uuid, safeKind, hashPassword, passwordMatches };
 
 class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -56,19 +84,28 @@ function inviteLanding(response, code) {
     'referrer-policy': 'no-referrer',
     'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
   });
-  response.end(`<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Join a HeliPad family</title><style>body{font:17px system-ui,sans-serif;background:#f6f4ed;color:#244c40;margin:0;padding:40px 20px}main{max-width:440px;margin:10vh auto;background:white;border-radius:20px;padding:30px}h1{font-size:28px}p{line-height:1.5;color:#52675e}a{display:block;text-align:center;background:#205744;color:white;padding:15px;border-radius:10px;text-decoration:none;margin-top:14px}.secondary{background:#e6eee1;color:#205744}code{overflow-wrap:anywhere}</style><main><h1>You’re invited to HeliPad</h1><p>Open the app, sign in with Apple, and join your family. If you need the app first, install it through TestFlight, then return to this invitation.</p><a href="${deepLink}">Open HeliPad</a>${install}<p>Invitation code: <code>${code}</code></p></main></html>`);
+  response.end(`<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Join a HeliPad family</title><style>body{font:17px system-ui,sans-serif;background:#f6f4ed;color:#244c40;margin:0;padding:40px 20px}main{max-width:440px;margin:10vh auto;background:white;border-radius:20px;padding:30px}h1{font-size:28px}p{line-height:1.5;color:#52675e}a{display:block;text-align:center;background:#205744;color:white;padding:15px;border-radius:10px;text-decoration:none;margin-top:14px}.secondary{background:#e6eee1;color:#205744}code{overflow-wrap:anywhere}</style><main><h1>You’re invited to HeliPad</h1><p>Open the app, sign in, and join your family. If you need the app first, install it through TestFlight, then return to this invitation.</p><a href="${deepLink}">Open HeliPad</a>${install}<p>Invitation code: <code>${code}</code></p></main></html>`);
 }
 
 async function accountFor(request, pool) {
   const token = /^Bearer ([A-Za-z0-9_-]+)$/.exec(request.headers.authorization || '')?.[1];
   if (!token) throw new ApiError(401, 'Sign in to continue.');
   const { rows } = await pool.query(`
-    SELECT a.id, a.display_name, a.email
+    SELECT a.id, a.display_name, a.email, a.username
     FROM helipad_session s JOIN helipad_account a ON a.id = s.account_id
     WHERE s.token_hash = $1 AND s.expires_at > now()
   `, [sha256(token)]);
   if (!rows[0]) throw new ApiError(401, 'Your session has expired. Sign in again.');
   return rows[0];
+}
+
+async function issueSession(pool, account) {
+  const token = randomCode();
+  await pool.query(`
+    INSERT INTO helipad_session (token_hash, account_id, expires_at)
+    VALUES ($1, $2, now() + interval '30 days')
+  `, [sha256(token), account.id]);
+  return { token, account };
 }
 
 async function membership(pool, familyID, accountID, ownerOnly = false) {
@@ -188,14 +225,50 @@ export function createHandler(pool, { appleBundleID, verifyIdentity = verifyAppl
           ON CONFLICT (apple_subject) DO UPDATE SET
             email = COALESCE(EXCLUDED.email, helipad_account.email),
             display_name = CASE WHEN helipad_account.display_name = '' THEN EXCLUDED.display_name ELSE helipad_account.display_name END
-          RETURNING id, display_name, email
+          RETURNING id, display_name, email, username
         `, [accountID, identity.sub, displayName, email]);
-        const token = randomCode();
-        await pool.query(`
-          INSERT INTO helipad_session (token_hash, account_id, expires_at)
-          VALUES ($1, $2, now() + interval '30 days')
-        `, [sha256(token), account.rows[0].id]);
-        return send(response, 200, { token, account: account.rows[0] });
+        return send(response, 200, await issueSession(pool, account.rows[0]));
+      }
+      if (request.method === 'POST' && url.pathname === '/v1/auth/register') {
+        const body = await bodyJSON(request);
+        const username = normalUsername(body.username);
+        const password = typeof body.password === 'string' ? body.password : '';
+        if (!validUsername(username)) throw new ApiError(400, 'Choose a username of 3 to 32 letters, numbers, dots, dashes or underscores.');
+        if (password.length < 8 || password.length > 128) throw new ApiError(400, 'Choose a password of at least 8 characters.');
+        const displayName = (typeof body.displayName === 'string' ? body.displayName.trim().slice(0, 80) : '') || username;
+        const { rows } = await pool.query(`
+          INSERT INTO helipad_account (id, username, password_hash, display_name)
+          VALUES ($1, $2, $3, $4) ON CONFLICT (username) DO NOTHING
+          RETURNING id, display_name, email, username
+        `, [randomUUID(), username, await hashPassword(password), displayName]);
+        if (!rows[0]) throw new ApiError(400, 'That username is taken. Choose another.');
+        return send(response, 201, await issueSession(pool, rows[0]));
+      }
+      if (request.method === 'POST' && url.pathname === '/v1/auth/login') {
+        const body = await bodyJSON(request);
+        const username = normalUsername(body.username);
+        const password = typeof body.password === 'string' ? body.password.slice(0, 128) : '';
+        const { rows } = validUsername(username) ? await pool.query(`
+          SELECT id, display_name, email, username, password_hash, locked_until > now() AS locked
+          FROM helipad_account WHERE username = $1
+        `, [username]) : { rows: [] };
+        const found = rows[0];
+        if (found?.locked) throw new ApiError(429, 'Too many attempts. Try again in 15 minutes.');
+        const matches = await passwordMatches(password, found?.password_hash || await decoyHash);
+        if (!found?.password_hash || !matches) {
+          // A lock, rather than a per-IP limit, because serverless instances
+          // share no memory; the database is the one place every attempt meets.
+          if (found) await pool.query(`
+            UPDATE helipad_account SET
+              failed_logins = CASE WHEN failed_logins + 1 >= $2 THEN 0 ELSE failed_logins + 1 END,
+              locked_until = CASE WHEN failed_logins + 1 >= $2 THEN now() + interval '15 minutes' ELSE locked_until END
+            WHERE id = $1
+          `, [found.id, maxFailedLogins]);
+          throw new ApiError(401, 'Username or password is incorrect.');
+        }
+        await pool.query('UPDATE helipad_account SET failed_logins = 0, locked_until = NULL WHERE id = $1', [found.id]);
+        const { id, display_name, email } = found;
+        return send(response, 200, await issueSession(pool, { id, display_name, email, username: found.username }));
       }
 
       const account = await accountFor(request, pool);

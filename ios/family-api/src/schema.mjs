@@ -57,6 +57,14 @@ CREATE TABLE IF NOT EXISTS helipad_alpha_signup (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Username accounts have no Apple subject. Both statements are no-ops once
+-- applied, so the startup migration stays safe to rerun on every instance.
+ALTER TABLE helipad_account ALTER COLUMN apple_subject DROP NOT NULL;
+ALTER TABLE helipad_account ADD COLUMN IF NOT EXISTS username TEXT UNIQUE;
+ALTER TABLE helipad_account ADD COLUMN IF NOT EXISTS password_hash TEXT;
+ALTER TABLE helipad_account ADD COLUMN IF NOT EXISTS failed_logins INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE helipad_account ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS helipad_session_account_idx ON helipad_session(account_id);
 CREATE INDEX IF NOT EXISTS helipad_family_invite_family_idx ON helipad_family_invite(family_id);
 `;

@@ -4,9 +4,11 @@ public struct FamilyAccount: Codable {
     public var id: String
     public var displayName: String
     public var email: String?
+    /// Set only for username accounts; an Apple account has none.
+    public var username: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, email
+        case id, email, username
         case displayName = "display_name"
     }
 }
@@ -53,7 +55,7 @@ public enum FamilyAccountError: LocalizedError {
         switch self {
         case .unavailable: return "Family accounts are not configured in this build."
         case .invalidResponse: return "The family service returned an unreadable response."
-        case .notSignedIn: return "Sign in with Apple to continue."
+        case .notSignedIn: return "Sign in to continue."
         case .rejected(let message): return message
         }
     }
@@ -111,6 +113,24 @@ public final class FamilyAccountAPI {
         let response: SignInResponse = try await request(
             "v1/auth/apple", method: "POST", authenticated: false,
             body: ["identityToken": identityToken, "nonce": nonce, "displayName": displayName]
+        )
+        try secrets.set(response.token, for: tokenKey)
+        return try await profile()
+    }
+
+    public func register(username: String, password: String, displayName: String) async throws -> FamilyProfile {
+        let response: SignInResponse = try await request(
+            "v1/auth/register", method: "POST", authenticated: false,
+            body: ["username": username, "password": password, "displayName": displayName]
+        )
+        try secrets.set(response.token, for: tokenKey)
+        return try await profile()
+    }
+
+    public func login(username: String, password: String) async throws -> FamilyProfile {
+        let response: SignInResponse = try await request(
+            "v1/auth/login", method: "POST", authenticated: false,
+            body: ["username": username, "password": password]
         )
         try secrets.set(response.token, for: tokenKey)
         return try await profile()
