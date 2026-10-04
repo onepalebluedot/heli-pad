@@ -38,6 +38,7 @@
 		6AD9272FE090CF8ED90CA900 /* GoViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E1562F6E0CD84378DA7BC2 /* GoViewModel.swift */; };
 		6E53778006360AD8E6EC6237 /* FamilyRosterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741398ACE96CEF6A7A72868A /* FamilyRosterView.swift */; };
 		7124C2F2E3FB0D8C9F2EB75A /* PlanCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 863501ABD0D2BF11BF475B27 /* PlanCore.swift */; };
+		B4158E7A669544D10FC16A7F /* RecurringCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B78ACC8F941D35483E739FFA /* RecurringCore.swift */; };
 		72FC76C5F9CB71FCCA9E7E26 /* OnboardingPlacesStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85D723F2D1D02C5EB5EAC177 /* OnboardingPlacesStep.swift */; };
 		73DB2321EA4D84F4449AC9A9 /* GoMastheadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A2F2C70CBE4DA298033654C /* GoMastheadView.swift */; };
 		7677AE166C68C7329477695F /* NeonDatabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A2D56146E5338169D0229E2 /* NeonDatabaseService.swift */; };
@@ -145,6 +146,7 @@
 		85D723F2D1D02C5EB5EAC177 /* OnboardingPlacesStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPlacesStep.swift; sourceTree = "<group>"; };
 		85E1562F6E0CD84378DA7BC2 /* GoViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoViewModel.swift; sourceTree = "<group>"; };
 		863501ABD0D2BF11BF475B27 /* PlanCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanCore.swift; sourceTree = "<group>"; };
+		B78ACC8F941D35483E739FFA /* RecurringCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringCore.swift; sourceTree = "<group>"; };
 		8706FA2A7D58717A279526F4 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		877D3FBFA36E18650E53F099 /* HeliTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeliTypography.swift; sourceTree = "<group>"; };
 		CC0000000000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -311,6 +313,7 @@
 				F21DC9D86EFC9C34117995F1,
 				BCC62876745C5E100D6E3C2F,
 				863501ABD0D2BF11BF475B27,
+				B78ACC8F941D35483E739FFA,
 				2694E867BBAED0475C36F408,
 				85CFFA0285C838E27FEB9A3C,
 				3454E9351410A87F9009ECB6,
@@ -594,6 +597,7 @@
 				8B549E3D9F4514509D5DA88E /* OnboardingDraft.swift in Sources */,
 				DFB47FF0ED09ADD0BC599F23 /* Persistence.swift in Sources */,
 				7124C2F2E3FB0D8C9F2EB75A /* PlanCore.swift in Sources */,
+				B4158E7A669544D10FC16A7F /* RecurringCore.swift in Sources */,
 				14A46B01A55C353FEF8E91D3 /* RoutesData.swift in Sources */,
 				8B7E284AAED253A744670ACD /* TodayUseCases.swift in Sources */,
 				2CCABCF1128273C45CA7DB46 /* FamilyView.swift in Sources */,

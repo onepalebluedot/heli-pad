@@ -1625,6 +1625,91 @@ final class MockListsHost: HouseholdListsHost {
         let preRule = try JSONDecoder().decode(TaskRecord.self, from: Data(preRuleJSON.utf8))
         check(preRule.seriesRule == nil, "an event saved before rules existed still decodes")
 
+        // 5g. Recurring stops, recurringGroups. The Plan page listed one large card per
+        // series in the week on screen, so the section changed every week and
+        // grew without bound. These are all of the household's series, recurringGroups
+        // by how often they repeat, with what needs a driver first.
+        let crewOptions = PlanningOptions(crew: ["Mom", "Dad", "Nani"])
+        func rec(_ id: String, _ series: String?, _ date: String, _ time: String = "17:00", title: String,
+                 owner: String = "TBD", allDay: Bool = false, rule: String? = nil) -> TaskRecord {
+            TaskRecord(id: id, date: date, time: allDay ? "00:00" : time, endTime: allDay ? "23:59" : "18:30",
+                       title: title, owner: owner, location: "Somewhere", allDay: allDay, seriesId: series,
+                       seriesRule: rule.flatMap { SeriesRule.parse(["RRULE:" + $0]) })
+        }
+        let household: [TaskRecord] = [
+            rec("soccer-past", "series-soccer", "2026-09-28", title: "Soccer practice"),
+            rec("soccer-1", "series-soccer", "2026-10-05", title: "Soccer practice"),
+            rec("soccer-2", "series-soccer", "2026-10-07", title: "Soccer practice", owner: "Nani"),
+            rec("swim-1", "series-swim", "2026-10-06", "16:30", title: "Swim", owner: "Mom"),
+            rec("swim-2", "series-swim", "2026-10-13", "16:30", title: "Swim", owner: "Mom"),
+            rec("piano-1", "google-series|primary|piano", "2026-10-08", "16:00", title: "Piano", owner: "Dad",
+                rule: "FREQ=WEEKLY;INTERVAL=2;BYDAY=TH"),
+            rec("ortho-1", "google-series|primary|ortho", "2026-10-14", "08:00", title: "Orthodontist",
+                rule: "FREQ=MONTHLY;BYDAY=2TU"),
+            rec("grandma-1", "google-series|primary|grandma", "2026-10-09", title: "Grandma's birthday",
+                allDay: true, rule: "FREQ=YEARLY"),
+            rec("leo-1", "google-series|primary|leo", "2026-02-03", title: "Leo's birthday",
+                allDay: true, rule: "FREQ=YEARLY"),
+            rec("checkup-1", "google-series|primary|checkup", "2026-10-20", "10:00", title: "Annual checkup",
+                rule: "FREQ=YEARLY"),
+            rec("mystery-1", "google-series|primary|mystery", "2026-10-10", title: "Shared calendar event"),
+            rec("camp-1", "series-camp", "2026-08-03", title: "Summer camp"),
+            rec("dentist", nil, "2026-10-07", title: "Dentist")
+        ]
+        let soccerRule = SeriesDefinition(
+            seriesId: "series-soccer",
+            pattern: RecurrencePattern(mode: .weekly, startDate: "2026-09-28", weekdays: [0, 2], end: .weekCount(10))
+        )
+        let recurring = RecurringCore.series(household, definitions: [soccerRule], options: crewOptions, today: "2026-10-04")
+        let byId = Dictionary(uniqueKeysWithValues: recurring.map { ($0.id, $0) })
+        check(byId["series-camp"] == nil, "a series with nothing left to come is not listed")
+        check(byId["dentist"] == nil, "one-off events are not recurring stops")
+        check(recurring.count == 8, "every series with something still to come is listed")
+
+        let soccerSeries = byId["series-soccer"]!
+        check(soccerSeries.cadence == .weekly && soccerSeries.schedule == "Every Mon and Wed", "a household series reads from its own rule")
+        check(soccerSeries.next == "2026-10-05" && soccerSeries.upcoming.map(\.id) == ["soccer-1", "soccer-2"],
+              "past dates are neither next nor upcoming")
+        check(soccerSeries.needsDriver && soccerSeries.driver == "Nani", "one date without a driver flags the series")
+        check(byId["series-swim"]!.driver == "Mom" && !byId["series-swim"]!.needsDriver, "a covered series names its driver")
+        check(byId["google-series|primary|piano"]!.schedule == "Every other Thu", "a Google interval reads naturally")
+        check(byId["google-series|primary|ortho"]!.cadence == .monthly
+                && byId["google-series|primary|ortho"]!.schedule == "Monthly on the second Tuesday",
+              "a monthly rule by weekday")
+
+        let grandmaSeries = byId["google-series|primary|grandma"]!
+        check(grandmaSeries.cadence == .yearly && grandmaSeries.schedule == "Every year on Oct 9", "a birthday is yearly")
+        check(!grandmaSeries.needsDriver, "a birthday never asks for a driver")
+        check(byId["google-series|primary|leo"]?.next == "2027-02-03",
+              "a yearly date already past this year is projected to next year, not dropped")
+        check(byId["google-series|primary|checkup"]!.needsDriver, "a timed yearly appointment still needs a driver")
+        check(byId["google-series|primary|mystery"]!.cadence == .other, "an unknown rule is not guessed")
+
+        let recurringGroups = RecurringCore.groups(recurring)
+        check(recurringGroups.map(\.cadence) == [.weekly, .monthly, .yearly, .other], "groups run from most to least frequent")
+        check(recurringGroups[0].series.map(\.id) == ["series-soccer", "series-swim", "google-series|primary|piano"],
+              "needs a driver first, then soonest")
+        check(recurringGroups[2].series.map(\.id) == ["google-series|primary|checkup", "google-series|primary|grandma", "google-series|primary|leo"],
+              "within a group the same order holds")
+        check(recurringGroups.map(\.needsDriverCount) == [1, 1, 1, 1], "each group counts what needs a driver")
+
+        // The Plan page counters agree with the groups: a birthday is not an
+        // unassigned handoff.
+        let analyzedHousehold = Dictionary(uniqueKeysWithValues: PlanCore.analyze(household, crewOptions).map { ($0.id, $0) })
+        check(analyzedHousehold["grandma-1"]?.status == "ready" && analyzedHousehold["grandma-1"]?.risks.isEmpty == true,
+              "a birthday is not flagged as needing a driver")
+        check(analyzedHousehold["checkup-1"]?.status == "missing", "a timed yearly appointment still is")
+        check(analyzedHousehold["mystery-1"]?.status == "missing", "and so is anything else without a driver")
+
+        check(RecurringCore.schedule(SeriesRule.parse(["RRULE:FREQ=MONTHLY;BYMONTHDAY=21"]), weekdays: [], date: "2026-10-21") == "Monthly on the 21st",
+              "a monthly rule by day of month")
+        check(RecurringCore.schedule(SeriesRule.parse(["RRULE:FREQ=MONTHLY;BYDAY=-1FR"]), weekdays: [], date: "2026-10-30") == "Monthly on the last Friday",
+              "a monthly rule counted from the end")
+        check(RecurringCore.schedule(SeriesRule.parse(["RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"]), weekdays: [], date: "2026-10-05") == "Every weekday",
+              "five school days read as weekdays")
+        check(RecurringCore.schedule(SeriesRule.parse(["RRULE:FREQ=DAILY;INTERVAL=3"]), weekdays: [], date: "2026-10-05") == "Every 3 days",
+              "a daily interval")
+
         // 6. Google Calendar Export / Live Write
         let newLocalStop = TaskRecord(
             id: "local-stop-1",

@@ -144,6 +144,15 @@ public enum PlanCore {
         return e.owner.isEmpty || e.owner == "TBD" || e.owner == "Unassigned"
     }
 
+    /// Whether an event still needs someone to take it. A birthday or other
+    /// all-day yearly date is a reminder, not a handoff: asking who drives to
+    /// it put "Needs driver" on every birthday the household imports. A timed
+    /// yearly appointment still asks.
+    public static func lacksCaregiver(_ e: TaskRecord, _ options: PlanningOptions) -> Bool {
+        if e.allDay && e.seriesRule?.frequency == .yearly { return false }
+        return unassigned(e) || (e.owner != "Family" && !crew(options).contains(e.owner))
+    }
+
     public static func end(_ e: TaskRecord) -> Int {
         let t = mins(e.endTime)
         return t <= mins(e.time) ? t + 1440 : t
@@ -298,7 +307,7 @@ public enum PlanCore {
     public static func analyze(_ events: [TaskRecord], _ options: PlanningOptions) -> [AnalyzedEvent] {
         let days = Dictionary(grouping: events, by: \.date)
         return events.map { event in
-            let missing = unassigned(event) || (event.owner != "Family" && !crew(options).contains(event.owner))
+            let missing = lacksCaregiver(event, options)
             let detail = candidate(event, missing ? (crew(options).first ?? "") : event.owner, days[event.date] ?? [], options)
             var risks: [Risk] = []
 
