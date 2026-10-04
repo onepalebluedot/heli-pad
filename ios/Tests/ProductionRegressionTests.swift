@@ -1467,6 +1467,46 @@ final class MockListsHost: HouseholdListsHost {
         check(exportPhone.records().first { $0.id == "ev-swim" }?.title == "Swim Meet",
               "a genuine upstream rename is still applied")
 
+        // 5e. Re-saving an exported event must update its Google event, not
+        // create another. The stop sheet rebuilds its draft without the Google
+        // link and saveEvent handed that draft back, so every edit wrote a
+        // second Google event; the next import brought the first one back as a
+        // separate stop at the old time, with no coordinates or driver.
+        let editGoogle = MockGoogleCalendarService()
+        let editPhone = echoStore(editGoogle)
+        editPhone.googleClientId = "test-client-id.apps.googleusercontent.com"
+        try await editPhone.connectGoogleAccount()
+        func sheetDraft(time: String) -> TaskRecord {
+            TaskRecord(
+                id: "ev-kings", date: "2026-10-03", time: time, endTime: "18:00",
+                title: "Kings Island with Dylan", owner: "TBD", location: "Kings Island",
+                mode: "Drive", kind: .drive, gcal: true,
+                latitude: 39.3447, longitude: -84.2685, formattedAddress: "6300 Kings Island Dr, Mason, OH 45040"
+            )
+        }
+        let single = RecurrencePattern(mode: .none, startDate: "2026-10-03", timeZone: editPhone.timeZone)
+        let firstSave = try editPhone.saveEvent(draft: sheetDraft(time: "10:00"), recurrence: single)
+        _ = await editPhone.exportEventsToGoogleCalendar(firstSave)
+        let createsAfterFirst = editGoogle.createCount
+        let linkAfterFirst = editPhone.records().first { $0.id == "ev-kings" }?.calendarId
+        let reSave = try editPhone.saveEvent(
+            draft: sheetDraft(time: "13:30"), recurrence: single,
+            scope: .occurrence, sourceOccurrenceID: "ev-kings", updateNotes: true
+        )
+        check(reSave.first?.calendarId == linkAfterFirst,
+              "saveEvent returns the edited event with its Google link, as stored")
+        _ = await editPhone.exportEventsToGoogleCalendar(reSave)
+        check(editGoogle.createCount == createsAfterFirst, "an edit creates no second Google event")
+        check(editGoogle.updateCount == 1, "an edit updates the Google event it already has")
+        check(editPhone.records().first { $0.id == "ev-kings" }?.calendarId == linkAfterFirst,
+              "the edited event keeps its Google link")
+
+        // A caller that passes a record without the link still updates: the
+        // household's own record decides whether this event is already on Google.
+        _ = await editPhone.exportEventsToGoogleCalendar([sheetDraft(time: "14:00")])
+        check(editGoogle.createCount == createsAfterFirst, "an unlinked copy of an exported event creates nothing")
+        check(editGoogle.updateCount == 2, "and updates the Google event the household already links")
+
         // 6. Google Calendar Export / Live Write
         let newLocalStop = TaskRecord(
             id: "local-stop-1",

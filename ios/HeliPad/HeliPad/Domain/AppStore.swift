@@ -2288,10 +2288,14 @@ public class AppStore: ObservableObject {
         var tz = TimeZone(identifier: timeZone) ?? .current
         if timeZone == "device" { tz = .current }
 
+        // The household's own record decides whether this event is already on
+        // Google. A caller's copy can predate the link - the stop sheet builds
+        // its draft without one - and trusting it wrote a second event.
         var updatedTask = task
+        updatedTask.calendarId = records().first { $0.id == task.id }?.calendarId ?? task.calendarId
         let currentEtag = plan.calendar.exports[task.id]
 
-        if let calId = task.calendarId, calId.hasPrefix("google|") {
+        if let calId = updatedTask.calendarId, calId.hasPrefix("google|") {
             let fields = calId.split(separator: "|", omittingEmptySubsequences: false)
             if fields.count >= 3 {
                 let remoteCalId = String(fields[1])
@@ -2664,7 +2668,12 @@ public class AppStore: ObservableObject {
             }
             partitionRecords(all)
             save()
-            return generated
+            // Return what was stored, not the draft it was built from. Callers
+            // export these, and the draft never carries the Google link:
+            // handing it back made every edit of an exported stop write a
+            // second Google event, which the next import added as a duplicate.
+            let saved = Set(generated.map(\.id))
+            return records().filter { saved.contains($0.id) }
         }
 
         let seriesId = source?.seriesId ?? draft.seriesId ?? "series-\(UUID().uuidString)"
