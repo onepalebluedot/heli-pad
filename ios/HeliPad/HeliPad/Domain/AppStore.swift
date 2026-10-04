@@ -2128,6 +2128,15 @@ public class AppStore: ObservableObject {
                 }
                 all[index].calendarId = providerEvent.calendarId
                 all[index].gcal = true
+                // Outside the signature on purpose: adding it there would make
+                // every event in a household that already imports look changed
+                // upstream once, and revert any edit not yet sent to Google.
+                // A rule that could not be read this time is not news either.
+                if all[index].seriesId == nil {
+                    all[index].seriesRule = nil
+                } else if let rule = providerEvent.seriesRule {
+                    all[index].seriesRule = rule
+                }
             } else {
                 var newRecord = providerEvent
                 newRecord.gcal = true

@@ -169,6 +169,40 @@ final class SQLProtocol: URLProtocol {
     override func stopLoading() {}
 }
 
+// Stands in for the Google Calendar REST API at the URLSession boundary, so the
+// real GoogleCalendarService is exercised: the instance list, and one GET per
+// recurring master. A master missing from `masters` answers 404.
+final class GoogleAPIProtocol: URLProtocol {
+    static var instances: [[String: Any]] = []
+    static var masters: [String: [String]] = [:]
+    static var masterRequests: [String] = []
+    static var listRequests = 0
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        let url = request.url!
+        let last = url.lastPathComponent
+        var status = 200
+        let body: [String: Any]
+        if last == "events" {
+            Self.listRequests += 1
+            body = ["items": Self.instances]
+        } else if let recurrence = Self.masters[last] {
+            Self.masterRequests.append(last)
+            body = ["id": last, "recurrence": recurrence]
+        } else {
+            Self.masterRequests.append(last)
+            status = 404
+            body = ["error": ["code": 404]]
+        }
+        let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: try! JSONSerialization.data(withJSONObject: body))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
+
 // MARK: - Lists test doubles
 
 /// Stands in for the `helipad_household_lists` record: one document, one
@@ -1506,6 +1540,90 @@ final class MockListsHost: HouseholdListsHost {
         _ = await editPhone.exportEventsToGoogleCalendar([sheetDraft(time: "14:00")])
         check(editGoogle.createCount == createsAfterFirst, "an unlinked copy of an exported event creates nothing")
         check(editGoogle.updateCount == 2, "and updates the Google event the household already links")
+
+        // 5f. How often an imported series repeats. The import asks Google for
+        // single instances, which carry no rule: a birthday arrives as one
+        // event, indistinguishable from a monthly one. Grouping recurring stops
+        // by cadence needs the rule from each series' master event.
+        check(SeriesRule.parse(["RRULE:FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=9"])?.frequency == .yearly, "a yearly rule parses")
+        check(SeriesRule.parse(["EXDATE;VALUE=DATE:20261013", "RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE"])
+                == SeriesRule(frequency: .weekly, interval: 2, rrule: "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE"),
+              "the rule is found among exception dates, with its interval")
+        check(SeriesRule.parse(["RRULE:FREQ=MONTHLY;BYDAY=2TU"])?.interval == 1, "an absent interval means every period")
+        check(SeriesRule.parse(["RRULE:FREQ=HOURLY"]) == nil, "a frequency the app has no group for is not guessed")
+        check(SeriesRule.parse(nil) == nil && SeriesRule.parse([]) == nil, "no recurrence, no rule")
+
+        GoogleAPIProtocol.instances = [
+            ["id": "swim_20261006", "summary": "Swim", "recurringEventId": "swim",
+             "start": ["dateTime": "2026-10-06T16:30:00-04:00"], "end": ["dateTime": "2026-10-06T17:30:00-04:00"],
+             "originalStartTime": ["dateTime": "2026-10-06T16:30:00-04:00"]],
+            ["id": "swim_20261013", "summary": "Swim", "recurringEventId": "swim",
+             "start": ["dateTime": "2026-10-13T16:30:00-04:00"], "end": ["dateTime": "2026-10-13T17:30:00-04:00"],
+             "originalStartTime": ["dateTime": "2026-10-13T16:30:00-04:00"]],
+            ["id": "grandma_20261009", "summary": "Grandma's birthday", "recurringEventId": "grandma",
+             "start": ["date": "2026-10-09"], "end": ["date": "2026-10-10"],
+             "originalStartTime": ["date": "2026-10-09"]],
+            ["id": "orphan_20261011", "summary": "Shared calendar event", "recurringEventId": "orphan",
+             "start": ["date": "2026-10-11"], "end": ["date": "2026-10-12"],
+             "originalStartTime": ["date": "2026-10-11"]],
+            ["id": "dentist", "summary": "Dentist",
+             "start": ["dateTime": "2026-10-07T09:00:00-04:00"], "end": ["dateTime": "2026-10-07T10:00:00-04:00"]]
+        ]
+        GoogleAPIProtocol.masters = [
+            "swim": ["RRULE:FREQ=WEEKLY;BYDAY=TU"],
+            "grandma": ["RRULE:FREQ=YEARLY"]
+        ]
+        let apiConfig = URLSessionConfiguration.ephemeral
+        apiConfig.protocolClasses = [GoogleAPIProtocol.self]
+        let apiSecrets = MemorySecrets()
+        apiSecrets.values = [
+            "googleAccessToken": "test-token",
+            "googleTokenExpiration": String(Date().timeIntervalSince1970 + 3600)
+        ]
+        let liveGoogle = GoogleCalendarService(session: URLSession(configuration: apiConfig), secretStore: apiSecrets)
+        let fetchWindow = (start: iso.date(from: "2026-10-04T00:00:00Z")!, end: iso.date(from: "2026-11-04T00:00:00Z")!)
+        let fetched = try await liveGoogle.fetchEvents(
+            calendarIDs: ["primary"], start: fetchWindow.start, end: fetchWindow.end, timeZone: nyTz, homeName: "Home"
+        )
+        func rule(_ title: String, in records: [TaskRecord]) -> SeriesRule? {
+            records.first { $0.title == title }?.seriesRule
+        }
+        check(fetched.count == 5, "every instance still imports, whether or not its rule could be read")
+        check(fetched.filter { $0.title == "Swim" }.allSatisfy { $0.seriesRule?.frequency == .weekly },
+              "each occurrence of a weekly series carries its rule")
+        check(rule("Grandma's birthday", in: fetched)?.frequency == .yearly, "a birthday is known to be yearly")
+        check(rule("Dentist", in: fetched) == nil, "a one-off event has no rule")
+        check(rule("Shared calendar event", in: fetched) == nil,
+              "a master Google will not return leaves the rule unknown rather than failing the import")
+        check(GoogleAPIProtocol.masterRequests.sorted() == ["grandma", "orphan", "swim"],
+              "one request per series, not per occurrence")
+        GoogleAPIProtocol.masterRequests = []
+        _ = try await liveGoogle.fetchEvents(
+            calendarIDs: ["primary"], start: fetchWindow.start, end: fetchWindow.end, timeZone: nyTz, homeName: "Home"
+        )
+        // The import runs every time the app comes to the foreground; asking
+        // for every rule again each time would multiply its requests.
+        check(GoogleAPIProtocol.masterRequests == ["orphan"], "a rule already read is not asked for again")
+
+        // The rule reaches the household, survives an import that could not
+        // read it, and travels to the other phone.
+        let rulePhone = echoStore()
+        rulePhone.mergeGoogleCalendarEvents(fetched, calendarIDs: ["primary"], from: "2026-10-04", through: "2026-11-03")
+        check(rule("Grandma's birthday", in: rulePhone.records())?.frequency == .yearly, "the import keeps the rule")
+        let signaturesBefore = rulePhone.plan.calendar.importSignatures
+        var unreadable = fetched
+        for index in unreadable.indices { unreadable[index].seriesRule = nil }
+        rulePhone.mergeGoogleCalendarEvents(unreadable, calendarIDs: ["primary"], from: "2026-10-04", through: "2026-11-03")
+        check(rule("Grandma's birthday", in: rulePhone.records())?.frequency == .yearly,
+              "an import that could not read the rule keeps the one already known")
+        check(rulePhone.plan.calendar.importSignatures == signaturesBefore,
+              "the rule is not part of the signature, so households already importing are not seen as changed")
+        let otherPhone = echoStore()
+        otherPhone.merge(rulePhone.accountExportState())
+        check(rule("Swim", in: otherPhone.records())?.frequency == .weekly, "the rule syncs to the other phone")
+        let preRuleJSON = #"{"id":"old","date":"2026-10-09","time":"00:00","endTime":"23:59","title":"Old","owner":"TBD","kids":[],"location":"Home","mode":"Home","kind":"home","done":false,"tentative":false,"locked":false,"gcal":true,"notes":"","allDay":true}"#
+        let preRule = try JSONDecoder().decode(TaskRecord.self, from: Data(preRuleJSON.utf8))
+        check(preRule.seriesRule == nil, "an event saved before rules existed still decodes")
 
         // 6. Google Calendar Export / Live Write
         let newLocalStop = TaskRecord(

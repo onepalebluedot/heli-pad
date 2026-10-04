@@ -171,6 +171,48 @@ public struct SeriesDefinition: Identifiable, StampedRecord, Hashable {
     }
 }
 
+/// How often an imported series repeats, read from its calendar's RRULE.
+///
+/// Kept apart from `SeriesDefinition` on purpose: a definition is
+/// authoritative over which slots exist, and `reconcile` deletes any row its
+/// pattern does not produce. A Google series' rule only describes what Google
+/// already decided, so giving it that power would let a rule the app cannot
+/// expand (a monthly "second Tuesday") delete the household's own rows.
+public struct SeriesRule: Codable, Hashable {
+    public enum Frequency: String, Codable, Hashable {
+        case daily, weekly, monthly, yearly
+    }
+
+    public var frequency: Frequency
+    /// Every `interval` periods; 1 unless the rule says otherwise.
+    public var interval: Int
+    /// The rule as the calendar wrote it, minus the `RRULE:` prefix, so later
+    /// screens can read weekdays or month days without another fetch.
+    public var rrule: String
+
+    public init(frequency: Frequency, interval: Int = 1, rrule: String) {
+        self.frequency = frequency
+        self.interval = interval
+        self.rrule = rrule
+    }
+
+    /// Reads the RRULE line out of an RFC 5545 recurrence list, which can also
+    /// hold EXDATE and RDATE lines. Frequencies finer than a day have no place
+    /// in a family plan, so they stay unknown rather than being guessed.
+    public static func parse(_ recurrence: [String]?) -> SeriesRule? {
+        guard let line = recurrence?.first(where: { $0.uppercased().hasPrefix("RRULE:") }) else { return nil }
+        let rrule = String(line.dropFirst("RRULE:".count))
+        var parts: [String: String] = [:]
+        for pair in rrule.split(separator: ";") {
+            let kv = pair.split(separator: "=", maxSplits: 1)
+            if kv.count == 2 { parts[kv[0].uppercased()] = String(kv[1]) }
+        }
+        guard let frequency = parts["FREQ"].flatMap({ Frequency(rawValue: $0.lowercased()) }) else { return nil }
+        let interval = parts["INTERVAL"].flatMap(Int.init).map { max(1, $0) } ?? 1
+        return SeriesRule(frequency: frequency, interval: interval, rrule: rrule)
+    }
+}
+
 public enum SeriesExceptionKind: String, Codable, Hashable {
     case excluded
     case modified
@@ -385,6 +427,10 @@ public struct TaskRecord: Identifiable, Codable, Hashable {
     /// existed; those are judged on `seriesId` and `calendarId` instead, and
     /// are never rewritten on decode.
     public var origin: EventOrigin? = nil
+    /// How often the series this occurrence belongs to repeats, when its
+    /// calendar says. Only imported series carry one; a series made here is
+    /// described by its `SeriesDefinition`.
+    public var seriesRule: SeriesRule? = nil
 
     public init(
         id: String,
@@ -415,7 +461,8 @@ public struct TaskRecord: Identifiable, Codable, Hashable {
         latitude: Double? = nil,
         longitude: Double? = nil,
         formattedAddress: String? = nil,
-        origin: EventOrigin? = nil
+        origin: EventOrigin? = nil,
+        seriesRule: SeriesRule? = nil
     ) {
         self.id = id
         self.date = date
@@ -446,6 +493,7 @@ public struct TaskRecord: Identifiable, Codable, Hashable {
         self.longitude = longitude
         self.formattedAddress = formattedAddress
         self.origin = origin
+        self.seriesRule = seriesRule
     }
 }
 

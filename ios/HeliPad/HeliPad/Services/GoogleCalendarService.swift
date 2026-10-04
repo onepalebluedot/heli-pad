@@ -501,6 +501,7 @@ public final class GoogleCalendarService: GoogleCalendarProtocol {
         let endISO = isoFormatter.string(from: end)
 
         var allRecords: [TaskRecord] = []
+        var masters: [String: (calendarId: String, masterId: String)] = [:]
 
         for calendarId in calendarIDs {
             let encodedId = calendarId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? calendarId
@@ -529,11 +530,70 @@ public final class GoogleCalendarService: GoogleCalendarProtocol {
                 if event.status == "cancelled" { continue }
                 if let record = Self.parseGoogleEvent(event, calendarId: calendarId, timeZone: timeZone, homeName: homeName) {
                     allRecords.append(record)
+                    if record.seriesRule == nil, let master = event.recurringEventId, let seriesId = record.seriesId {
+                        masters[seriesId] = (calendarId, master)
+                    }
                 }
             }
         }
 
+        let rules = await seriesRules(for: masters, token: token)
+        for index in allRecords.indices where allRecords[index].seriesRule == nil {
+            allRecords[index].seriesRule = allRecords[index].seriesId.flatMap { rules[$0] }
+        }
         return allRecords
+    }
+
+    /// Rules read this session, by the series id the import assigns. The import
+    /// runs every time the app comes forward; reading every master again each
+    /// time would add a request per series to every one of those.
+    private var knownRules: [String: SeriesRule] = [:]
+    private let knownRulesLock = NSLock()
+
+    /// Instances (`singleEvents=true`) carry no recurrence, so a birthday and a
+    /// monthly appointment look alike. The rule lives on the series' master.
+    /// One that cannot be read stays unknown and is asked for again next
+    /// import; it never fails the import itself.
+    private func seriesRules(
+        for masters: [String: (calendarId: String, masterId: String)],
+        token: String
+    ) async -> [String: SeriesRule] {
+        let known = knownRulesLock.withLock { knownRules }
+        let missing = masters.filter { known[$0.key] == nil }
+        guard !missing.isEmpty else { return known }
+
+        let read = await withTaskGroup(of: (String, SeriesRule?).self) { group in
+            for (seriesId, master) in missing {
+                group.addTask {
+                    (seriesId, await self.fetchSeriesRule(calendarId: master.calendarId, masterId: master.masterId, token: token))
+                }
+            }
+            var found: [String: SeriesRule] = [:]
+            for await (seriesId, rule) in group {
+                if let rule { found[seriesId] = rule }
+            }
+            return found
+        }
+        return knownRulesLock.withLock {
+            knownRules.merge(read) { _, fresh in fresh }
+            return knownRules
+        }
+    }
+
+    private func fetchSeriesRule(calendarId: String, masterId: String, token: String) async -> SeriesRule? {
+        let encodedCalendar = calendarId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? calendarId
+        let encodedMaster = masterId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? masterId
+        guard let url = URL(string: "https://www.googleapis.com/calendar/v3/calendars/\(encodedCalendar)/events/\(encodedMaster)") else {
+            return nil
+        }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        guard let (data, response) = try? await session.data(for: req),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let master = try? JSONDecoder().decode(GoogleCalendarEventItem.self, from: data) else {
+            return nil
+        }
+        return SeriesRule.parse(master.recurrence)
     }
 
     // MARK: - Event Parser Helper
@@ -612,7 +672,8 @@ public final class GoogleCalendarService: GoogleCalendarProtocol {
             allDay: isAllDay,
             seriesId: providerSeriesId,
             originalOccurrenceDate: providerSeriesId == nil ? nil : origDate,
-            calendarId: providerKey
+            calendarId: providerKey,
+            seriesRule: SeriesRule.parse(event.recurrence)
         )
     }
 
