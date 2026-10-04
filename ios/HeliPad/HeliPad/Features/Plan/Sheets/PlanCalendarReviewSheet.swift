@@ -94,9 +94,32 @@ public final class AppleCalendarService: ObservableObject {
                 allDay: event.isAllDay,
                 seriesId: providerSeriesId,
                 originalOccurrenceDate: providerSeriesId == nil ? nil : originalDay,
-                calendarId: providerKey
+                calendarId: providerKey,
+                seriesRule: providerSeriesId == nil ? nil : event.recurrenceRules?.first.flatMap(Self.seriesRule)
             )
         }
+    }
+
+    /// EventKit's rule in the shape the Google import stores, so both read the
+    /// same on the Plan page. An occurrence reports its series' rules.
+    private static func seriesRule(_ rule: EKRecurrenceRule) -> SeriesRule? {
+        let frequency: SeriesRule.Frequency
+        switch rule.frequency {
+        case .daily: frequency = .daily
+        case .weekly: frequency = .weekly
+        case .monthly: frequency = .monthly
+        case .yearly: frequency = .yearly
+        @unknown default: return nil
+        }
+        let days = rule.daysOfTheWeek ?? []
+        return SeriesRule(
+            frequency: frequency,
+            interval: rule.interval,
+            // EKWeekday counts from Sunday = 1; the app counts from Monday = 0.
+            byDay: days.map { ($0.dayOfTheWeek.rawValue + 5) % 7 },
+            position: days.first?.weekNumber ?? 0,
+            byMonthDay: (rule.daysOfTheMonth ?? []).map(\.intValue)
+        )
     }
 }
 

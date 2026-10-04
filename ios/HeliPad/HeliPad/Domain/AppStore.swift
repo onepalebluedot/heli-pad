@@ -1967,6 +1967,13 @@ public class AppStore: ObservableObject {
                     all[index].originalOccurrenceDate = providerEvent.originalOccurrenceDate
                     signatures[all[index].id] = incomingSignature
                 }
+                // Outside the signature for the same reason as the Google
+                // import: a rule is description, not an upstream edit.
+                if all[index].seriesId == nil {
+                    all[index].seriesRule = nil
+                } else if let rule = providerEvent.seriesRule {
+                    all[index].seriesRule = rule
+                }
             } else {
                 signatures[providerEvent.id] = incomingSignature
                 all.append(providerEvent)

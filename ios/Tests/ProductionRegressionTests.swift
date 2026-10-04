@@ -583,9 +583,10 @@ final class MockListsHost: HouseholdListsHost {
             through: "2026-09-30"
         )
         let providerPlan = PlanViewModel()
-        providerPlan.currentWeek = "2026-09-14"
-        let providerGroups = providerPlan.routineGroups(store: providerStore)
-        check(providerGroups.count == 1 && providerGroups[0].weekEvents.count == 1 && providerGroups[0].events.count == 2, "Plan shows a once-weekly provider series while retaining global action scope")
+        let providerSeries = providerPlan.recurringGroups(store: providerStore, today: "2026-09-21").flatMap(\.series)
+        let providerAction = providerSeries.first.map { providerPlan.routineGroup(for: $0, store: providerStore) }
+        check(providerSeries.count == 1 && providerSeries[0].upcoming.count == 1 && providerAction?.events.count == 2,
+              "Plan lists a provider series once while its actions still reach every date in it")
         try providerStore.assignEvent(id: importedFirst.id, caregiver: "Dad", scope: .series)
         check(providerStore.events(inSeries: providerSeriesId).allSatisfy { $0.owner == "Dad" }, "entire-series assignment reaches imported occurrences outside the visible week")
         check(providerStore.records().first { $0.id == lookalike.id }?.owner == "Mom", "lookalike one-off remains outside provider and local series actions")
@@ -1709,6 +1710,41 @@ final class MockListsHost: HouseholdListsHost {
               "five school days read as weekdays")
         check(RecurringCore.schedule(SeriesRule.parse(["RRULE:FREQ=DAILY;INTERVAL=3"]), weekdays: [], date: "2026-10-05") == "Every 3 days",
               "a daily interval")
+
+        // Apple Calendar series are imported too. Only a series made here is
+        // known to be weekly; one from a calendar repeats however its rule says.
+        let appleRows = [
+            rec("apple-art", "apple-series|school-cal|art", "2026-10-06", title: "Art club"),
+            rec("apple-band", "apple-series|school-cal|band", "2026-10-07", title: "Band", rule: "FREQ=MONTHLY;BYMONTHDAY=7")
+        ]
+        let appleSeries = Dictionary(uniqueKeysWithValues: RecurringCore.series(
+            appleRows, definitions: [], options: crewOptions, today: "2026-10-04"
+        ).map { ($0.id, $0) })
+        check(appleSeries["apple-series|school-cal|art"]?.cadence == .other, "an Apple series without a rule is not assumed weekly")
+        check(appleSeries["apple-series|school-cal|band"]?.schedule == "Monthly on the 7th"
+                && appleSeries["apple-series|school-cal|band"]?.source == .apple,
+              "an Apple series reads its rule and says where it lives")
+        check(recurring.first { $0.id == "series-soccer" }?.source == .household, "a series made here is the household's own")
+        check(SeriesRule(frequency: .weekly, interval: 2, byDay: [0, 2]).rrule == "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE",
+              "a rule built from EventKit's parts reads like Google's")
+        check(SeriesRule(frequency: .monthly, byMonthDay: [7]) == SeriesRule.parse(["RRULE:FREQ=MONTHLY;BYMONTHDAY=7"]),
+              "and is the same rule Google's text would give")
+        check(RecurringCore.schedule(SeriesRule(frequency: .monthly, byDay: [1], position: 2), weekdays: [], date: "2026-10-13")
+                == "Monthly on the second Tuesday", "EventKit's numbered weekday reads like Google's")
+
+        let applePhone = echoStore()
+        let appleImported = appleRows.map { row -> TaskRecord in
+            var keyed = row
+            keyed.calendarId = "apple|school-cal|\(row.id)|\(row.date)|17:00"
+            return keyed
+        }
+        applePhone.mergeAppleCalendarEvents(appleImported, calendarIDs: ["school-cal"], from: "2026-10-04", through: "2026-11-03")
+        var appleUnread = appleImported
+        for index in appleUnread.indices { appleUnread[index].seriesRule = nil }
+        applePhone.mergeAppleCalendarEvents(appleUnread, calendarIDs: ["school-cal"], from: "2026-10-04", through: "2026-11-03")
+        check(applePhone.records().first { $0.id == "apple-band" }?.seriesRule?.frequency == .monthly,
+              "an Apple import keeps a rule it could not read this time")
+
 
         // 6. Google Calendar Export / Live Write
         let newLocalStop = TaskRecord(

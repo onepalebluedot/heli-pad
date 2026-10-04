@@ -18,7 +18,7 @@ public struct PlanView: View {
     public var body: some View {
         let summary = viewModel.summary(store: store)
         let decisions = summary.list.filter { $0.status != "ready" }
-        let routines = viewModel.routineGroups(store: store)
+        let recurring = viewModel.recurringGroups(store: store)
 
         ScrollViewReader { scrollProxy in
             ScrollView {
@@ -126,21 +126,10 @@ public struct PlanView: View {
                 )
                 .id("plan-shortcuts")
 
-                // A long series list keeps only a few cards on this page.
+                // One row per cadence; the series themselves live in a sheet.
                 PlanRoutinesView(
-                    routines: routines,
-                    onShowAll: { viewModel.showRoutinesSheet = true },
-                    onSetCaregiver: { group in
-                        viewModel.activeRoutineForAssign = group
-                        viewModel.activeEventForAssign = nil
-                        viewModel.showAssignSheet = true
-                    },
-                    onEditSeries: { group in
-                        guard let first = group.weekEvents.min(by: { $0.date < $1.date }) else { return }
-                        seriesToEdit = group
-                        eventToEdit = first
-                        viewModel.showEventSheet = true
-                    }
+                    groups: recurring,
+                    onOpen: { viewModel.recurringFocus = $0 }
                 )
 
                 Spacer().frame(height: 80)
@@ -169,12 +158,14 @@ public struct PlanView: View {
                 }
             )
         }
-        .sheet(isPresented: $viewModel.showRoutinesSheet) {
+        .sheet(item: $viewModel.recurringFocus) { focus in
             PlanRoutinesSheet(
                 store: store,
-                routines: routines,
-                onEditSeries: { group in
-                    viewModel.showRoutinesSheet = false
+                focus: focus,
+                load: { viewModel.recurringGroups(store: store) },
+                onEditSeries: { series in
+                    let group = viewModel.routineGroup(for: series, store: store)
+                    viewModel.recurringFocus = nil
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         guard let first = group.weekEvents.min(by: { $0.date < $1.date }) else { return }
                         seriesToEdit = group
@@ -182,8 +173,9 @@ public struct PlanView: View {
                         viewModel.showEventSheet = true
                     }
                 },
-                onAssignRoutine: { group in
-                    viewModel.showRoutinesSheet = false
+                onSetDriver: { series in
+                    let group = viewModel.routineGroup(for: series, store: store)
+                    viewModel.recurringFocus = nil
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         viewModel.activeRoutineForAssign = group
                         viewModel.activeEventForAssign = nil
@@ -191,7 +183,7 @@ public struct PlanView: View {
                     }
                 },
                 onSelectEvent: { ev in
-                    viewModel.showRoutinesSheet = false
+                    viewModel.recurringFocus = nil
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         eventToEdit = ev
                         viewModel.showEventSheet = true

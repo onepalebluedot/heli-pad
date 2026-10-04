@@ -29,6 +29,40 @@ public struct RoutineGroup: Identifiable {
     }
 }
 
+/// What the Recurring sheet opens on: one cadence group, or every series
+/// that still needs a driver, wherever it repeats.
+public enum RecurringSheetFocus: Identifiable, Hashable {
+    case group(RecurringCadence)
+    case needsDriver
+
+    public var id: String {
+        switch self {
+        case .group(let cadence): return cadence.rawValue
+        case .needsDriver: return "needs-driver"
+        }
+    }
+}
+
+extension RecurringCadence {
+    public var title: String {
+        switch self {
+        case .weekly: return "Weekly"
+        case .monthly: return "Monthly"
+        case .yearly: return "Birthdays and yearly"
+        case .other: return "Other repeating"
+        }
+    }
+
+    public var symbol: String {
+        switch self {
+        case .weekly: return "repeat"
+        case .monthly: return "calendar"
+        case .yearly: return "gift"
+        case .other: return "arrow.triangle.2.circlepath"
+        }
+    }
+}
+
 public enum ReviewFilterMode: String, CaseIterable, Identifiable {
     case all = "All"
     case unassigned = "Unassigned"
@@ -46,7 +80,7 @@ public class PlanViewModel: ObservableObject {
     // Active sheets
     @Published public var showReviewSheet: Bool = false
     @Published public var reviewFilter: ReviewFilterMode = .all
-    @Published public var showRoutinesSheet: Bool = false
+    @Published public var recurringFocus: RecurringSheetFocus? = nil
     @Published public var showAssignSheet: Bool = false
     @Published public var showPrioritiesSheet: Bool = false
     @Published public var showCalendarSheet: Bool = false
@@ -65,31 +99,31 @@ public class PlanViewModel: ObservableObject {
         return store.records().filter { $0.date >= currentWeek && $0.date <= endWeek }
     }
 
-    public func routineGroups(store: AppStore) -> [RoutineGroup] {
-        let visible = weekRecords(store: store)
-        let visibleSeries = Set(visible.compactMap(\.seriesId))
-        let all = store.records()
-        var groups: [RoutineGroup] = []
-        for seriesId in visibleSeries {
-            let every = all.filter { $0.seriesId == seriesId }.sorted { $0.date < $1.date }
-            let week = visible.filter { $0.seriesId == seriesId }.sorted { $0.date < $1.date }
-            guard let representative = week.first ?? every.first else { continue }
-            groups.append(RoutineGroup(
-                key: seriesId,
-                title: representative.title,
-                location: representative.location,
-                kids: representative.kids,
-                events: every,
-                weekEvents: week,
-                definition: store.seriesDefinition(id: seriesId)
-            ))
-        }
-        return groups.sorted {
-            if $0.events.count != $1.events.count {
-                return $0.events.count > $1.events.count
-            }
-            return $0.title.localizedCompare($1.title) == .orderedAscending
-        }
+    /// Every series in the household, not just those in the week on screen:
+    /// the section used to change every week and a birthday vanished for the
+    /// rest of the year.
+    public func recurringGroups(store: AppStore, today: String = PlanCore.currentDeviceDate()) -> [RecurringGroup] {
+        RecurringCore.groups(RecurringCore.series(
+            store.records(),
+            definitions: store.plan.seriesDefinitions ?? [],
+            options: store.planningOptions(),
+            today: today
+        ))
+    }
+
+    /// The assign and edit flows act on a whole series through a RoutineGroup.
+    /// Built from every occurrence, not just the upcoming ones the list shows,
+    /// so "set for all" still reaches every date in the series.
+    public func routineGroup(for series: RecurringSeries, store: AppStore) -> RoutineGroup {
+        RoutineGroup(
+            key: series.id,
+            title: series.title,
+            location: series.location,
+            kids: series.kids,
+            events: store.events(inSeries: series.id).sorted { $0.date < $1.date },
+            weekEvents: series.upcoming,
+            definition: store.seriesDefinition(id: series.id)
+        )
     }
 
     public func changeWeek(delta: Int) {

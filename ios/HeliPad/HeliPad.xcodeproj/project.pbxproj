@@ -17,6 +17,7 @@
 		14A46B01A55C353FEF8E91D3 /* RoutesData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2694E867BBAED0475C36F408 /* RoutesData.swift */; };
 		21F80D01122446BAF0934C48 /* GoRailTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E13A392663405E502770D1D /* GoRailTimelineView.swift */; };
 		229D4A45C26CE542782C1EBD /* PlanRoutinesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A44E22F226EF8373899E50C2 /* PlanRoutinesSheet.swift */; };
+		9B38F7A39B2915887908414F /* PlanRecurringSeriesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10B7008D58A6FEB90E7DB58C /* PlanRecurringSeriesView.swift */; };
 		239D42EE9AEAACCE3C4034A2 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = C07B27EEB2B85E661EF63EFD /* Models.swift */; };
 		257377EA6CD816D3273DDBEB /* FamilyViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A997D0A6D5F218A754FF804 /* FamilyViewModel.swift */; };
 		2B60483E25942E689B54AB88 /* GoAddEditStopSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABBE27035DB8CEE14F44679 /* GoAddEditStopSheet.swift */; };
@@ -157,6 +158,7 @@
 		9A0A7C9268FBB71A8983AF72 /* TodayViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayViewModel.swift; sourceTree = "<group>"; };
 		9F2899BEA6353032B0B90A87 /* PlanViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanViewModel.swift; sourceTree = "<group>"; };
 		A44E22F226EF8373899E50C2 /* PlanRoutinesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanRoutinesSheet.swift; sourceTree = "<group>"; };
+		10B7008D58A6FEB90E7DB58C /* PlanRecurringSeriesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanRecurringSeriesView.swift; sourceTree = "<group>"; };
 		A53A2E73E9FB587BD8AFAEC9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A56F9C4B36B12C1610647E3C /* PlanPrioritiesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanPrioritiesSheet.swift; sourceTree = "<group>"; };
 		AAA00B965B037FAB6C4B28A4 /* Ports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ports.swift; sourceTree = "<group>"; };
@@ -344,6 +346,7 @@
 				A56F9C4B36B12C1610647E3C,
 				F49FA2CCBECEA7E76ADDB5C1,
 				A44E22F226EF8373899E50C2,
+				10B7008D58A6FEB90E7DB58C,
 			);
 			path = Sheets;
 			sourceTree = "<group>";
@@ -631,6 +634,7 @@
 				95AF3456B71747047225767F /* PlanPrioritiesSheet.swift in Sources */,
 				EEA4303B9E2501CDD3F9EB27 /* PlanReviewSheet.swift in Sources */,
 				229D4A45C26CE542782C1EBD /* PlanRoutinesSheet.swift in Sources */,
+				9B38F7A39B2915887908414F /* PlanRecurringSeriesView.swift in Sources */,
 				CDE52C7D6721CF258939F64A /* PlanCommandCardView.swift in Sources */,
 				D8A957A6BD567503C3BDE567 /* PlanDecisionListView.swift in Sources */,
 				C992B41BF9E15BE30124FE1C /* PlanMastheadView.swift in Sources */,

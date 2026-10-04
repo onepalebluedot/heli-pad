@@ -1,79 +1,81 @@
 import SwiftUI
 
+/// One cadence group, or everything needing a driver, as a list of series.
+/// A row opens the series detail inside the same sheet; acting on a series
+/// hands back to the Plan page, which owns the assign and edit sheets.
 public struct PlanRoutinesSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var searchText = ""
     @ObservedObject public var store: AppStore
-    public var routines: [RoutineGroup]
-    public var onEditSeries: (RoutineGroup) -> Void
-    public var onAssignRoutine: (RoutineGroup) -> Void
-    public var onSelectEvent: ((TaskRecord) -> Void)?
+    public var focus: RecurringSheetFocus
+    public var load: () -> [RecurringGroup]
+    public var onEditSeries: (RecurringSeries) -> Void
+    public var onSetDriver: (RecurringSeries) -> Void
+    public var onSelectEvent: (TaskRecord) -> Void
+
+    @State private var searchText = ""
+    private let today = PlanCore.currentDeviceDate()
 
     public init(
         store: AppStore,
-        routines: [RoutineGroup],
-        onEditSeries: @escaping (RoutineGroup) -> Void,
-        onAssignRoutine: @escaping (RoutineGroup) -> Void,
-        onSelectEvent: ((TaskRecord) -> Void)? = nil
+        focus: RecurringSheetFocus,
+        load: @escaping () -> [RecurringGroup],
+        onEditSeries: @escaping (RecurringSeries) -> Void,
+        onSetDriver: @escaping (RecurringSeries) -> Void,
+        onSelectEvent: @escaping (TaskRecord) -> Void
     ) {
         self.store = store
-        self.routines = routines
+        self.focus = focus
+        self.load = load
         self.onEditSeries = onEditSeries
-        self.onAssignRoutine = onAssignRoutine
+        self.onSetDriver = onSetDriver
         self.onSelectEvent = onSelectEvent
     }
 
     public var body: some View {
+        // Read from the store on every render, so a driver set from the
+        // detail is reflected the moment the sheet comes back.
+        let groups = load()
+        let inFocus = series(in: groups)
+        let shown = filtered(inFocus)
+
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    // Header Status Summary
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Recurring Shortcuts")
-                            .font(HeliTypography.mastheadDate(22))
-                            .foregroundColor(HeliColors.greenInk)
+                    Text(summary(inFocus))
+                        .font(HeliTypography.caption(12))
+                        .foregroundColor(HeliColors.mutedGray)
 
-                        let totalStops = routines.reduce(0) { $0 + $1.weekEvents.count }
-                        Text("\(routines.count) recurring series · \(totalStops) stops this week")
-                            .font(HeliTypography.caption(12))
-                            .foregroundColor(HeliColors.mutedGray)
-
-                        Text("Assign a caregiver once to set all weekly occurrences in the series.")
-                            .font(HeliTypography.caption(11))
-                            .foregroundColor(HeliColors.greenInk.opacity(0.8))
-                            .padding(.top, 2)
-                    }
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(HeliColors.cardWarmWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
-
-                    // Routines List
-                    if routines.isEmpty {
+                    if inFocus.isEmpty {
                         emptyState
-                    } else if filteredRoutines.isEmpty {
-                        Text("No recurring stops match your search.")
+                    } else if shown.isEmpty {
+                        Text("No series match your search.")
                             .font(HeliTypography.body(13))
                             .foregroundColor(HeliColors.mutedGray)
                             .frame(maxWidth: .infinity)
                             .padding(24)
                     } else {
-                        VStack(spacing: 14) {
-                            ForEach(filteredRoutines) { group in
-                                routineCard(group: group)
-                            }
+                        ForEach(sections(shown), id: \.title) { section in
+                            sectionView(section)
                         }
                     }
                 }
                 .padding(20)
             }
             .background(HeliColors.canvasIvory)
-            .navigationTitle("Recurring Shortcuts")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $searchText, prompt: "Find a recurring stop")
+            .searchable(text: $searchText, prompt: "Find a series")
+            .navigationDestination(for: String.self) { id in
+                PlanRecurringSeriesView(
+                    store: store,
+                    series: groups.flatMap(\.series).first { $0.id == id },
+                    onEditSeries: { series in dismiss(); onEditSeries(series) },
+                    onSetDriver: { series in dismiss(); onSetDriver(series) },
+                    onSelectEvent: { event in dismiss(); onSelectEvent(event) }
+                )
+            }
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                         .foregroundColor(HeliColors.greenInk)
                 }
@@ -81,158 +83,147 @@ public struct PlanRoutinesSheet: View {
         }
     }
 
-    private var filteredRoutines: [RoutineGroup] {
-        guard !searchText.isEmpty else { return routines }
-        return routines.filter { group in
-            [group.title, group.location, group.owner].contains {
-                $0.localizedCaseInsensitiveContains(searchText)
-            } || group.kids.contains { $0.localizedCaseInsensitiveContains(searchText) }
+    // MARK: - Content
+
+    private var title: String {
+        switch focus {
+        case .group(let cadence): return cadence.title
+        case .needsDriver: return "Needs a driver"
         }
     }
 
-    private func routineCard(group: RoutineGroup) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header: Title + Days
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(group.title)
-                        .font(HeliTypography.cardTitle(16))
+    private func series(in groups: [RecurringGroup]) -> [RecurringSeries] {
+        switch focus {
+        case .group(let cadence):
+            return groups.first { $0.cadence == cadence }?.series ?? []
+        case .needsDriver:
+            return groups.flatMap(\.series).filter(\.needsDriver).sorted { $0.next < $1.next }
+        }
+    }
+
+    private func filtered(_ series: [RecurringSeries]) -> [RecurringSeries] {
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return series }
+        return series.filter { item in
+            [item.title, item.location, item.driver ?? ""].contains { $0.localizedCaseInsensitiveContains(query) }
+                || item.kids.contains { $0.localizedCaseInsensitiveContains(query) }
+        }
+    }
+
+    private func summary(_ series: [RecurringSeries]) -> String {
+        let count = series.count == 1 ? "1 series" : "\(series.count) series"
+        let waiting = series.filter(\.needsDriver).count
+        guard waiting > 0, focus != .needsDriver else { return count }
+        return "\(count) · \(waiting) need\(waiting == 1 ? "s" : "") a driver"
+    }
+
+    private struct Section {
+        var title: String
+        var series: [RecurringSeries]
+    }
+
+    /// Birthdays read by date; everything else by whether it is covered.
+    private func sections(_ series: [RecurringSeries]) -> [Section] {
+        if case .group(.yearly) = focus {
+            let soon = series.filter { RecurringFormat.days(from: today, to: $0.next) <= 31 }.sorted { $0.next < $1.next }
+            let later = series.filter { RecurringFormat.days(from: today, to: $0.next) > 31 }.sorted { $0.next < $1.next }
+            var result = soon.isEmpty ? [] : [Section(title: "Coming up", series: soon)]
+            var byMonth: [(String, [RecurringSeries])] = []
+            for item in later {
+                let month = RecurringFormat.month(item.next, today: today)
+                if byMonth.last?.0 == month { byMonth[byMonth.count - 1].1.append(item) } else { byMonth.append((month, [item])) }
+            }
+            result += byMonth.map { Section(title: $0.0, series: $0.1) }
+            return result
+        }
+        if focus == .needsDriver { return [Section(title: "", series: series)] }
+        let waiting = series.filter(\.needsDriver)
+        let covered = series.filter { !$0.needsDriver }
+        return [Section(title: "Needs a driver", series: waiting), Section(title: "Covered", series: covered)]
+            .filter { !$0.series.isEmpty }
+    }
+
+    private func sectionView(_ section: Section) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !section.title.isEmpty {
+                Text(section.title.uppercased())
+                    .font(HeliTypography.eyebrow(11))
+                    .foregroundColor(HeliColors.mutedGray)
+                    .tracking(1.4)
+            }
+            VStack(spacing: 0) {
+                ForEach(Array(section.series.enumerated()), id: \.element.id) { index, item in
+                    if index > 0 { Divider().background(HeliColors.sageRule) }
+                    row(item)
+                }
+            }
+            .padding(.horizontal, 14)
+            .background(HeliColors.cardWarmWhite)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
+        }
+    }
+
+    private func row(_ item: RecurringSeries) -> some View {
+        NavigationLink(value: item.id) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.title)
+                        .font(HeliTypography.cardTitle(15))
                         .foregroundColor(HeliColors.greenInk)
-
-                    HStack(spacing: 6) {
-                        Text(group.location)
-                            .font(HeliTypography.caption(12))
-                            .foregroundColor(HeliColors.mutedGray)
-
-                        if !group.kids.isEmpty {
-                            Text("•")
-                                .font(.system(size: 10))
-                                .foregroundColor(HeliColors.sageRule)
-
-                            ForEach(group.kids, id: \.self) { kid in
-                                Text(kid)
-                                    .font(HeliTypography.chipLabel(11))
-                                    .foregroundColor(HeliColors.greenInk)
-                            }
-                        }
-                    }
+                        .lineLimit(1)
+                    Text(subtitle(item))
+                        .font(HeliTypography.caption(12))
+                        .foregroundColor(HeliColors.mutedGray)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-
-                Spacer()
-
-                // Day badges
-                HStack(spacing: 4) {
-                    ForEach(group.weekdays, id: \.self) { day in
-                        Text(weekdayLabel(day))
-                            .font(HeliTypography.eyebrow(9))
-                            .foregroundColor(HeliColors.forestGreen)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(HeliColors.forestTint)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                    }
-                }
+                Spacer(minLength: 8)
+                trailing(item)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(HeliColors.mutedGray)
             }
+            .frame(minHeight: 56)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Shows dates and actions for this series")
+    }
 
-            // Scheduled occurrences breakdown
-            VStack(spacing: 6) {
-                ForEach(group.weekEvents) { ev in
-                    Button(action: {
-                        dismiss()
-                        onSelectEvent?(ev)
-                    }) {
-                        HStack {
-                            Text("\(formatDayDate(ev.date)) · \(TimeFormat.formatTime(ev.time))")
-                                .font(HeliTypography.monoTime(11))
-                                .foregroundColor(HeliColors.mutedGray)
+    private func subtitle(_ item: RecurringSeries) -> String {
+        if item.cadence == .yearly { return RecurringFormat.day(item.next) }
+        var parts = [item.schedule, item.allDay ? "All day" : TimeFormat.formatTime(item.time)]
+        if !item.kids.isEmpty { parts.append(item.kids.joined(separator: ", ")) }
+        return parts.joined(separator: " · ")
+    }
 
-                            Spacer()
-
-                            HStack(spacing: 4) {
-                                AvatarDisc(name: ev.owner, size: 18)
-                                Text(ev.owner == "TBD" ? "Unassigned" : ev.owner)
-                                    .font(HeliTypography.caption(11))
-                                    .foregroundColor(ev.owner == "TBD" ? HeliColors.clayText : HeliColors.greenInk)
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(HeliColors.mutedGray)
-                            }
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(HeliColors.canvasIvory.opacity(0.7))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
+    @ViewBuilder
+    private func trailing(_ item: RecurringSeries) -> some View {
+        if item.needsDriver {
+            RecurringChip(text: "No driver", warning: true)
+        } else if item.cadence == .yearly {
+            let away = RecurringFormat.days(from: today, to: item.next)
+            if away <= 7 {
+                RecurringChip(text: away == 0 ? "Today" : away == 1 ? "Tomorrow" : "In \(away) days", warning: false)
             }
-
-            Divider()
-                .background(HeliColors.sageRule)
-
-            Button {
-                dismiss()
-                onEditSeries(group)
-            } label: {
-                Label("Edit series", systemImage: "square.and.pencil")
-                    .font(HeliTypography.actionButton(12))
-                    .foregroundColor(HeliColors.forestGreen)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(HeliColors.forestTint)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            .buttonStyle(.plain)
-
-            // Footer: Current status + Bulk Assign Button
-            HStack {
-                HStack(spacing: 6) {
-                    AvatarDisc(name: group.owner, size: 24)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(group.owner == "TBD" ? "Unassigned Series" : "\(group.owner)")
-                            .font(HeliTypography.cardTitle(12))
-                            .foregroundColor(group.owner == "TBD" ? HeliColors.clayText : HeliColors.greenInk)
-                        Text("\(group.events.count) total · \(group.firstDate)–\(group.lastDate)")
-                            .font(HeliTypography.caption(10))
-                            .foregroundColor(HeliColors.mutedGray)
-                    }
-                }
-
-                Spacer()
-
-                Button(action: {
-                    dismiss()
-                    onAssignRoutine(group)
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "person.2.fill")
-                            .font(.system(size: 11))
-                        Text("Set Caregiver for All")
-                            .font(HeliTypography.actionButton(11))
-                    }
-                    .foregroundColor(HeliColors.cardWarmWhite)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(HeliColors.forestGreen)
-                    .clipShape(Capsule())
-                }
-                .buttonStyle(PlainButtonStyle())
+        } else if let driver = item.driver {
+            HStack(spacing: 5) {
+                if driver != "Mixed" { AvatarDisc(name: driver, size: 22) }
+                Text(driver == "Mixed" ? "Mixed" : driver)
+                    .font(HeliTypography.caption(12))
+                    .foregroundColor(HeliColors.greenInk)
             }
         }
-        .padding(14)
-        .background(HeliColors.cardWarmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(HeliColors.sageRule, lineWidth: 0.8)
-        )
     }
 
     private var emptyState: some View {
         VStack(spacing: 8) {
-            Image(systemName: "calendar.badge.clock")
-                .font(.system(size: 32))
+            Image(systemName: focus == .needsDriver ? "checkmark.circle" : "calendar.badge.clock")
+                .font(.system(size: 30))
                 .foregroundColor(HeliColors.forestGreen)
-            Text("No recurring shortcuts found for this week.")
+            Text(focus == .needsDriver ? "Every recurring stop has a driver." : "Nothing here has dates still to come.")
                 .font(HeliTypography.caption(13))
                 .foregroundColor(HeliColors.greenInk)
                 .multilineTextAlignment(.center)
@@ -243,20 +234,20 @@ public struct PlanRoutinesSheet: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
     }
+}
 
-    private func weekdayLabel(_ day: Int) -> String {
-        let names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        return names.indices.contains(day) ? names[day] : "?"
-    }
+/// A small status pill: clay when something needs doing, sage otherwise.
+struct RecurringChip: View {
+    var text: String
+    var warning: Bool
 
-    private func formatDayDate(_ dStr: String) -> String {
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd"
-        df.timeZone = TimeZone(secondsFromGMT: 0)
-        guard let d = df.date(from: dStr) else { return dStr }
-        let out = DateFormatter()
-        out.dateFormat = "EEE, MMM d"
-        out.timeZone = TimeZone(secondsFromGMT: 0)
-        return out.string(from: d)
+    var body: some View {
+        Text(text)
+            .font(HeliTypography.chipLabel(11))
+            .foregroundColor(warning ? HeliColors.clayText : HeliColors.forestGreen)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(warning ? HeliColors.clayWash : HeliColors.forestTint)
+            .clipShape(Capsule())
     }
 }

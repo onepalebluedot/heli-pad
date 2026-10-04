@@ -196,6 +196,21 @@ public struct SeriesRule: Codable, Hashable {
         self.rrule = rrule
     }
 
+    /// Builds the rule from parts, as EventKit hands them over, so an Apple
+    /// series reads exactly like the same rule from Google. `byDay` is
+    /// 0 = Monday; a non-zero `position` makes it "the second Tuesday" (2) or
+    /// "the last Friday" (-1).
+    public init(frequency: Frequency, interval: Int = 1, byDay: [Int] = [], position: Int = 0, byMonthDay: [Int] = []) {
+        let days = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
+        var parts = ["FREQ=\(frequency.rawValue.uppercased())"]
+        if interval > 1 { parts.append("INTERVAL=\(interval)") }
+        let prefix = position == 0 ? "" : String(position)
+        let named = byDay.filter(days.indices.contains).map { prefix + days[$0] }
+        if !named.isEmpty { parts.append("BYDAY=" + named.joined(separator: ",")) }
+        if !byMonthDay.isEmpty { parts.append("BYMONTHDAY=" + byMonthDay.map(String.init).joined(separator: ",")) }
+        self.init(frequency: frequency, interval: max(1, interval), rrule: parts.joined(separator: ";"))
+    }
+
     /// Reads the RRULE line out of an RFC 5545 recurrence list, which can also
     /// hold EXDATE and RDATE lines. Frequencies finer than a day have no place
     /// in a family plan, so they stay unknown rather than being guessed.

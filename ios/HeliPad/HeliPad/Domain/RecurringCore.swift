@@ -7,6 +7,13 @@ public enum RecurringCadence: String, CaseIterable, Hashable {
     case weekly, monthly, yearly, other
 }
 
+/// Where a series is defined, which decides who can change it: a series made
+/// here is edited here; one from a calendar is changed in that calendar, and
+/// the next import would undo an edit made here.
+public enum RecurringSource: Hashable {
+    case household, google, apple
+}
+
 /// One series as the Plan page shows it: its rule and next date rather than
 /// every occurrence, which is what made the old section grow without bound.
 public struct RecurringSeries: Identifiable {
@@ -17,7 +24,7 @@ public struct RecurringSeries: Identifiable {
     public var cadence: RecurringCadence
     /// "Every Mon and Wed", "Monthly on the 14th". No time; the screen adds it.
     public var schedule: String
-    public var fromGoogle: Bool
+    public var source: RecurringSource
     public var allDay: Bool
     public var time: String
     public var endTime: String
@@ -56,12 +63,15 @@ public enum RecurringCore {
             guard let latest = sorted.last else { return nil }
             let upcoming = sorted.filter { $0.date >= today && !$0.done }
 
-            // A series made here can only repeat weekly. One from Google says
-            // how it repeats on its own rows, when its master could be read.
-            let fromGoogle = seriesId.hasPrefix("google-series|")
-            let rule: SeriesRule? = fromGoogle
-                ? sorted.last(where: { $0.seriesRule != nil })?.seriesRule
-                : SeriesRule(frequency: .weekly, rrule: "")
+            // A series made here can only repeat weekly. One from a calendar
+            // says how it repeats on its own rows, when its rule could be
+            // read; without one it is not assumed weekly.
+            let source: RecurringSource = seriesId.hasPrefix("google-series|") ? .google
+                : seriesId.hasPrefix("apple-series|") ? .apple
+                : .household
+            let rule: SeriesRule? = source == .household
+                ? SeriesRule(frequency: .weekly, rrule: "")
+                : sorted.last(where: { $0.seriesRule != nil })?.seriesRule
             let cadence = cadence(of: rule)
 
             var next = upcoming.first?.date
@@ -83,8 +93,8 @@ public enum RecurringCore {
                 location: shown.location,
                 kids: shown.kids,
                 cadence: cadence,
-                schedule: schedule(rule, weekdays: fromGoogle ? [] : weekdays, date: shown.date),
-                fromGoogle: fromGoogle,
+                schedule: schedule(rule, weekdays: source == .household ? weekdays : [], date: shown.date),
+                source: source,
                 allDay: shown.allDay,
                 time: shown.time,
                 endTime: shown.endTime,
