@@ -2805,6 +2805,99 @@ public class AppStore: ObservableObject {
         save()
     }
 
+    /// Stops a series made here after `today`, keeping what already happened.
+    /// Deleting was the only way out of a series, and it erased the past with
+    /// the future. The end is written into the series' rule, not just applied
+    /// to rows, so `reconcile` removes the same dates on the other phone and a
+    /// stale copy of the series cannot republish them. Returns how many dates
+    /// were removed.
+    ///
+    /// A series from Google or Apple is left alone: the next import would put
+    /// its dates straight back.
+    @discardableResult
+    public func endSeries(id seriesId: String, after today: String) -> Int {
+        guard !seriesId.hasPrefix("google-series|"), !seriesId.hasPrefix("apple-series|") else { return 0 }
+        let existing = events(inSeries: seriesId)
+        let slot = { (event: TaskRecord) in event.originalOccurrenceDate ?? event.date }
+        let removed = existing.filter { slot($0) > today }
+        guard !removed.isEmpty else { return 0 }
+        removeFromGoogleCalendar(removed)
+
+        let pattern = seriesDefinition(id: seriesId)?.pattern ?? RecurrencePattern(
+            mode: .weekly,
+            startDate: existing.map(slot).min() ?? today,
+            timeZone: timeZone,
+            weekdays: Array(Set(existing.map { PlanCore.weekdayIndex(slot($0)) })).sorted(),
+            end: .throughDate(existing.map(slot).max() ?? today)
+        )
+        // Nothing has happened yet: there is no past to keep, and a rule
+        // cannot end before it starts.
+        guard pattern.startDate <= today, existing.contains(where: { slot($0) <= today }) else {
+            deleteSeries(id: seriesId)
+            return existing.count
+        }
+        var ended = pattern
+        ended.end = .throughDate(today)
+        putSeriesDefinition(SeriesDefinition(seriesId: seriesId, pattern: ended, deleted: false, stamp: nextStamp()))
+        let gone = Set(removed.map(\.id))
+        partitionRecords(records().filter { !gone.contains($0.id) })
+        save()
+        return removed.count
+    }
+
+    /// Brings back one skipped date of a series made here, as the series has
+    /// it, under the id it always had.
+    ///
+    /// The skip is not simply forgotten: exceptions merge newest-wins with no
+    /// tombstones, so the other phone's copy of the exclusion would come back
+    /// on the next merge and `reconcile` would delete the date again. A newer
+    /// `.modified` decision for the slot outranks it on both phones.
+    @discardableResult
+    public func restoreSkippedDate(seriesId: String, originalDate: String) throws -> TaskRecord? {
+        guard let definition = seriesDefinition(id: seriesId),
+              (plan.seriesExceptions ?? []).contains(where: {
+                  $0.seriesId == seriesId && $0.originalDate == originalDate && $0.kind == .excluded
+              }) else { return nil }
+
+        // Model the date on the nearest one nobody changed, so a one-off move
+        // or note does not spread to the restored date.
+        let siblings = events(inSeries: seriesId)
+        let untouched = siblings.filter { $0.recurrenceOverride?.modified != true }
+        let distance = { (event: TaskRecord) in
+            abs(PlanCore.dayOffset(from: event.originalOccurrenceDate ?? event.date, to: originalDate) ?? .max)
+        }
+        guard let template = (untouched.isEmpty ? siblings : untouched)
+            .min(by: { distance($0) < distance($1) }) else { return nil }
+
+        var draft = template
+        draft.done = false
+        draft.calendarId = nil
+        draft.stamp = nil
+        draft.recurrenceOverride = nil
+        guard var restored = try PlanCore.occurrences(draft, recurrence: definition.pattern, seriesId: seriesId)
+            .first(where: { $0.originalOccurrenceDate == originalDate }) else { return nil }
+        restored.origin = .recurrence(seriesID: seriesId)
+
+        putSeriesException(SeriesException(
+            seriesId: seriesId, originalDate: originalDate, kind: .modified,
+            occurrenceId: restored.id, stamp: nextStamp()
+        ))
+        partitionRecords(records() + [restored])
+        save()
+        return records().first { $0.id == restored.id }
+    }
+
+    /// Takes rows that are leaving the household off Google Calendar too.
+    private func removeFromGoogleCalendar(_ events: [TaskRecord]) {
+        let linked = events.filter { $0.calendarId?.hasPrefix("google|") == true || plan.calendar.exports[$0.id] != nil }
+        guard !linked.isEmpty else { return }
+        // On the main actor for the reason deleteEvent gives: its save()
+        // rewrites every published collection.
+        Task { @MainActor in
+            for event in linked { try? await self.deleteEventFromGoogleCalendar(event) }
+        }
+    }
+
     public func assignEvent(id: String, caregiver: String, scope: RecurrenceEditScope = .occurrence) throws {
         let all = records()
         guard let source = all.first(where: { $0.id == id }) else { return }

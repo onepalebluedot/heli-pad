@@ -1745,6 +1745,98 @@ final class MockListsHost: HouseholdListsHost {
         check(applePhone.records().first { $0.id == "apple-band" }?.seriesRule?.frequency == .monthly,
               "an Apple import keeps a rule it could not read this time")
 
+        // 5h. Ending a series, and restoring a skipped date. Deleting a series
+        // endedCount its past too, so a season that was over could only be erased,
+        // not finished. Both changes have to reach the other phone, whose own
+        // copy still holds the series as it was.
+        func weeklySeries(_ store: AppStore, title: String, start: String, weeks: Int, gcal: Bool = false) throws -> String {
+            let draft = TaskRecord(id: "draft-\(title)", date: start, time: "17:00", endTime: "18:00", title: title,
+                                   owner: "Mom", kids: [], location: "Field", mode: "Drive", gcal: gcal)
+            let pattern = RecurrencePattern(mode: .weekly, startDate: start, timeZone: store.timeZone,
+                                            weekdays: [0], end: .weekCount(weeks))
+            return try store.saveEvent(draft: draft, recurrence: pattern, scope: .series).first!.seriesId!
+        }
+        func dates(_ store: AppStore, _ seriesId: String) -> [String] {
+            store.events(inSeries: seriesId).map(\.date)
+        }
+
+        let endPhone = echoStore()
+        let season = try weeklySeries(endPhone, title: "Soccer", start: "2026-09-28", weeks: 4)
+        let beforeEnd = endPhone.accountExportState()
+        let endedCount = endPhone.endSeries(id: season, after: "2026-10-06")
+        check(endedCount == 2 && dates(endPhone, season) == ["2026-09-28", "2026-10-05"],
+              "ending a series keeps what already happened and removes what had not")
+        if case .throughDate(let last)? = endPhone.seriesDefinition(id: season)?.pattern.end {
+            check(last == "2026-10-06", "the series' own rule now ends today")
+        } else {
+            check(false, "the series' own rule now ends today")
+        }
+        let endOther = echoStore()
+        endOther.merge(beforeEnd)
+        endOther.merge(endPhone.accountExportState())
+        check(dates(endOther, season) == ["2026-09-28", "2026-10-05"], "the other phone ends it too")
+        endPhone.merge(beforeEnd)
+        check(dates(endPhone, season) == ["2026-09-28", "2026-10-05"],
+              "a phone still publishing the old series cannot bring its dates back")
+        // A series edit rebuilds every date from the rule; an end applied only
+        // to rows would be undone by the next change of time.
+        let lastKept = endPhone.events(inSeries: season).last!
+        var retimed = lastKept
+        retimed.time = "18:00"
+        retimed.endTime = "19:00"
+        _ = try endPhone.saveEvent(draft: retimed, recurrence: endPhone.seriesDefinition(id: season)!.pattern,
+                                   scope: .series, sourceOccurrenceID: lastKept.id)
+        check(dates(endPhone, season) == ["2026-09-28", "2026-10-05"], "editing an ended series does not bring its dates back")
+
+        let unstarted = try weeklySeries(endPhone, title: "Spring league", start: "2026-11-02", weeks: 3)
+        check(endPhone.endSeries(id: unstarted, after: "2026-10-06") == 3 && dates(endPhone, unstarted).isEmpty,
+              "ending a series that has not started removes all of it")
+
+        let imported = rec("ext-1", "google-series|primary|external", "2026-10-12", title: "From Google", rule: "FREQ=WEEKLY")
+        endPhone.replaceRecords(endPhone.records() + [imported])
+        check(endPhone.endSeries(id: "google-series|primary|external", after: "2026-10-06") == 0
+                && endPhone.records().contains { $0.id == "ext-1" },
+              "a series from a calendar is not ended here; the next import would only undo it")
+
+        let endGoogle = MockGoogleCalendarService()
+        let exportedPhone = echoStore(endGoogle)
+        exportedPhone.googleClientId = "test-client-id.apps.googleusercontent.com"
+        try await exportedPhone.connectGoogleAccount()
+        let exportedSeason = try weeklySeries(exportedPhone, title: "Swim", start: "2026-09-28", weeks: 4, gcal: true)
+        _ = await exportedPhone.exportEventsToGoogleCalendar(exportedPhone.events(inSeries: exportedSeason))
+        let deletesBefore = endGoogle.deleteCount
+        exportedPhone.endSeries(id: exportedSeason, after: "2026-10-06")
+        for _ in 0..<50 where endGoogle.deleteCount < deletesBefore + 2 { await Task.yield() }
+        check(endGoogle.deleteCount == deletesBefore + 2, "the dates removed from an exported series leave Google Calendar too")
+
+        // Restore. A skip is an exclusion on the series; restoring writes a
+        // newer decision for that slot, because simply forgetting the
+        // exclusion let the other phone's copy of it win the next merge.
+        let restorePhone = echoStore()
+        let piano = try weeklySeries(restorePhone, title: "Piano", start: "2026-09-28", weeks: 6)
+        let skippedId = restorePhone.events(inSeries: piano).first { $0.date == "2026-10-12" }!.id
+        restorePhone.deleteEvent(id: skippedId)
+        let withSkip = restorePhone.accountExportState()
+        let pianoSeries = { () -> RecurringSeries? in
+            RecurringCore.series(restorePhone.records(), definitions: restorePhone.plan.seriesDefinitions ?? [],
+                                 exceptions: restorePhone.plan.seriesExceptions ?? [],
+                                 options: crewOptions, today: "2026-10-06").first { $0.id == piano }
+        }
+        check(pianoSeries()?.skipped == ["2026-10-12"], "a skipped date still to come is listed")
+        let restoredDate = try restorePhone.restoreSkippedDate(seriesId: piano, originalDate: "2026-10-12")
+        check(restoredDate?.id == skippedId && restoredDate?.owner == "Mom" && restoredDate?.time == "17:00" && restoredDate?.calendarId == nil,
+              "the date comes back as the series has it, under its own id, with no borrowed Google link")
+        check(dates(restorePhone, piano).contains("2026-10-12") && pianoSeries()?.skipped == [],
+              "and is no longer listed as skipped")
+        restorePhone.merge(withSkip)
+        check(dates(restorePhone, piano).contains("2026-10-12"), "a phone still holding the skip cannot undo the restore")
+        let restoreOther = echoStore()
+        restoreOther.merge(withSkip)
+        check(!dates(restoreOther, piano).contains("2026-10-12"), "the other phone starts with the date skipped")
+        restoreOther.merge(restorePhone.accountExportState())
+        check(dates(restoreOther, piano).contains("2026-10-12"), "and gets it back")
+        check(try restorePhone.restoreSkippedDate(seriesId: "google-series|primary|external", originalDate: "2026-10-19") == nil,
+              "a calendar's own series is restored in that calendar, not here")
 
         // 6. Google Calendar Export / Live Write
         let newLocalStop = TaskRecord(

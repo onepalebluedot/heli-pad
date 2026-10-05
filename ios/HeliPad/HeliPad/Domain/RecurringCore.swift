@@ -34,6 +34,9 @@ public struct RecurringSeries: Identifiable {
     /// vanish from the list for eleven months of the year.
     public var next: String
     public var needsDriver: Bool
+    /// Dates still to come that someone skipped, for a series made here. A
+    /// calendar's own series is restored in that calendar.
+    public var skipped: [String]
     /// The one driver on the assigned upcoming dates, "Mixed" when they differ,
     /// nil when none is assigned.
     public var driver: String?
@@ -52,11 +55,16 @@ public enum RecurringCore {
     public static func series(
         _ records: [TaskRecord],
         definitions: [SeriesDefinition],
+        exceptions: [SeriesException] = [],
         options: PlanningOptions,
         today: String
     ) -> [RecurringSeries] {
         let patterns = Dictionary(definitions.map { ($0.seriesId, $0.pattern) }, uniquingKeysWith: { first, _ in first })
         let bySeries = Dictionary(grouping: records.filter { $0.seriesId != nil }, by: { $0.seriesId! })
+        let skippedBySeries = Dictionary(
+            grouping: exceptions.filter { $0.kind == .excluded && $0.originalDate >= today },
+            by: \.seriesId
+        )
 
         return bySeries.compactMap { seriesId, rows -> RecurringSeries? in
             let sorted = rows.sorted { ($0.date, $0.time) < ($1.date, $1.time) }
@@ -101,9 +109,20 @@ public enum RecurringCore {
                 upcoming: upcoming,
                 next: next,
                 needsDriver: upcoming.contains { PlanCore.lacksCaregiver($0, options) },
+                skipped: source == .household
+                    ? skippedDates(skippedBySeries[seriesId] ?? [], pattern: patterns[seriesId])
+                    : [],
                 driver: assigned.count > 1 ? "Mixed" : assigned.first
             )
         }
+    }
+
+    /// Only slots the series' rule still produces: a skip left behind past
+    /// the series' end is not a date anyone could restore.
+    private static func skippedDates(_ exceptions: [SeriesException], pattern: RecurrencePattern?) -> [String] {
+        guard let pattern, let slots = try? PlanCore.occurrenceDates(for: pattern) else { return [] }
+        let valid = Set(slots)
+        return exceptions.map(\.originalDate).filter(valid.contains).sorted()
     }
 
     /// Most frequent first; within a group, what needs a driver, then soonest.

@@ -106,6 +106,7 @@ public class PlanViewModel: ObservableObject {
         RecurringCore.groups(RecurringCore.series(
             store.records(),
             definitions: store.plan.seriesDefinitions ?? [],
+            exceptions: store.plan.seriesExceptions ?? [],
             options: store.planningOptions(),
             today: today
         ))

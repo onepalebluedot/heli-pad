@@ -10,8 +10,32 @@ struct PlanRecurringSeriesView: View {
     var onSetDriver: (RecurringSeries) -> Void
     var onSelectEvent: (TaskRecord) -> Void
 
+    @Environment(\.dismiss) private var dismiss
     @State private var showAllDates = false
+    @State private var confirmingEnd = false
+    @State private var actionError: String?
+    private let today = PlanCore.currentDeviceDate()
     private static let datesShown = 4
+
+    /// A date the series still has, or one someone skipped that can come back.
+    private enum Slot: Identifiable {
+        case date(TaskRecord)
+        case skipped(String)
+
+        var id: String {
+            switch self {
+            case .date(let event): return event.id
+            case .skipped(let day): return "skipped-\(day)"
+            }
+        }
+
+        var day: String {
+            switch self {
+            case .date(let event): return event.date
+            case .skipped(let day): return day
+            }
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -145,7 +169,8 @@ struct PlanRecurringSeriesView: View {
     }
 
     private func upcoming(_ series: RecurringSeries) -> some View {
-        let dates = showAllDates ? series.upcoming : Array(series.upcoming.prefix(Self.datesShown))
+        let slots = (series.upcoming.map(Slot.date) + series.skipped.map(Slot.skipped)).sorted { $0.day < $1.day }
+        let dates = showAllDates ? slots : Array(slots.prefix(Self.datesShown))
         return VStack(alignment: .leading, spacing: 8) {
             Text("UPCOMING")
                 .font(HeliTypography.eyebrow(11))
@@ -160,9 +185,12 @@ struct PlanRecurringSeriesView: View {
                     .foregroundColor(HeliColors.greenInk)
             } else {
                 VStack(spacing: 0) {
-                    ForEach(Array(dates.enumerated()), id: \.element.id) { index, event in
+                    ForEach(Array(dates.enumerated()), id: \.element.id) { index, slot in
                         if index > 0 { Divider().background(HeliColors.sageRule) }
-                        dateRow(event, series: series)
+                        switch slot {
+                        case .date(let event): dateRow(event, series: series)
+                        case .skipped(let day): skippedRow(day, series: series)
+                        }
                     }
                 }
                 .padding(.horizontal, 14)
@@ -171,8 +199,14 @@ struct PlanRecurringSeriesView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(HeliColors.sageRule, lineWidth: 0.8))
             }
 
-            if series.upcoming.count > Self.datesShown {
-                Button(showAllDates ? "Show fewer" : "Show all \(series.upcoming.count) dates") {
+            if let actionError {
+                Text(actionError)
+                    .font(HeliTypography.caption(12))
+                    .foregroundColor(HeliColors.clayText)
+            }
+
+            if slots.count > Self.datesShown {
+                Button(showAllDates ? "Show fewer" : "Show all \(slots.count) dates") {
                     showAllDates.toggle()
                 }
                 .font(HeliTypography.actionButton(13))
@@ -220,21 +254,77 @@ struct PlanRecurringSeriesView: View {
         .accessibilityHint("Opens this date on its own")
     }
 
+    private func skippedRow(_ day: String, series: RecurringSeries) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(RecurringFormat.day(day))
+                    .font(HeliTypography.cardTitle(14))
+                    .foregroundColor(HeliColors.mutedGray)
+                    .strikethrough()
+                Text("Skipped")
+                    .font(HeliTypography.caption(12))
+                    .foregroundColor(HeliColors.mutedGray)
+            }
+            Spacer(minLength: 8)
+            Button("Restore") { restore(day, series: series) }
+                .font(HeliTypography.actionButton(13))
+                .foregroundColor(HeliColors.forestGreen)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+                .accessibilityLabel("Restore \(RecurringFormat.day(day))")
+                .accessibilityHint("Puts this date back in the series")
+        }
+        .frame(minHeight: 52)
+        .accessibilityElement(children: .contain)
+    }
+
     @ViewBuilder
     private func actions(_ series: RecurringSeries) -> some View {
         switch series.source {
         case .household:
-            Button(action: { onEditSeries(series) }) {
-                Label("Edit series", systemImage: "square.and.pencil")
-                    .font(HeliTypography.actionButton(14))
-                    .foregroundColor(HeliColors.forestGreen)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(HeliColors.forestTint)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .contentShape(Rectangle())
+            let ending = endingCounts(series)
+            HStack(spacing: 10) {
+                Button(action: { onEditSeries(series) }) {
+                    Label("Edit series", systemImage: "square.and.pencil")
+                        .font(HeliTypography.actionButton(14))
+                        .foregroundColor(HeliColors.forestGreen)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(HeliColors.forestTint)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Changes every date in this series")
+
+                if ending.removed > 0 {
+                    Button(action: { confirmingEnd = true }) {
+                        Text("End series")
+                            .font(HeliTypography.actionButton(14))
+                            .foregroundColor(HeliColors.clayText)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .background(HeliColors.cardWarmWhite)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(HeliColors.sageRule, lineWidth: 0.8))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Removes every date after today and keeps the ones already past")
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityHint("Changes every date in this series")
+            .confirmationDialog(
+                ending.kept ? "End \(series.title) after today?" : "Remove \(series.title)?",
+                isPresented: $confirmingEnd,
+                titleVisibility: .visible
+            ) {
+                Button(ending.kept ? "End series" : "Remove series", role: .destructive) {
+                    store.endSeries(id: series.id, after: today)
+                    dismiss()
+                }
+            } message: {
+                Text(ending.kept
+                     ? "\(ending.removed == 1 ? "The date" : "The \(ending.removed) dates") from tomorrow on will be removed. Dates already past stay."
+                     : "None of its dates has happened yet, so the whole series will be removed.")
+            }
         case .google, .apple:
             // An edit made here would be undone by the next import, so the
             // screen says where the series can actually be changed.
@@ -243,6 +333,30 @@ struct PlanRecurringSeriesView: View {
                  : "This series repeats in \(calendarName(series)). Change its dates or time there; drivers stay set here.")
                 .font(HeliTypography.caption(12))
                 .foregroundColor(HeliColors.mutedGray)
+        }
+    }
+
+    // MARK: - Actions
+
+    /// What End series would do: how many dates go, and whether any stay.
+    private func endingCounts(_ series: RecurringSeries) -> (removed: Int, kept: Bool) {
+        let slots = store.events(inSeries: series.id).map { $0.originalOccurrenceDate ?? $0.date }
+        return (slots.filter { $0 > today }.count, slots.contains { $0 <= today })
+    }
+
+    private func restore(_ day: String, series: RecurringSeries) {
+        do {
+            guard let restored = try store.restoreSkippedDate(seriesId: series.id, originalDate: day) else {
+                actionError = "That date can no longer be restored."
+                return
+            }
+            actionError = nil
+            // The skip took it off Google Calendar; put it back there too.
+            if restored.gcal && store.isGoogleAuthenticated {
+                Task { await store.exportEventsToGoogleCalendar([restored]) }
+            }
+        } catch {
+            actionError = error.localizedDescription
         }
     }
 
