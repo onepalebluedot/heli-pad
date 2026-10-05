@@ -41,3 +41,21 @@ public struct ListItemAddition: Codable, Hashable, Sendable, Identifiable {
     }
     public var displayText: String { quantity.isEmpty ? text : "\(text) · \(quantity)" }
 }
+
+/// A list item snapshot selected for a reviewed removal. The content and
+/// placement are checked again when the user confirms the review.
+public struct ListItemRemoval: Codable, Hashable, Sendable, Identifiable {
+    public var id: String
+    public var kind: AssistantListKind
+    public var section: String
+    public var text: String
+    public var quantity: String
+    public var isCompleted: Bool
+
+    public init(id: String, kind: AssistantListKind, section: String, text: String, quantity: String = "", isCompleted: Bool = false) {
+        self.id = id; self.kind = kind; self.section = section; self.text = text
+        self.quantity = quantity; self.isCompleted = isCompleted
+    }
+
+    public var displayText: String { quantity.isEmpty ? text : "\(text) · \(quantity)" }
+}

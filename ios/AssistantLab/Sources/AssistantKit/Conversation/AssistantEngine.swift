@@ -220,12 +220,17 @@ public actor AssistantEngine {
             case .addListItems:
                 let n = receipt.createdListItemIDs?.count ?? 0
                 headline = "Added \(n) list item\(n == 1 ? "" : "s")"
+            case .removeListItems:
+                let n = receipt.removedListItemIDs?.count ?? 0
+                headline = "Removed \(n) list item\(n == 1 ? "" : "s")"
             }
             let card = ReceiptCard(
                 headline: headline,
-                detail: proposal.batch.listAdditions?.map { "\($0.kind.title) · \($0.section): \($0.displayText)" }.joined(separator: "\n") ?? proposal.ruleDescription ?? "",
+                detail: proposal.batch.listAdditions?.map { "\($0.kind.title) · \($0.section): \($0.displayText)" }.joined(separator: "\n")
+                    ?? proposal.batch.listRemovals?.map { "\($0.kind.title) · \($0.section): \($0.displayText)" }.joined(separator: "\n")
+                    ?? proposal.ruleDescription ?? "",
                 syncLabel: AssistantCopy.syncLabel(receipt.syncState),
-                externalCalendarLabel: proposal.kind == .addListItems ? nil : AssistantCopy.externalCalendarLabel(exported: receipt.exportedToExternalCalendar),
+                externalCalendarLabel: [.addListItems, .removeListItems].contains(proposal.kind) ? nil : AssistantCopy.externalCalendarLabel(exported: receipt.exportedToExternalCalendar),
                 rows: rows
             )
             return AssistantTurn(cards: [.receipt(card)])
@@ -233,7 +238,7 @@ public actor AssistantEngine {
             switch error {
             case .expired, .unknownProposal:
                 return AssistantTurn(cards: [.failure(AssistantCopy.failure(.proposalExpired))])
-            case .stale, .deleted:
+            case .stale, .staleListItems, .deleted:
                 return AssistantTurn(cards: [.failure(AssistantCopy.failure(.proposalStale))])
             case .wrongHousehold:
                 return AssistantTurn(cards: [.failure(AssistantCopy.failure(.proposalExpired))])

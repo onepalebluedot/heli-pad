@@ -11,6 +11,7 @@ public struct Proposal: Hashable, Sendable, Identifiable {
         case createEvents
         case assignTasks
         case addListItems
+        case removeListItems
     }
 
     public var id: String
@@ -108,6 +109,8 @@ public struct ProposalCard: Hashable, Sendable, Codable {
     /// actually be saved, not an abbreviation of it.
     public var assumptions: [String]
     public var listItems: [String]?
+    public var listOmittedCount: Int
+    public var isDestructiveListChange: Bool
     public var expiresAt: Date
 
     public init(
@@ -121,7 +124,9 @@ public struct ProposalCard: Hashable, Sendable, Codable {
         destinationNote: String,
         assumptions: [String] = [],
         expiresAt: Date,
-        listItems: [String]? = nil
+        listItems: [String]? = nil,
+        listOmittedCount: Int = 0,
+        isDestructiveListChange: Bool = false
     ) {
         self.proposalID = proposalID
         self.headline = headline
@@ -134,5 +139,7 @@ public struct ProposalCard: Hashable, Sendable, Codable {
         self.assumptions = assumptions
         self.expiresAt = expiresAt
         self.listItems = listItems
+        self.listOmittedCount = listOmittedCount
+        self.isDestructiveListChange = isDestructiveListChange
     }
 }

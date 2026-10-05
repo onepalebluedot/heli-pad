@@ -194,12 +194,13 @@ public struct AssistantPlace: Identifiable, Codable, Hashable, Sendable {
 
 // MARK: - Session
 
-/// Server-derived identity. Everything the tools can reach is scoped by this,
-/// never by an id the model supplies. The local caregiver picker in the app is
-/// not authentication and must not produce one of these on its own.
+/// Household scope and the currently selected local caregiver preference.
+/// Everything tools can reach is scoped by the household; profile selection
+/// only helps interpret first-person wording and is not authentication.
 public struct AssistantSession: Codable, Hashable, Sendable {
     public var householdID: String
     public var userID: String
+    public var activeProfileName: String?
     /// IANA identifier, e.g. "America/New_York".
     public var timeZoneIdentifier: String
     /// "YYYY-MM-DD" in the household timezone. Passed to the model explicitly
@@ -212,12 +213,14 @@ public struct AssistantSession: Codable, Hashable, Sendable {
     public init(
         householdID: String,
         userID: String,
+        activeProfileName: String? = nil,
         timeZoneIdentifier: String,
         today: String,
         displayedWeekStart: String
     ) {
         self.householdID = householdID
         self.userID = userID
+        self.activeProfileName = activeProfileName
         self.timeZoneIdentifier = timeZoneIdentifier
         self.today = today
         self.displayedWeekStart = displayedWeekStart

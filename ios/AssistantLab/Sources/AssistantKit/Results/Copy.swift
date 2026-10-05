@@ -120,6 +120,7 @@ public enum AssistantCopy {
 
     public static let capabilities = [
         "Read To-do and Grocery lists, or prepare items to add",
+        "Clear list items with a review before removal",
         "Find events in a date range",
         "Create a recurring activity for review",
         "Assign a caregiver to events for review",
@@ -185,7 +186,7 @@ public enum AssistantCopy {
         case .proposalExpired:
             return FailureCard(reason: reason, text: "This review is too old to apply. Ask again and I'll rebuild it against the current schedule.", canRetry: false)
         case .proposalStale:
-            return FailureCard(reason: reason, text: "These events changed since the review was built, so I didn't overwrite the newer version. Ask again for a fresh review.", canRetry: false)
+            return FailureCard(reason: reason, text: "These items or events changed since the review was built, so I left the newer version alone. Ask again for a fresh review.", canRetry: false)
         case .saveFailed:
             return FailureCard(reason: reason, text: "The save didn't complete. Nothing was applied \u{2014} you can try again.", canRetry: true)
         }

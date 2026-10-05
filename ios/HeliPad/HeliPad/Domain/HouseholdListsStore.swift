@@ -567,6 +567,30 @@ public final class HouseholdListsStore: ObservableObject {
         persistUndo()
     }
 
+    /// Removes one confirmed batch as a single undo step. The caller resolves
+    /// the exact ids before calling, so an unrelated row added afterward stays.
+    @discardableResult
+    public func deleteItems(ids: [String]) -> [String] {
+        let wanted = Set(ids)
+        let targeted = archive.items.filter { wanted.contains($0.id) }
+        guard !targeted.isEmpty else { return [] }
+        let removedIDs = Set(targeted.map(\.id))
+        let steps = archive.subtasks.filter { removedIDs.contains($0.itemID) }
+        let now = stamp()
+        let removed = mutate { archive in
+            for item in targeted {
+                guard archive.items.contains(where: { $0.id == item.id }) else { continue }
+                archive.recordDeletion(id: item.id, kind: .item, stamp: now)
+            }
+            archive.applyDeletions()
+        }
+        guard removed else { return [] }
+        let label = targeted.count == 1 ? "Removed \(targeted[0].text)" : "Removed \(targeted.count) items"
+        pendingUndo = ListUndoBatch(label: label, items: targeted, subtasks: steps)
+        persistUndo()
+        return targeted.map(\.id)
+    }
+
     /// Clears exactly the rows that are checked off now. A row another phone
     /// reopens, or adds, while this is in flight is left alone.
     public func clearCompleted(listID: String) {

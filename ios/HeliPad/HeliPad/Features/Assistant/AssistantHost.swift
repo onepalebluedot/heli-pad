@@ -142,6 +142,7 @@ public final class AssistantHost: ObservableObject {
         return AssistantSession(
             householdID: store.cloudHouseholdID,
             userID: store.currentUser,
+            activeProfileName: store.currentUser == "All" ? nil : store.currentUser,
             timeZoneIdentifier: zone,
             today: date.string(from: Date()),
             displayedWeekStart: store.weekStart

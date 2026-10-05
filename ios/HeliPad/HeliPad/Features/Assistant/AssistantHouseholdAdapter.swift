@@ -127,7 +127,8 @@ public final class AssistantHouseholdAdapter: HouseholdQueryPort, HouseholdComma
             }
             if let additions = batch.listAdditions, !additions.isEmpty {
                 try validateListSession(session)
-                guard batch.creates.isEmpty, batch.reassignments.isEmpty else {
+                guard batch.creates.isEmpty, batch.reassignments.isEmpty,
+                      (batch.listRemovals ?? []).isEmpty else {
                     throw MutationError.notPermitted(reason: "List and calendar changes need separate reviews.")
                 }
                 let drafts = try additions.map { addition -> ListItemDraft in
@@ -147,6 +148,45 @@ public final class AssistantHouseholdAdapter: HouseholdQueryPort, HouseholdComma
                 return MutationReceipt(createdEventIDs: [], updatedEventIDs: [],
                                        syncState: store.lists.syncState == .onDevice ? .savedOnDeviceOnly : .savedLocallySyncPending,
                                        createdListItemIDs: ids)
+            }
+            if let removals = batch.listRemovals, !removals.isEmpty {
+                try validateListSession(session)
+                guard batch.creates.isEmpty, batch.reassignments.isEmpty,
+                      (batch.listAdditions ?? []).isEmpty,
+                      Set(removals.map(\.kind)).count == 1,
+                      Set(removals.map(\.id)).count == removals.count else {
+                    throw MutationError.notPermitted(reason: "List and calendar changes need separate reviews.")
+                }
+                let lists = Dictionary(uniqueKeysWithValues: ListKind.allCases.compactMap { kind in
+                    store.lists.defaultList(kind).map { (kind, $0) }
+                })
+                var stale: [String] = []
+                for removal in removals {
+                    guard let kind = ListKind(rawValue: removal.kind.rawValue),
+                          let list = lists[kind],
+                          let current = store.lists.item(removal.id),
+                          current.listID == list.id,
+                          let group = store.lists.groups(of: list.id).first(where: { $0.id == current.groupID }) else {
+                        stale.append(removal.id)
+                        continue
+                    }
+                    guard current.text == removal.text,
+                          current.quantity == removal.quantity,
+                          current.isCompleted == removal.isCompleted,
+                          group.name == removal.section else {
+                        stale.append(removal.id)
+                        continue
+                    }
+                }
+                if !stale.isEmpty { throw MutationError.staleListItems(itemIDs: stale.sorted()) }
+                let ids = store.lists.deleteItems(ids: removals.map(\.id))
+                guard ids.count == removals.count else {
+                    throw MutationError.staleListItems(itemIDs: Set(removals.map(\.id)).subtracting(ids).sorted())
+                }
+                Task { await store.lists.sync() }
+                return MutationReceipt(createdEventIDs: [], updatedEventIDs: [],
+                                       syncState: store.lists.syncState == .onDevice ? .savedOnDeviceOnly : .savedLocallySyncPending,
+                                       removedListItemIDs: ids)
             }
             var created: [String] = []
 

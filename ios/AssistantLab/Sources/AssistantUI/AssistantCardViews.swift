@@ -417,7 +417,10 @@ struct ProposalCardView: View {
         HeliCard {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 7) {
-                    Eyebrow(text: "Review \u{00B7} nothing saved yet", color: HeliColors.sunOchre)
+                    Eyebrow(
+                        text: card.isDestructiveListChange ? "Review \u{00B7} nothing removed yet" : "Review \u{00B7} nothing saved yet",
+                        color: card.isDestructiveListChange ? HeliColors.warningText : HeliColors.sunOchre
+                    )
                     Text(card.headline)
                         .font(HeliTypography.serifTitle(20, weight: .medium))
                         .foregroundStyle(HeliColors.forestGreen)
@@ -445,7 +448,13 @@ struct ProposalCardView: View {
                 if let items = card.listItems {
                     VStack(alignment: .leading, spacing: 10) {
                         ForEach(Array(items.enumerated()), id: \.offset) { _, text in
-                            Label(text, systemImage: "circle").font(.body)
+                            Label(text, systemImage: card.isDestructiveListChange ? "minus.circle" : "circle")
+                                .font(.body)
+                        }
+                        if card.listOmittedCount > 0 {
+                            Text("and \(card.listOmittedCount) more")
+                                .font(HeliTypography.caption(11))
+                                .foregroundStyle(HeliColors.mutedGray)
                         }
                     }
                     .foregroundStyle(HeliColors.greenInk)
@@ -550,8 +559,13 @@ struct ProposalCardView: View {
                     .frame(height: 0.8)
 
                 HStack(spacing: 10) {
-                    Button("Confirm") { onConfirm?() }
-                        .buttonStyle(HeliPrimaryButton())
+                    if card.isDestructiveListChange {
+                        Button("Remove items") { onConfirm?() }
+                            .buttonStyle(HeliDestructiveButton())
+                    } else {
+                        Button("Confirm") { onConfirm?() }
+                            .buttonStyle(HeliPrimaryButton())
+                    }
                     Button("Cancel") { onCancel?() }
                         .buttonStyle(HeliSecondaryButton())
                 }
@@ -743,6 +757,20 @@ struct HeliSecondaryButton: ButtonStyle {
             .overlay(
                 Capsule(style: .continuous)
                     .stroke(HeliColors.sageRule, lineWidth: 1)
+            )
+    }
+}
+
+struct HeliDestructiveButton: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(HeliTypography.buttonLabel())
+            .foregroundStyle(HeliColors.cardWarmWhite)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 11)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(HeliColors.warningText.opacity(configuration.isPressed ? 0.82 : 1))
             )
     }
 }

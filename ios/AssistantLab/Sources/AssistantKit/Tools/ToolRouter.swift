@@ -57,12 +57,16 @@ public struct ToolRouter: Sendable {
             return try await previewAssign(eventIDs, ownerID, session)
         case .getScheduleTrends(let range, let personIDs):
             return try await trends(range, personIDs, session)
+        case .getCurrentProfileTrends(let range):
+            return try await trends(range, [], session, useCurrentProfile: true)
         case .getAppHelp(let topic):
             return help(topic)
         case .readHouseholdLists(let kind, let includeCompleted):
             return try await readLists(kind, includeCompleted: includeCompleted, session)
         case .previewAddListItems(let kind, let section, let items):
             return try await previewListAdditions(kind, section: section, items: items, session)
+        case .previewRemoveListItems(let kind, let scope, let itemIDs):
+            return try await previewListRemovals(kind, scope: scope, itemIDs: itemIDs, session)
         }
     }
 
@@ -82,8 +86,8 @@ public struct ToolRouter: Sendable {
             payload.append([
                 "kind": list.kind.rawValue, "sections": list.sections.map { UntrustedText($0).forModel(limit: 60) },
                 "sync_status": list.syncLabel, "total_items": items.count,
-                "items": items.prefix(Self.modelRowCap).map {
-                    ["text": UntrustedText($0.text).forModel(limit: 200), "quantity": UntrustedText($0.quantity).forModel(limit: 80),
+                    "items": items.prefix(Self.modelRowCap).map {
+                    ["id": $0.id, "text": UntrustedText($0.text).forModel(limit: 200), "quantity": UntrustedText($0.quantity).forModel(limit: 80),
                      "section": UntrustedText($0.section).forModel(limit: 60), "completed": $0.isCompleted] as [String: Any]
                 }
             ])
@@ -119,9 +123,88 @@ public struct ToolRouter: Sendable {
                            cards: [.proposal(card)], proposal: proposal, slots: .init(count: additions.count))
     }
 
+    private func previewListRemovals(
+        _ kind: AssistantListKind,
+        scope: ListRemovalScope,
+        itemIDs: [String],
+        _ session: AssistantSession
+    ) async throws -> ToolOutcome {
+        guard let list = try await query.householdLists(in: session).first(where: { $0.kind == kind }) else {
+            throw ToolRejection.invalidValue(tool: ToolName.previewRemoveListItems.rawValue, field: "kind", detail: "list unavailable")
+        }
+
+        let targets: [AssistantListItem]
+        switch scope {
+        case .all:
+            targets = list.items
+        case .completed:
+            targets = list.items.filter(\.isCompleted)
+        case .selected:
+            let wanted = Set(itemIDs)
+            let matches = list.items.filter { wanted.contains($0.id) }
+            guard matches.count == wanted.count else {
+                throw ToolRejection.invalidValue(tool: ToolName.previewRemoveListItems.rawValue, field: "item_ids", detail: "some ids are not on this list; read the list again")
+            }
+            targets = matches
+        }
+
+        let visible = targets.prefix(Self.displayRowCap).map { item in
+            item.quantity.isEmpty ? item.text : "\(item.text) · \(item.quantity)"
+        }
+        if targets.isEmpty {
+            var displayList = list
+            displayList.items = Array(list.items.prefix(Self.displayRowCap))
+            return ToolOutcome(
+                modelPayload: try json(["list": kind.rawValue, "removed_count": 0, "saved": false]),
+                cards: [.householdList(HouseholdListCard(list: displayList, omittedCount: max(0, list.items.count - displayList.items.count)))],
+                slots: .init(count: 0)
+            )
+        }
+
+        let removals = targets.map {
+            ListItemRemoval(id: $0.id, kind: kind, section: $0.section, text: $0.text,
+                            quantity: $0.quantity, isCompleted: $0.isCompleted)
+        }
+        let proposal = Proposal(
+            kind: .removeListItems,
+            householdID: session.householdID,
+            createdAt: now(),
+            expiresAt: now().addingTimeInterval(ProposalStore.lifetime),
+            timeZoneIdentifier: session.timeZoneIdentifier,
+            batch: MutationBatch(listRemovals: removals),
+            affectedCount: removals.count
+        )
+        let scopeLabel = scope == .completed ? "completed " : "all "
+        let card = ProposalCard(
+            proposalID: proposal.id,
+            headline: "Clear \(scopeLabel)\(kind.title) items",
+            ruleDescription: nil,
+            affectedCount: removals.count,
+            periodLabel: "\(kind.title) list",
+            rows: [],
+            conflicts: [],
+            destinationNote: "Nothing is removed until you confirm. The list's Undo can restore the removal.",
+            expiresAt: proposal.expiresAt,
+            listItems: Array(visible),
+            listOmittedCount: max(0, removals.count - visible.count),
+            isDestructiveListChange: true
+        )
+        return ToolOutcome(
+            modelPayload: try json(["proposal_id": proposal.id, "list": kind.rawValue,
+                                    "items": removals.count, "saved": false,
+                                    "awaiting": "user_confirmation"]),
+            cards: [.proposal(card)],
+            proposal: proposal,
+            slots: .init(count: removals.count)
+        )
+    }
+
     private func findEvents(_ args: FindEventsArgs, _ session: AssistantSession) async throws -> ToolOutcome {
         let people = try await query.people(in: session)
-        let names = try resolveNames(args.personIDs, in: people)
+        var names = try resolveNames(args.personIDs, in: people)
+        if args.useCurrentProfile {
+            names.insert(try currentProfile(in: people, session: session).name)
+        }
         let all = try await query.events(in: session)
 
         let matches = all.filter { event in
@@ -214,9 +297,10 @@ public struct ToolRouter: Sendable {
         )
     }
 
-    private func trends(_ range: DateRange, _ personIDs: [String], _ session: AssistantSession) async throws -> ToolOutcome {
+    private func trends(_ range: DateRange, _ personIDs: [String], _ session: AssistantSession, useCurrentProfile: Bool = false) async throws -> ToolOutcome {
         let people = try await query.people(in: session)
-        let names = try resolveNames(personIDs, in: people)
+        var names = try resolveNames(personIDs, in: people)
+        if useCurrentProfile { names.insert(try currentProfile(in: people, session: session).name) }
         let all = try await query.events(in: session)
         let scoped = names.isEmpty ? all : all.filter { !Set($0.kids + [$0.owner]).isDisjoint(with: names) }
 
@@ -262,7 +346,9 @@ public struct ToolRouter: Sendable {
 
         let childNames = try resolveNames(args.childIDs, in: people, requiring: .child)
         var ownerName = "TBD"
-        if let ownerID = args.ownerID {
+        if args.useCurrentProfile {
+            ownerName = try currentProfile(in: people, session: session).name
+        } else if let ownerID = args.ownerID {
             guard let person = people.first(where: { $0.id == ownerID }) else {
                 throw ToolRejection.unknownPersonID(ownerID)
             }
@@ -392,6 +478,18 @@ public struct ToolRouter: Sendable {
             proposal: proposal,
             slots: .init(count: proposed.count, periodLabel: period.label, conflictCount: conflicts.count)
         )
+    }
+
+    private func currentProfile(in people: [AssistantPerson], session: AssistantSession) throws -> AssistantPerson {
+        guard let name = session.activeProfileName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !name.isEmpty else {
+            throw ToolRejection.invalidValue(tool: "current_profile", field: "profile", detail: "select a caregiver profile or name the caregiver")
+        }
+        let matches = people.filter { $0.role == .caregiver && $0.name.caseInsensitiveCompare(name) == .orderedSame }
+        guard matches.count == 1, let profile = matches.first else {
+            throw ToolRejection.invalidValue(tool: "current_profile", field: "profile", detail: "the selected profile is not a unique household caregiver")
+        }
+        return profile
     }
 
     private func previewAssign(_ eventIDs: [String], _ ownerID: String, _ session: AssistantSession) async throws -> ToolOutcome {

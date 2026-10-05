@@ -67,6 +67,7 @@ public protocol HouseholdCommandPort: AnyObject, Sendable {
 public struct MutationBatch: Codable, Hashable, Sendable {
     public var creates: [AssistantEvent]
     public var listAdditions: [ListItemAddition]?
+    public var listRemovals: [ListItemRemoval]?
     /// Event id -> new owner display name, paired with the revision the
     /// proposal was computed against.
     public var reassignments: [Reassignment]
@@ -83,13 +84,14 @@ public struct MutationBatch: Codable, Hashable, Sendable {
         }
     }
 
-    public init(creates: [AssistantEvent] = [], reassignments: [Reassignment] = [], listAdditions: [ListItemAddition]? = nil) {
+    public init(creates: [AssistantEvent] = [], reassignments: [Reassignment] = [], listAdditions: [ListItemAddition]? = nil, listRemovals: [ListItemRemoval]? = nil) {
         self.creates = creates
         self.reassignments = reassignments
         self.listAdditions = listAdditions
+        self.listRemovals = listRemovals
     }
 
-    public var isEmpty: Bool { creates.isEmpty && reassignments.isEmpty && (listAdditions ?? []).isEmpty }
+    public var isEmpty: Bool { creates.isEmpty && reassignments.isEmpty && (listAdditions ?? []).isEmpty && (listRemovals ?? []).isEmpty }
 }
 
 /// What actually happened, so the UI can tell "saved on this device / sync
@@ -103,6 +105,7 @@ public struct MutationReceipt: Codable, Hashable, Sendable {
 
     public var createdEventIDs: [String]
     public var createdListItemIDs: [String]?
+    public var removedListItemIDs: [String]?
     public var updatedEventIDs: [String]
     public var syncState: SyncState
     /// True only when an authorised external calendar export succeeded. App-local
@@ -114,19 +117,22 @@ public struct MutationReceipt: Codable, Hashable, Sendable {
         updatedEventIDs: [String],
         syncState: SyncState,
         exportedToExternalCalendar: Bool = false,
-        createdListItemIDs: [String]? = nil
+        createdListItemIDs: [String]? = nil,
+        removedListItemIDs: [String]? = nil
     ) {
         self.createdEventIDs = createdEventIDs
         self.updatedEventIDs = updatedEventIDs
         self.syncState = syncState
         self.exportedToExternalCalendar = exportedToExternalCalendar
         self.createdListItemIDs = createdListItemIDs
+        self.removedListItemIDs = removedListItemIDs
     }
 }
 
 public enum MutationError: Error, Equatable, Sendable {
     /// A record changed underneath the proposal. Carries the ids that moved.
     case staleRevision(eventIDs: [String])
+    case staleListItems(itemIDs: [String])
     /// The record is gone. The review has to be rebuilt, not replayed.
     case recordDeleted(eventIDs: [String])
     case notPermitted(reason: String)

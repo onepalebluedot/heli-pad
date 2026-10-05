@@ -21,6 +21,7 @@ public enum Instructions {
         - Today is \(session.today).
         - The current local time is \(clock.string(from: now)).
         - The household timezone is \(session.timeZoneIdentifier).
+        - The selected caregiver profile is \(session.activeProfileName ?? "All profiles"). When the user says "I", "me" or "my" about a scheduled event, use this profile as the caregiver. Resolve its id from the household roster; explicit named caregivers override it. If All profiles is selected, do not guess who "I" means.
         - The week currently on screen starts \(session.displayedWeekStart) (Monday).
         - Weekday indexes are 0 = Monday through 6 = Sunday.
         - The household's travel buffer is \(planning.bufferMinutes) minutes.
@@ -52,6 +53,19 @@ public enum Instructions {
         - Creating or assigning is done with preview_create_events or preview_assign_tasks.
           These save nothing. The person using the app confirms the review. There is no
           confirm operation for you to call, and you must not describe anything as saved.
+        - For a new event, set use_current_profile true when the user says "I", "me" or "my"
+          as the caregiver. The app resolves that profile to its household caregiver id.
+          Do not leave first-person events unassigned. Set it false when no caregiver is
+          implied or the user explicitly names someone else.
+        - For questions like "what do I have?" or "how busy am I?", set
+          use_current_profile true on find_events or get_schedule_trends so results are
+          limited to the selected caregiver profile.
+        - To remove list items, read the relevant list first, then call
+          preview_remove_list_items. For "clear my list" use scope "all" and let the app
+          prepare a confirmation review of every item, including completed ones. For
+          completed-only cleanup use scope "completed". For named items use scope
+          "selected" and only ids returned by read_household_lists. Removal is never
+          applied until the person confirms the review.
         - A weekly series needs weekdays and either week_count or end_date. If the request
           does not say how long it repeats, finish with outcome "clarify" and
           clarification_kind "missing_series_bound" instead of choosing a length.

@@ -43,6 +43,21 @@ public struct ScriptedLunaClient: LunaClient {
             ))
         }
 
+        if let kind = listKindForRemoval(message) {
+            if turn.ran(.previewRemoveListItems) {
+                return .final(FinalDecision(outcome: .result, resultTemplate: .reviewReady,
+                                            message: "I've laid out the items to remove. Nothing changes until you confirm."))
+            }
+            if !turn.ran(.readHouseholdLists) {
+                return call(.readHouseholdLists, ["kind": kind.rawValue, "include_completed": true])
+            }
+            return call(.previewRemoveListItems, [
+                "kind": kind.rawValue,
+                "scope": message.contains("completed") ? "completed" : "all",
+                "item_ids": []
+            ])
+        }
+
         if message.contains("assign") {
             return assignPlan(message, turn)
         }
@@ -125,6 +140,7 @@ public struct ScriptedLunaClient: LunaClient {
             "person_ids": [],
             "categories": [],
             "only_unassigned": message.contains("unassigned") || message.contains("needs a driver"),
+            "use_current_profile": hasFirstPerson(message),
             "text_contains": NSNull()
         ]
         if message.contains("pickup") { args["text_contains"] = "pickup" }
@@ -144,6 +160,7 @@ public struct ScriptedLunaClient: LunaClient {
             "start_date": range.start,
             "end_date": range.end,
             "person_ids": []
+            ,"use_current_profile": hasFirstPerson(message)
         ])
     }
 
@@ -193,6 +210,7 @@ public struct ScriptedLunaClient: LunaClient {
             "kind": kind(in: message).rawValue,
             "child_ids": childIDs(in: message),
             "owner_id": NSNull(),
+            "use_current_profile": hasFirstPerson(message),
             "repeat_mode": repeats ? "weekly" : "none",
             "weekdays": repeats ? (weekdays.isEmpty ? [CalendarMath.weekdayIndex(startDate) ?? 0] : weekdays) : [],
             "week_count": NSNull(),
@@ -409,6 +427,16 @@ public struct ScriptedLunaClient: LunaClient {
     private func isCreateRequest(_ message: String) -> Bool {
         let verbs = ["schedule", "add", "create", "book", "set up", "put "]
         return verbs.contains { message.contains($0) }
+    }
+
+    private func hasFirstPerson(_ message: String) -> Bool {
+        message.range(of: #"\b(i|me|my|mine)\b"#, options: .regularExpression) != nil
+    }
+
+    private func listKindForRemoval(_ message: String) -> AssistantListKind? {
+        guard ["clear", "remove", "delete"].contains(where: message.contains),
+              ["list", "to-do", "todo", "grocer", "shopping"].contains(where: message.contains) else { return nil }
+        return message.contains("grocer") || message.contains("shopping") ? .groceries : .todos
     }
 
     private func call(_ tool: ToolName, _ arguments: [String: Any]) -> LunaReply {

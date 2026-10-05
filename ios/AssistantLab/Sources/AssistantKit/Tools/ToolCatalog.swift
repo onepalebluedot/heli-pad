@@ -14,13 +14,14 @@ public enum ToolName: String, CaseIterable, Codable, Sendable {
     case getAppHelp = "get_app_help"
     case readHouseholdLists = "read_household_lists"
     case previewAddListItems = "preview_add_list_items"
+    case previewRemoveListItems = "preview_remove_list_items"
 
-    /// Operations that only read. Nothing in this catalog writes: the two
-    /// `preview_*` operations build a proposal the user must confirm, and
-    /// confirmation is a UI action with no tool behind it (A04).
+    /// Operations that only read. Every `preview_*` operation builds a
+    /// proposal the user must confirm, and confirmation is a UI action with no
+    /// tool behind it (A04).
     public var isReadOnly: Bool {
         switch self {
-        case .previewCreateEvents, .previewAssignTasks, .previewAddListItems: return false
+        case .previewCreateEvents, .previewAssignTasks, .previewAddListItems, .previewRemoveListItems: return false
         default: return true
         }
     }
@@ -47,7 +48,7 @@ public enum ToolCatalog {
     public static let all: [ToolDefinition] = [
         findEvents, getEvent, listHouseholdPeople, listSavedPlaces,
         previewCreateEvents, previewAssignTasks, getScheduleTrends, getAppHelp,
-        readHouseholdLists, previewAddListItems
+        readHouseholdLists, previewAddListItems, previewRemoveListItems
     ]
 
     public static func definition(for name: ToolName) -> ToolDefinition {
@@ -84,6 +85,16 @@ public enum ToolCatalog {
         ])
     )
 
+    static let previewRemoveListItems = ToolDefinition(
+        name: .previewRemoveListItems,
+        description: "Prepare removal of household list items for confirmation. Read the list first. Use scope all to clear every item, completed for checked-off items only, or selected for specific item ids from the read result. Nothing is removed until the user confirms.",
+        parameters: .object(description: "List removal review", properties: [
+            ("kind", .stringEnum(description: "To-do or grocery list.", values: AssistantListKind.allCases.map(\.rawValue))),
+            ("scope", .stringEnum(description: "all clears every item, completed removes checked-off items only, selected removes only the provided ids.", values: ["all", "completed", "selected"])),
+            ("item_ids", .array(description: "Required for selected scope: ids returned by read_household_lists. Empty for all or completed.", items: .string(description: "List item id"), maxItems: 60))
+        ])
+    )
+
     static let findEvents = ToolDefinition(
         name: .findEvents,
         description: "Find scheduled events in this household inside an explicit date range. Returns app data; it does not create or change anything.",
@@ -93,6 +104,7 @@ public enum ToolCatalog {
             ("person_ids", .array(description: "Restrict to events involving these household person ids. Empty array means no person filter. Ids must come from list_household_people.", items: .string(description: "Household person id"), maxItems: 20)),
             ("categories", .array(description: "Restrict to these activity categories. Empty array means all.", items: .stringEnum(description: "Activity category", values: EventKind.categories), maxItems: 7)),
             ("only_unassigned", .boolean(description: "True to return only events with no caregiver assigned.")),
+            ("use_current_profile", .boolean(description: "True when the user asks about events involving themself; the app resolves the currently selected caregiver profile.")),
             ("text_contains", .nullable(.string(description: "Optional case-insensitive substring of the event title. Null for no title filter.")))
         ])
     )
@@ -135,6 +147,7 @@ public enum ToolCatalog {
             ("kind", .stringEnum(description: "Activity kind. This sets both the category the event is filed under and its default duration, so pick the closest fit rather than defaulting to 'other'. dropoff and pickup are school runs; practice is any sport or physical activity, including swimming; lesson is music, dance, art or tutoring; clinic is medical or dental; play is playdates and parties; dinner, cook and home are time at home; drive is a plain journey; other only when none of these fit.", values: EventKind.allCases.map(\.rawValue))),
             ("child_ids", .array(description: "Household person ids of the children involved. Empty if none were named.", items: .string(description: "Child person id"), maxItems: 10)),
             ("owner_id", .nullable(.string(description: "Caregiver person id to assign, or null to leave unassigned for later."))),
+            ("use_current_profile", .boolean(description: "True when the user uses I, me or my as the caregiver; the app resolves the active profile and assigns it. Explicitly named caregivers take precedence.")),
             ("repeat_mode", .stringEnum(description: "'none' for a single event, 'weekly' for a finite weekly series.", values: ["none", "weekly"])),
             ("weekdays", .array(description: "Weekly series only: days of the week, 0 = Monday through 6 = Sunday. Empty for repeat_mode 'none'.", items: .integer(description: "Weekday index", minimum: 0, maximum: 6), maxItems: 7)),
             ("week_count", .nullable(.integer(description: "Weekly series bounded by a number of calendar weeks, 1 to 52. Null when using end_date.", minimum: 1, maximum: 52))),
@@ -157,7 +170,8 @@ public enum ToolCatalog {
         parameters: .object(description: "Trend request", properties: [
             ("start_date", .string(description: "First day of the current period, YYYY-MM-DD.")),
             ("end_date", .string(description: "Last day of the current period, inclusive, YYYY-MM-DD.")),
-            ("person_ids", .array(description: "Restrict to these household person ids. Empty array for the whole household.", items: .string(description: "Household person id"), maxItems: 20))
+            ("person_ids", .array(description: "Restrict to these household person ids. Empty array for the whole household.", items: .string(description: "Household person id"), maxItems: 20)),
+            ("use_current_profile", .boolean(description: "True when the user asks about their own schedule; the app resolves the currently selected caregiver profile."))
         ])
     )
 

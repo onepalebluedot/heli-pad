@@ -7,6 +7,7 @@ public enum ConfirmationError: Error, Equatable, Sendable {
     /// Records moved since the review was built; rebuild it rather than
     /// overwriting newer work.
     case stale(eventIDs: [String])
+    case staleListItems(itemIDs: [String])
     case deleted(eventIDs: [String])
     case saveFailed(reason: String)
 }
@@ -220,6 +221,9 @@ public actor ProposalStore {
             case .staleRevision(let ids):
                 pending.removeValue(forKey: id)
                 throw ConfirmationError.stale(eventIDs: ids)
+            case .staleListItems(let ids):
+                pending.removeValue(forKey: id)
+                throw ConfirmationError.staleListItems(itemIDs: ids)
             case .recordDeleted(let ids):
                 pending.removeValue(forKey: id)
                 throw ConfirmationError.deleted(eventIDs: ids)

@@ -81,6 +81,8 @@ public final class MockHousehold: HouseholdQueryPort, HouseholdCommandPort, @unc
         for addition in batch.listAdditions ?? [] where !currentItems.contains(where: { $0.id == addition.id }) {
             currentItems.append(addition)
         }
+        let removedIDs = Set((batch.listRemovals ?? []).map(\.id))
+        currentItems.removeAll { removedIDs.contains($0.id) }
         listItems[session.householdID] = currentItems
 
         var current = events[session.householdID] ?? []
@@ -132,7 +134,8 @@ public final class MockHousehold: HouseholdQueryPort, HouseholdCommandPort, @unc
             // Nothing here talks to Google or Apple Calendar, and saying
             // otherwise is exactly the failure A04 warns about.
             exportedToExternalCalendar: false,
-            createdListItemIDs: batch.listAdditions?.map(\.id)
+            createdListItemIDs: batch.listAdditions?.map(\.id),
+            removedListItemIDs: Array(removedIDs)
         )
         }
     }

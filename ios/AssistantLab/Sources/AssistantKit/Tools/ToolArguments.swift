@@ -56,9 +56,11 @@ public enum ValidatedToolCall: Sendable {
     case previewCreateEvents(CreateEventsArgs)
     case previewAssignTasks(eventIDs: [String], ownerID: String)
     case getScheduleTrends(range: DateRange, personIDs: [String])
+    case getCurrentProfileTrends(range: DateRange)
     case getAppHelp(HelpTopic)
     case readHouseholdLists(kind: AssistantListKind?, includeCompleted: Bool)
     case previewAddListItems(kind: AssistantListKind, section: String?, items: [ListItemInput])
+    case previewRemoveListItems(kind: AssistantListKind, scope: ListRemovalScope, itemIDs: [String])
 
     public var name: ToolName {
         switch self {
@@ -68,10 +70,11 @@ public enum ValidatedToolCall: Sendable {
         case .listSavedPlaces: return .listSavedPlaces
         case .previewCreateEvents: return .previewCreateEvents
         case .previewAssignTasks: return .previewAssignTasks
-        case .getScheduleTrends: return .getScheduleTrends
+        case .getScheduleTrends, .getCurrentProfileTrends: return .getScheduleTrends
         case .getAppHelp: return .getAppHelp
         case .readHouseholdLists: return .readHouseholdLists
         case .previewAddListItems: return .previewAddListItems
+        case .previewRemoveListItems: return .previewRemoveListItems
         }
     }
 }
@@ -86,6 +89,7 @@ public struct FindEventsArgs: Hashable, Sendable {
     public var personIDs: [String]
     public var categories: [String]
     public var onlyUnassigned: Bool
+    public var useCurrentProfile: Bool = false
     public var textContains: String?
 }
 
@@ -97,6 +101,7 @@ public struct CreateEventsArgs: Hashable, Sendable {
     public var kind: EventKind
     public var childIDs: [String]
     public var ownerID: String?
+    public var useCurrentProfile: Bool = false
     public var rule: RecurrenceRule
     /// True when the request carried no end time and the app supplied its
     /// default for this kind. Surfaced on the review so the assumption is
@@ -107,6 +112,10 @@ public struct CreateEventsArgs: Hashable, Sendable {
     public var context: String = ""
     /// True when no location was supplied.
     public var locationWasAssumed: Bool = false
+}
+
+public enum ListRemovalScope: String, Hashable, Sendable {
+    case all, completed, selected
 }
 
 /// Shape-level validation: names, fields, formats, enums and bounds.
@@ -135,6 +144,7 @@ public enum ToolArgumentParser {
                 personIDs: try stringArray(tool: tool, object: object, key: "person_ids", max: 20),
                 categories: try categories(tool: tool, object: object),
                 onlyUnassigned: try bool(tool: tool, object: object, key: "only_unassigned"),
+                useCurrentProfile: try boolOrFalse(tool: tool, object: object, key: "use_current_profile"),
                 textContains: try optionalString(tool: tool, object: object, key: "text_contains")
             ))
 
@@ -181,6 +191,24 @@ public enum ToolArgumentParser {
             }
             return .previewAddListItems(kind: kind, section: section, items: inputs)
 
+        case .previewRemoveListItems:
+            let rawKind = try nonEmptyString(tool: tool, object: object, key: "kind")
+            guard let kind = AssistantListKind(rawValue: rawKind) else {
+                throw ToolRejection.invalidValue(tool: tool.rawValue, field: "kind", detail: "expected todos or groceries")
+            }
+            let rawScope = try nonEmptyString(tool: tool, object: object, key: "scope")
+            guard let scope = ListRemovalScope(rawValue: rawScope) else {
+                throw ToolRejection.invalidValue(tool: tool.rawValue, field: "scope", detail: "expected all, completed or selected")
+            }
+            let ids = try stringArray(tool: tool, object: object, key: "item_ids", max: 60)
+            guard Set(ids).count == ids.count else {
+                throw ToolRejection.invalidValue(tool: tool.rawValue, field: "item_ids", detail: "duplicate item ids")
+            }
+            guard (scope == .selected) == !ids.isEmpty else {
+                throw ToolRejection.invalidValue(tool: tool.rawValue, field: "item_ids", detail: "selected scope needs ids; all and completed scopes do not accept ids")
+            }
+            return .previewRemoveListItems(kind: kind, scope: scope, itemIDs: ids)
+
         case .previewAssignTasks:
             let ids = try stringArray(tool: tool, object: object, key: "event_ids", max: 60)
             guard !ids.isEmpty else {
@@ -192,10 +220,11 @@ public enum ToolArgumentParser {
             )
 
         case .getScheduleTrends:
-            return .getScheduleTrends(
-                range: try range(tool: tool, object: object, startKey: "start_date", endKey: "end_date"),
-                personIDs: try stringArray(tool: tool, object: object, key: "person_ids", max: 20)
-            )
+            let range = try range(tool: tool, object: object, startKey: "start_date", endKey: "end_date")
+            if try boolOrFalse(tool: tool, object: object, key: "use_current_profile") {
+                return .getCurrentProfileTrends(range: range)
+            }
+            return .getScheduleTrends(range: range, personIDs: try stringArray(tool: tool, object: object, key: "person_ids", max: 20))
 
         case .getAppHelp:
             let raw = try nonEmptyString(tool: tool, object: object, key: "topic")
@@ -240,6 +269,11 @@ public enum ToolArgumentParser {
             throw ToolRejection.invalidValue(tool: tool.rawValue, field: key, detail: "expected true or false")
         }
         return b
+    }
+
+    private static func boolOrFalse(tool: ToolName, object: [String: Any], key: String) throws -> Bool {
+        guard object[key] != nil else { return false }
+        return try bool(tool: tool, object: object, key: key)
     }
 
     private static func nonEmptyString(tool: ToolName, object: [String: Any], key: String) throws -> String {
@@ -441,6 +475,7 @@ public enum ToolArgumentParser {
             kind: kind,
             childIDs: try stringArray(tool: tool, object: object, key: "child_ids", max: 10),
             ownerID: try optionalString(tool: tool, object: object, key: "owner_id"),
+            useCurrentProfile: try boolOrFalse(tool: tool, object: object, key: "use_current_profile"),
             rule: RecurrenceRule(mode: mode, weekdays: weekdays, bound: bound, startDate: startDate),
             durationWasAssumed: durationWasAssumed,
             dateWasAssumed: dateWasAssumed,
